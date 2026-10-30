@@ -54,7 +54,7 @@
 
 ## 持久化与完整度
 
-SQLite WAL 负责查询和事务，JSONL/JSON 导出用于复核与迁移。拟有 matches、rounds、events、snapshots、decisions、execution_attempts、round_results、wins、token_usage、reviews、memories、memory_revisions 等表。wins 外键必须关联 match_id 与 round_uid。
+SQLite WAL 负责查询和事务。已实现v2最小归档，见[最小持久化牌谱](compact-archive.md)：events仅存一份实际数据，rounds及wins引用原事件；matches仅一份最新恢复缓存，不重复保存public_events。决策、执行、token和复盘归独立records，经验归memories，不能混入权威牌谱。wins外键关联match_id、round_uid与来源事件。原先拟议的多张快照/结果表不再重复实现。
 
 每条记录增量落盘；停止、崩溃或断线也保留已经提交的事实。append-only 事件不被复盘覆盖；投影可重建，格式迁移版本化并备份本机库。
 

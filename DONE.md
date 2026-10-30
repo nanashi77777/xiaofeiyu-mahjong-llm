@@ -5,5 +5,9 @@
 | ID | 类别 | 已完成内容 | 记录 |
 | --- | --- | --- | --- |
 | DOC-001 | 资料/文档 | 完整设计稿与开发任务交付 | [完成记录](docs/development/completed/DOC-001-design-draft.md) |
+| DEV-001 | 交付 | 独立Git基线与新私有远端 | [完成记录](docs/development/completed/DEV-001-private-repository.md) |
+| DEV-002 | 实现 | 任务状态、视图生成与完成日志检查 | [完成记录](docs/development/completed/DEV-002-task-consumption.md) |
+| DEV-003 | 实现 | 本机配置、运行开关与私密日志边界 | [完成记录](docs/development/completed/DEV-003-private-runtime.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
+| DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |

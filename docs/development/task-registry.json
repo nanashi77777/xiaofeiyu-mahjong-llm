@@ -1,7 +1,7 @@
 {
   "schema_version": "development-tasks.v1",
   "design_version": "design-draft-003",
-  "as_of": "2026-10-30",
+  "as_of": "2026-10-31",
   "timezone": "Asia/Shanghai",
   "plan_status": "approved-in-development",
   "implementation_gate": {
@@ -56,7 +56,7 @@
       "kind": "delivery",
       "milestone": "M0",
       "title": "独立Git基线与新私有远端",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DOC-001",
         "DOC-002",
@@ -69,16 +69,21 @@
         "整体设计确认后初始化本目录Git，核实账号并创建独立private仓库，不复用旧远端",
         "先提交确认方案和忽略规则；检查owner/private/origin与推送，不提交本机数据"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "GitHub API owner/private and HEAD=origin/main verified"
+      ],
+      "completed_record": "docs/development/completed/DEV-001-private-repository.md",
+      "commits": [
+        "0785403bbad7724407a619e55f7b7e6163a38619"
+      ],
+      "completed_on": "2026-10-30"
     },
     {
       "id": "DEV-002",
       "kind": "development",
       "milestone": "M0",
       "title": "任务状态、视图生成与完成日志检查",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-001"
       ],
@@ -89,16 +94,19 @@
         "实现注册表校验与TODO/DONE视图生成，唯一ID、依赖DAG、记录存在与完成项不回流检查",
         "用临时任务验证消费/取消/受阻和代码落地验证中状态；开发与实战任务分离"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "pytest tests/test_tasks.py: 1 passed; registry 45 tasks consistent"
+      ],
+      "completed_record": "docs/development/completed/DEV-002-task-consumption.md",
+      "commits": [],
+      "completed_on": "2026-10-30"
     },
     {
       "id": "DEV-003",
       "kind": "development",
       "milestone": "M0",
       "title": "本机配置、运行开关与私密日志边界",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "DEV-001"
       ],
@@ -110,16 +118,20 @@
         "密钥仅本机配置、示例无真值；默认停止，提供启动/停止/急停与受限诊断",
         "配置模型none、5+20/5+10、单窗口与运行目录，日志脱敏和忽略规则可验证"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "25 pytest tests passed; settings, HTTP credential boundary, model none/store=false verified; see completion record"
+      ],
+      "completed_record": "docs/development/completed/DEV-003-private-runtime.md",
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-004",
       "kind": "development",
       "milestone": "M0",
       "title": "领域类型与契约版本",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-001"
       ],
@@ -134,14 +146,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-005",
       "kind": "development",
       "milestone": "M1",
       "title": "专用浏览器与只读WS采集",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -156,14 +169,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-006",
       "kind": "development",
       "milestone": "M1",
       "title": "当前协议版本与消息解码适配",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-005"
       ],
@@ -177,14 +192,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-007",
       "kind": "development",
       "milestone": "M1",
       "title": "规范事件与幂等状态归并",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-004",
         "DEV-006"
@@ -198,14 +215,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-008",
       "kind": "development",
       "milestone": "M1",
       "title": "小局、终场、规则与模式身份",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-007"
       ],
@@ -219,14 +237,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-009",
       "kind": "development",
       "milestone": "M1",
       "title": "断线恢复、旧窗口失效与去重",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-008",
         "DEV-010"
@@ -241,14 +260,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-010",
       "kind": "development",
       "milestone": "M1",
       "title": "增量牌谱、SQLite与中断保存",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-007",
         "DEV-008"
@@ -262,14 +283,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-011",
       "kind": "development",
       "milestone": "M2",
       "title": "服务端操作约束与完整合法候选",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-008"
       ],
@@ -282,14 +305,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-012",
       "kind": "development",
       "milestone": "M2",
       "title": "向听、进张与阶段特征",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-004",
         "DEV-011"
@@ -303,14 +327,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-013",
       "kind": "development",
       "milestone": "M2",
       "title": "役种、振听、和牌算点与规则选项",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-011",
         "DEV-012",
@@ -327,14 +352,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-014",
       "kind": "development",
       "milestone": "M2",
       "title": "动作事实投影与无推荐排序",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-011",
         "DEV-012",
@@ -352,14 +378,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-015",
       "kind": "development",
       "milestone": "M3",
       "title": "Responses渠道、取消与token计量",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -373,14 +400,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-016",
       "kind": "development",
       "milestone": "M3",
       "title": "结构化决策与具体小局打法计划",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-014",
         "DEV-015",
@@ -397,14 +426,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-017",
       "kind": "development",
       "milestone": "M3",
       "title": "决策协调、期限内纠错与失效取消",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-009",
         "DEV-010",
@@ -421,14 +451,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "implementation present; verification and completion records pending"
     },
     {
       "id": "DEV-018",
       "kind": "development",
       "milestone": "M3",
       "title": "5+20/5+10共享池与真实计时校准",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-008",
         "DEV-009"
@@ -442,14 +473,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-019",
       "kind": "development",
       "milestone": "M4",
       "title": "手牌、按钮与鸣牌组合定位",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-005",
         "DEV-004"
@@ -463,14 +496,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-020",
       "kind": "development",
       "milestone": "M4",
       "title": "真实鼠标输入与前台/急停保护",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-019",
         "DEV-003"
@@ -484,14 +518,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-021",
       "kind": "development",
       "milestone": "M4",
       "title": "复合点击事务与实际事件确认",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-017",
         "DEV-020"
@@ -505,14 +540,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "基础代码已落地，补全及验证中"
     },
     {
       "id": "DEV-022",
       "kind": "development",
       "milestone": "M5",
       "title": "战况、二十场与大牌查询投影",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-010"
       ],
@@ -525,14 +561,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-023",
       "kind": "development",
       "milestone": "M6",
       "title": "小肥鱼按需只读MCP集成",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-022",
         "DEV-026"
@@ -547,14 +585,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "implementation present; verification and completion records pending"
     },
     {
       "id": "DEV-024",
       "kind": "development",
       "milestone": "M6",
       "title": "经验与风格的独立修订库",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-010",
         "DEV-004"
@@ -570,14 +609,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-025",
       "kind": "development",
       "milestone": "M6",
       "title": "场后/中断异步复盘与证据检查",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-024",
         "DEV-015",
@@ -595,14 +636,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-026",
       "kind": "development",
       "milestone": "M6",
       "title": "相关经验召回与跨场生效",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-024",
         "DEV-025"
@@ -618,14 +661,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-027",
       "kind": "development",
       "milestone": "M7",
       "title": "本机控制面板与可观测状态",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-021",
         "DEV-022",
@@ -640,14 +685,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-028",
       "kind": "development",
       "milestone": "M8",
       "title": "回放、计时样本与隔离输入验收工具",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-021",
         "DEV-018"
@@ -664,14 +711,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-029",
       "kind": "delivery",
       "milestone": "M8",
       "title": "运行恢复、依赖来源与交付文档",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-023",
         "DEV-025",
@@ -690,7 +739,9 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "VAL-001",
@@ -930,7 +981,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "完整决策上下文的紧凑投影与引用映射",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-004",
         "DEV-014"
@@ -947,7 +998,9 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "VAL-010",
@@ -1005,7 +1058,7 @@
       "kind": "development",
       "milestone": "M2",
       "title": "役种表运行加载、按需检索与版本证据接入",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -1021,7 +1074,9 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "VAL-011",
@@ -1047,6 +1102,53 @@
       "evidence": [],
       "completed_record": null,
       "commits": []
+    },
+    {
+      "id": "DEV-032",
+      "kind": "implementation",
+      "milestone": "M4",
+      "title": "用户新增后台浏览器模拟点击模式",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-005",
+        "DEV-019",
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/background-input.md"
+      ],
+      "acceptance": [
+        "独立选择physical_foreground/browser_background；后台画布截图定位及完整状态/期限/急停校验",
+        "隔离最小化窗口点击及真实Unity服务端确认，系统光标与前台不变；不调用内部动作或协议发包"
+      ],
+      "evidence": [],
+      "implementation_progress": "code_ready",
+      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md."
+    },
+    {
+      "id": "DEV-033",
+      "kind": "development",
+      "milestone": "M1",
+      "title": "最小持久化牌谱与无损迁移",
+      "status": "done",
+      "depends_on": [
+        "DEV-003"
+      ],
+      "design_refs": [
+        "docs/design/compact-archive.md"
+      ],
+      "acceptance": [
+        "事件元信息不重复进payload；小局与和牌索引引用原事件；最新缓存省略可重建内容",
+        "v1事务迁移前备份，重开、逐事件及全场回放一致；保留赤牌/摸切/鸣牌/立直/多人和/终场及中断事实",
+        "模型意图和诊断独立，QQ按需展开且隐私边界不变；给出实际存储变化证据"
+      ],
+      "evidence": [
+        "25 pytest tests passed; 4 real matches and 289 events equivalent; JSON 253752 to 80091 bytes; v2 migration applied with backup and zero foreign-key errors"
+      ],
+      "completed_record": "docs/development/completed/DEV-033-compact-archive.md",
+      "commits": [],
+      "dependency_scope": "Independently verifies the storage refinement against existing event and snapshot contracts; full DEV-004/010 acceptance remains separate.",
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

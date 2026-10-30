@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -86,22 +85,29 @@ def validate(registry, check_views=True):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("check", "render", "start", "done"))
+    parser.add_argument("command", choices=("check", "render", "start", "ready", "block", "cancel", "done"))
     parser.add_argument("id", nargs="?")
     parser.add_argument("--record")
     parser.add_argument("--evidence", action="append", default=[])
     parser.add_argument("--commit", action="append", default=[])
+    parser.add_argument("--reason")
     args = parser.parse_args()
     registry = load()
-    if args.command in ("start", "done"):
+    if args.command in ("start", "ready", "block", "cancel", "done"):
         task = next((t for t in registry["tasks"] if t["id"] == args.id), None)
         if not task:
             parser.error("unknown task")
         if not registry["implementation_gate"]["open"]:
             parser.error("implementation gate is closed")
-        if task["status"] == "done":
-            parser.error("completed tasks cannot be reopened")
-        task["status"] = "in_progress" if args.command == "start" else "done"
+        if task["status"] in ("done", "cancelled"):
+            parser.error("closed tasks cannot be reopened; add a follow-up task")
+        task["status"] = {"start": "in_progress", "ready": "in_progress", "block": "blocked", "cancel": "cancelled", "done": "done"}[args.command]
+        if args.command == "ready":
+            task["implementation_progress"] = "code_ready"
+        if args.command in ("block", "cancel"):
+            if not args.reason:
+                parser.error("blocking/cancellation requires a reason")
+            task["status_reason"] = args.reason
         if args.command == "done":
             if not args.record or not args.evidence:
                 parser.error("completion requires record and evidence")
@@ -110,10 +116,10 @@ def main():
         errors = validate(registry, check_views=False)
         if errors:
             parser.error("; ".join(errors))
-        REGISTRY.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        REGISTRY.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     if args.command != "check":
         for filename, text in render(registry).items():
-            (ROOT / filename).write_text(text, encoding="utf-8")
+            (ROOT / filename).write_text(text, encoding="utf-8", newline="\n")
     errors = validate(registry)
     print(json.dumps({"tasks": len(registry["tasks"]), "errors": errors}, ensure_ascii=False))
     return bool(errors)

@@ -1,0 +1,13 @@
+{
+  "base_url": "https://model-provider.invalid/v1",
+  "model": "your-model-id",
+  "port": 8765,
+  "debug_port": 9223,
+  "base_seconds": 5,
+  "bank_seconds": 20,
+  "timer_verified": false,
+  "compact_validated": false,
+  "json_schema": true,
+  "integration_test": false,
+  "input_mode": "physical_foreground"
+}

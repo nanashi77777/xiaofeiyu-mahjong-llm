@@ -1,0 +1,214 @@
+"""Loopback control panel with separate read and control credentials."""
+from __future__ import annotations
+
+import hmac
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
+
+from .browser import Browser
+from .config import Settings
+from .coordinator import Coordinator
+from .engine import Engine
+from .execution import Executor
+from .model import ModelClient
+from .protocol import Protocol
+from .queries import Queries
+from .review import Reviewer
+from .store import Store
+
+
+class Service:
+    def __init__(self, settings):
+        self.settings = settings
+        self.store = Store(settings.runtime / "archive.sqlite")
+        self.store.mark_interrupted()
+        schema = settings.runtime / "protocol/protocol.proto"
+        protocol = Protocol.from_proto(schema, settings.runtime / "generated") if schema.exists() else None
+        self.engine = Engine(self.store, protocol)
+        self.browser = Browser(settings, self.engine.frame)
+        self.client = ModelClient(settings, self.store)
+        self.coordinator = Coordinator(settings, self.engine, self.client)
+        self.executor = Executor(self.browser, lambda:self.engine.state)
+        self.coordinator.executor = self.executor
+        self.reviewer = Reviewer(self.store, self.client, self.coordinator.active)
+        self.engine.on_state = self.changed
+        self.engine.on_input = self.coordinator.input_observed
+        self.queries = Queries(self.store, settings.read_token.get_secret_value())
+
+    async def changed(self, state, event):
+        if state and state.operation:
+            await self.reviewer.pause_for_decision()
+        await self.coordinator.changed(state, event)
+        if state and state.lifecycle in ("ended", "interrupted"):
+            await self.reviewer.enqueue(state.match_id)
+
+    async def close(self):
+        await self.coordinator.stop("service_stopped")
+        await self.engine.interrupt()
+        await self.browser.close()
+        if self.reviewer.worker:
+            self.reviewer.worker.cancel()
+            try:
+                await self.reviewer.worker
+            except __import__("asyncio").CancelledError:
+                pass
+        await self.client.close()
+        self.store.close()
+
+    def status(self):
+        state = self.engine.state
+        return {"connected":bool(self.browser.context), "protocol_loaded":bool(self.engine.protocol),
+                "protocol_hash":self.engine.protocol.fingerprint if self.engine.protocol else None,
+                "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
+                "bound_window":self.executor.window.__dict__ if self.executor.window else None,
+                "input_mode":self.executor.input_mode,
+                "state":state.model_dump(mode="json") if state else None, "plan":self.coordinator.plan,
+                "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
+                "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
+                "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
+                "token_usage":self.store.records("token_usage", limit=20),
+                "receipts":self.store.records("receipt", limit=10)}
+
+
+def create_app(settings=None, service=None):
+    settings = settings or Settings.load()
+
+    @asynccontextmanager
+    async def lifespan(app):
+        app.state.service = service or Service(settings)
+        if not service:
+            await app.state.service.reviewer.resume_pending()
+        yield
+        await app.state.service.close()
+
+    app = FastAPI(title="小肥鱼麻将", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    if service:
+        app.state.service = service
+
+    @app.middleware("http")
+    async def boundary(request: Request, call_next):
+        host = request.url.hostname
+        if host not in ("127.0.0.1", "localhost", "::1", "testserver"):
+            return HTMLResponse("Invalid host", status_code=403)
+        if request.method not in ("GET", "HEAD"):
+            origin = request.headers.get("origin")
+            if origin and origin != f"{request.url.scheme}://{request.headers.get('host')}":
+                return HTMLResponse("Invalid origin", status_code=403)
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+        return response
+
+    def auth(request:Request, *, control=False):
+        token = request.headers.get("authorization", "").removeprefix("Bearer ")
+        accepted = [settings.control_token.get_secret_value()]
+        if not control:
+            accepted.append(settings.read_token.get_secret_value())
+        if not any(hmac.compare_digest(token, key) for key in accepted):
+            raise HTTPException(401, "invalid credential")
+
+    def reader(request:Request):
+        auth(request)
+        return request.app.state.service.queries
+
+    def controller(request:Request):
+        auth(request, control=True)
+        return request.app.state.service
+
+    @app.exception_handler(KeyError)
+    async def missing(request, error):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error":"record_not_found"}, status_code=404)
+
+    @app.exception_handler(ValueError)
+    async def invalid(request, error):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error":"invalid_request_or_unavailable_state"}, status_code=400)
+
+    @app.get("/", response_class=HTMLResponse)
+    async def panel():
+        return (Path(__file__).parent / "panel.html").read_text(encoding="utf-8")
+
+    base = "/api/v1/mahjong"
+
+    @app.get(base+"/live")
+    async def live(q=Depends(reader)):
+        return q.live()
+
+    @app.get(base+"/matches")
+    async def matches(scope_cursor:str|None=None, cursor:str|None=None, status:str|None=None,
+                      completeness:str|None=None, limit:int=Query(5,ge=1,le=20), q=Depends(reader)):
+        return q.matches(scope_cursor=scope_cursor,cursor=cursor,status=status,completeness=completeness,limit=limit)
+
+    @app.get(base+"/matches/{id}")
+    async def match(id:str,q=Depends(reader)):
+        return q.match(id)
+
+    @app.get(base+"/rounds/{id}")
+    async def round(id:str,offset:int=Query(0,ge=0),limit:int=Query(50,ge=1,le=100),q=Depends(reader)):
+        return q.round(id,offset,limit)
+
+    @app.get(base+"/big-hands")
+    async def big_hands(scope_cursor:str|None=None,offset:int=Query(0,ge=0),limit:int=Query(10,ge=1,le=20),q=Depends(reader)):
+        return q.big_hands(scope_cursor,offset,limit)
+
+    @app.get(base+"/memories")
+    async def memories(query:str="",status:str|None=None,offset:int=Query(0,ge=0),limit:int=Query(8,ge=1,le=50),q=Depends(reader)):
+        return q.memories(query,status,offset=offset,limit=limit)
+
+    @app.get(base+"/memories/{id}")
+    async def memory(id:str,offset:int=Query(0,ge=0),limit:int=Query(8,ge=1,le=50),q=Depends(reader)):
+        return q.memories(id=id,offset=offset,limit=limit)
+
+    @app.get("/control/status")
+    async def status(s=Depends(controller)):
+        return s.status()
+
+    @app.get("/control/windows")
+    async def windows(s=Depends(controller)):
+        return [w.__dict__ for w in s.executor.mouse.windows()]
+
+    @app.get("/control/screenshot")
+    async def screenshot(s=Depends(controller)):
+        return Response(await s.browser.image_bytes(),media_type="image/png")
+
+    @app.post("/control/calibration")
+    async def calibration(request:Request,s=Depends(controller)):
+        data = await request.json()
+        # Crop only the current bound browser screenshot; never accept arbitrary files.
+        return s.executor.locator.save_crop(await s.browser.image_bytes(), data["label"], data["box"],
+                                            hand_region=data.get("hand_region"))
+
+    @app.post("/control/{action}")
+    async def control(action:str,request:Request,s=Depends(controller)):
+        data = await request.json()
+        if action == "browser":
+            await s.browser.start()
+        elif action == "bind":
+            await s.executor.bind(int(data["hwnd"]))
+        elif action == "shadow":
+            await s.coordinator.start(shadow=True)
+        elif action == "start":
+            if not s.executor.window:
+                raise ValueError("bind a game window first")
+            await s.coordinator.start(shadow=False)
+        elif action=='input-mode':
+            mode=data.get('mode')
+            if mode not in ('physical_foreground','browser_background'):
+                raise ValueError('unsupported input mode')
+            await s.coordinator.stop('input_mode_changed')
+            if mode == 'physical_foreground':
+                await s.browser.release_background()
+            s.executor.input_mode=mode
+        elif action in ("pause", "stop", "emergency"):
+            await s.coordinator.stop(action)
+        else:
+            raise HTTPException(404,"unknown control")
+        return {"ok":True,"status":s.coordinator.status}
+
+    return app
