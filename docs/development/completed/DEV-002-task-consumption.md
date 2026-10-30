@@ -8,4 +8,6 @@
 
 实现文件：tools/tasks.py、tests/test_tasks.py。Git 关联由后续日志索引绑定实际提交，不填自引用哈希。后续所有实现与实战验收继续独立消费。
 
+实际实现提交：e53fe8a，见../commit-index.md；任务注册表同步绑定。
+
 回退：通过 Git 恢复工具与注册表及两份视图的一致版本；不手工只修改 TODO。

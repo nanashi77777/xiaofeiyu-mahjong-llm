@@ -98,7 +98,9 @@
         "pytest tests/test_tasks.py: 1 passed; registry 45 tasks consistent"
       ],
       "completed_record": "docs/development/completed/DEV-002-task-consumption.md",
-      "commits": [],
+      "commits": [
+        "ade0bb365b00ef1669135c0cef6d35efc9ab6737"
+      ],
       "completed_on": "2026-10-30"
     },
     {
@@ -122,7 +124,9 @@
         "25 pytest tests passed; settings, HTTP credential boundary, model none/store=false verified; see completion record"
       ],
       "completed_record": "docs/development/completed/DEV-003-private-runtime.md",
-      "commits": [],
+      "commits": [
+        "ade0bb365b00ef1669135c0cef6d35efc9ab6737"
+      ],
       "status_reason": "基础代码已落地，补全及验证中",
       "completed_on": "2026-10-31"
     },
@@ -1146,7 +1150,9 @@
         "25 pytest tests passed; 4 real matches and 289 events equivalent; JSON 253752 to 80091 bytes; v2 migration applied with backup and zero foreign-key errors"
       ],
       "completed_record": "docs/development/completed/DEV-033-compact-archive.md",
-      "commits": [],
+      "commits": [
+        "ade0bb365b00ef1669135c0cef6d35efc9ab6737"
+      ],
       "dependency_scope": "Independently verifies the storage refinement against existing event and snapshot contracts; full DEV-004/010 acceptance remains separate.",
       "completed_on": "2026-10-31"
     }
