@@ -1,0 +1,42 @@
+# 本机私密配置与运行数据
+.env
+.env.*
+!.env.example
+config.local.*
+private.*
+runtime/
+data/
+logs/
+captures/
+screenshots/
+browser-profile/
+browser-data/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.key
+*.pem
+*.pfx
+*.har
+
+# 本地环境和生成物
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+coverage/
+.coverage
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 测试证据需要脱敏后另存；默认原始证据不提交
+artifacts/
+tmp/

@@ -1,0 +1,1286 @@
+{
+  "schema_version": "yaku-reference.v1",
+  "catalog_version": "standard-four-player.v1",
+  "updated_on": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "status": "reference-data-cross-checked-runtime-not-integrated",
+  "scope": "标准四人日麻参考；雀魂实际房间规则和服务器判定优先",
+  "realtime_policy": "不在实时决策附整表；只提供当前相关役种与必要无役风险事实",
+  "sources": [
+    {
+      "id": "mahjong_library",
+      "url": "https://github.com/MahjongRepository/mahjong/tree/master/mahjong/hand_calculating/yaku_list",
+      "license": "MIT",
+      "inspected_local_version": "1.4.0",
+      "coverage": "门清/副露番数、常规牌型与役满变体交叉核对；通用库含地方役，不能直接视为雀魂全规则"
+    },
+    {
+      "id": "local_yaku_notes",
+      "path": "<legacy-mahjong-project>\\YAKU.md",
+      "coverage": "本机旧项目役种/番数说明交叉参考，不沿用其传统策略或自动和牌"
+    },
+    {
+      "id": "protocol_rules",
+      "url": "https://github.com/MahjongRepository/mahjong_soul_api/blob/master/ms/protocol.proto",
+      "coverage": "真实房规开关与ActionNoTile等结果类型；字段语义仍需当前客户端验证"
+    }
+  ],
+  "common_notes": [
+    "本表是参考资料，不是可执行的完整规则引擎；不能仅靠文字判定可和。",
+    "暗杠本身不破门清；九莲等仍有自身限制。门清/副露番数以实际有效拆解为准。",
+    "普通役的closed_han/open_han为null表示该门清状态不可用；役满/加番/计分级别/特殊结算不使用这些字段表示价值。",
+    "役满使用倍数；双倍变体替代基础役满，不将二者再相加；复合役满和累计役满分别受房规控制。",
+    "宝牌、赤宝牌、里宝牌不单独满足有役要求。已揭示与未知信息必须分开。",
+    "通常计分、役满是否叠加以及包牌等支付规则，由实际房间选项和服务器结果决定。"
+  ],
+  "families": [
+    {
+      "id": "yakuhai",
+      "name": "役牌",
+      "members": [
+        "yakuhai_haku",
+        "yakuhai_hatsu",
+        "yakuhai_chun",
+        "yakuhai_seat_wind",
+        "yakuhai_round_wind"
+      ],
+      "note": "可作计划中的役牌路线族ID，实际成役/番数需具体到三元牌或自风/场风；连风可各计一番。"
+    }
+  ],
+  "excluded_local_yaku": [
+    "人和",
+    "开立直",
+    "两倍开立直",
+    "大车轮",
+    "大七星",
+    "八连庄",
+    "切上满贯不是独立役种"
+  ],
+  "entries": [
+    {
+      "id": "riichi",
+      "name": "立直",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "门清听牌并按房间规则合法宣告立直，成立由实际事件确认。",
+        "声明与成立分开；支付1000点和余牌等限制以规则及操作候选为准。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "double_riichi",
+      "name": "两立直",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "在自己的第一巡合法宣告立直，且之前没有破坏成立条件的吃碰杠等事件。"
+      ],
+      "rule_switches": [],
+      "replaces": [
+        "riichi"
+      ],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "双立直"
+      ]
+    },
+    {
+      "id": "ippatsu",
+      "name": "一发",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "立直成立后在规则限定的一巡内和牌，期间没有打断一发的鸣牌或杠等事件。",
+        "需要完整时序证据，不能从最终手牌推断。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "menzen_tsumo",
+      "name": "门前清自摸和",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "保持门清并自摸和牌；暗杠本身不破门清。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "门清自摸",
+        "门前清自摸"
+      ]
+    },
+    {
+      "id": "tanyao",
+      "name": "断幺九",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "所有组成牌均为2至8的数牌，没有一九及字牌。",
+        "副露成立需房间允许食断。"
+      ],
+      "rule_switches": [
+        "open_tanyao"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "pinfu",
+      "name": "平和",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "门清四组顺子，雀头不是三元牌/自风/场风等役牌，以两面等待和牌。",
+        "牌型需按有效拆解与实际和牌位置判断。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "iipeikou",
+      "name": "一杯口",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "门清手牌中有两组同花色同数字的相同顺子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "ryanpeikou"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "yakuhai_haku",
+      "name": "役牌·白",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "5z组成刻子或杠子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "family": "yakuhai"
+    },
+    {
+      "id": "yakuhai_hatsu",
+      "name": "役牌·发",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "6z组成刻子或杠子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "family": "yakuhai"
+    },
+    {
+      "id": "yakuhai_chun",
+      "name": "役牌·中",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "7z组成刻子或杠子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "family": "yakuhai"
+    },
+    {
+      "id": "yakuhai_seat_wind",
+      "name": "役牌·自风",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "本家自风牌组成刻子或杠子。",
+        "与场风相同时自风和场风可以分别计番。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "family": "yakuhai"
+    },
+    {
+      "id": "yakuhai_round_wind",
+      "name": "役牌·场风",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "当前场风牌组成刻子或杠子。",
+        "与自风相同时场风和自风可以分别计番。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "family": "yakuhai"
+    },
+    {
+      "id": "chankan",
+      "name": "抢杠",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "在规则允许的抢杠窗口荣和，通常对应对手加杠。",
+        "暗杠抢和等特殊许可依真实规则及操作候选，不凭牌形自行授予。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "rinshan_kaihou",
+      "name": "岭上开花",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "合法杠后的岭上补牌自摸和牌，必须有实际补牌事件。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "haitei_raoyue",
+      "name": "海底摸月",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "在规则定义的最后一张通常摸牌上自摸和牌。",
+        "岭上牌等特殊摸牌不能仅凭余牌数混算。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "海底捞月"
+      ]
+    },
+    {
+      "id": "houtei_raoyui",
+      "name": "河底捞鱼",
+      "category": "normal",
+      "closed_han": 1,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "荣和规则定义的最后一次通常弃牌，需要实际阶段事件。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "chiitoitsu",
+      "name": "七对子",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "由七种不同的对子组成，四张同种牌不能算两对，固定25符。",
+        "与其他拆解按有效计分方案选择，不能叠加二杯口。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "ryanpeikou",
+        "toitoi"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "七对"
+      ]
+    },
+    {
+      "id": "toitoi",
+      "name": "对对和",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "通常型由四组刻子/杠子和一对雀头组成。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "chiitoitsu"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "sanankou",
+      "name": "三暗刻",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "有三组暗刻或暗杠。",
+        "荣和牌补成的刻子不计暗刻；单骑等不同等待需按拆解处理。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "sankantsu",
+      "name": "三杠子",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "有三组已完成的杠，明杠/暗杠均可。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "sanshoku_doukou",
+      "name": "三色同刻",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "万、筒、索三种花色中，同一数字各有一组刻子/杠子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "sanshoku_doujun",
+      "name": "三色同顺",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "万、筒、索三种花色中，各有一组同数字序列的顺子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "ittsuu",
+      "name": "一气通贯",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "同花色中具备123、456、789三组顺子。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "一气贯通"
+      ]
+    },
+    {
+      "id": "chanta",
+      "name": "混全带幺九",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 1,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "各面子与雀头都包含幺九/字牌，并且含顺子和字牌。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "junchan",
+        "honroutou"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "混全带幺"
+      ]
+    },
+    {
+      "id": "honroutou",
+      "name": "混老头",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "组成牌全部是一九数牌和字牌，不含顺子。",
+        "通常与对对和或七对子复合；若形成实际役满则按役满计分规则处理。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "chanta",
+        "junchan"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "shousangen",
+      "name": "小三元",
+      "category": "normal",
+      "closed_han": 2,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "三元牌中两种组成刻子/杠子，另一种组成雀头。",
+        "对应两组役牌番可以另计。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "honitsu",
+      "name": "混一色",
+      "category": "normal",
+      "closed_han": 3,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "组成牌只使用一种数牌花色并含字牌。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [
+        "chinitsu"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "junchan",
+      "name": "纯全带幺九",
+      "category": "normal",
+      "closed_han": 3,
+      "open_han": 2,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "各面子和雀头都含一九数牌、不含字牌，并含顺子。"
+      ],
+      "rule_switches": [],
+      "replaces": [
+        "chanta"
+      ],
+      "incompatible_with": [
+        "chanta",
+        "honroutou"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "aliases": [
+        "纯全带幺"
+      ]
+    },
+    {
+      "id": "ryanpeikou",
+      "name": "二杯口",
+      "category": "normal",
+      "closed_han": 3,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "门清中以互不重复占用牌张的四组顺子组成两对相同顺子，并有雀头。",
+        "不与一杯口或七对子重复计番。"
+      ],
+      "rule_switches": [],
+      "replaces": [
+        "iipeikou"
+      ],
+      "incompatible_with": [
+        "iipeikou",
+        "chiitoitsu"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "chinitsu",
+      "name": "清一色",
+      "category": "normal",
+      "closed_han": 6,
+      "open_han": 5,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "组成牌只使用一种数牌花色，不含字牌。"
+      ],
+      "rule_switches": [],
+      "replaces": [
+        "honitsu"
+      ],
+      "incompatible_with": [
+        "honitsu"
+      ],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ]
+    },
+    {
+      "id": "kokushi_musou",
+      "name": "国士无双",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "十三种一九字牌各至少一张，加其中一种作雀头，共14张。",
+        "十三面等待变体另列，不能与基础国士重复计。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false
+    },
+    {
+      "id": "suuankou",
+      "name": "四暗刻",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "四组暗刻/暗杠及雀头；以实际和牌位置确定刻子是否仍为暗刻。",
+        "普通双碰等待荣和不能把补成的刻子计作暗刻；单骑变体另列。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false
+    },
+    {
+      "id": "daisangen",
+      "name": "大三元",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "白、发、中三种三元牌全部组成刻子/杠子。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true
+    },
+    {
+      "id": "shousuushii",
+      "name": "小四喜",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "四种风牌中三种组成刻子/杠子，另一种组成雀头。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true,
+      "aliases": [
+        "小四喜和"
+      ]
+    },
+    {
+      "id": "daisuushii",
+      "name": "大四喜",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 2,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "四种风牌全部组成刻子/杠子。"
+      ],
+      "rule_switches": [
+        "double_yakuman",
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true,
+      "yakuman_multiplier_if_double_disabled": 1,
+      "notes": [
+        "标准参考按双倍役满维护；房间禁用双倍役满时降为一倍，不作普通26番。"
+      ]
+    },
+    {
+      "id": "tsuuiisou",
+      "name": "字一色",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "所有组成牌均为字牌，可能与其他满足的役满按规则复合。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true
+    },
+    {
+      "id": "ryuuiisou",
+      "name": "绿一色",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "所有组成牌仅来自2s、3s、4s、6s、8s、6z。",
+        "是否含发不构成强制条件，仍需满足和牌形。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true
+    },
+    {
+      "id": "chinroutou",
+      "name": "清老头",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "所有组成牌均为1或9的数牌，不含字牌。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true
+    },
+    {
+      "id": "chuuren_poutou",
+      "name": "九莲宝灯",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "门清且无已宣告杠，同花色1112345678999加任意一张该花色数牌。",
+        "纯正九面等待变体另列，需和牌前实际手牌证据。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false
+    },
+    {
+      "id": "suukantsu",
+      "name": "四杠子",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "有四组已完成的杠并完成雀头等和牌条件。",
+        "第四杠与四杠散了的流程依实际事件和房规。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": true
+    },
+    {
+      "id": "tenhou",
+      "name": "天和",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "庄家的起手14张即和牌，不能经历破坏该起手条件的操作。",
+        "需完整开局事件证据，不能由最终牌形猜测。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false
+    },
+    {
+      "id": "chiihou",
+      "name": "地和",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 1,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "闲家在未发生破坏条件的吃碰杠等情况下，第一次自行摸牌即自摸和牌。",
+        "不等同于闲家第一巡荣和的人和。"
+      ],
+      "rule_switches": [
+        "composite_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false
+    },
+    {
+      "id": "suuankou_tanki",
+      "name": "四暗刻单骑",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 2,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "四组暗刻/暗杠已形成，以单骑等待雀头和牌。"
+      ],
+      "rule_switches": [
+        "double_yakuman",
+        "composite_yakuman"
+      ],
+      "replaces": [
+        "suuankou"
+      ],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false,
+      "yakuman_multiplier_if_double_disabled": 1
+    },
+    {
+      "id": "kokushi_13_wait",
+      "name": "国士无双十三面",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 2,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "和牌前正好持有十三种一九字牌各一张，以十三面等待和牌。"
+      ],
+      "rule_switches": [
+        "double_yakuman",
+        "composite_yakuman"
+      ],
+      "replaces": [
+        "kokushi_musou"
+      ],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false,
+      "aliases": [
+        "国士无双十三面听"
+      ],
+      "yakuman_multiplier_if_double_disabled": 1
+    },
+    {
+      "id": "junsei_chuuren_poutou",
+      "name": "纯正九莲宝灯",
+      "category": "yakuman",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": 2,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": true,
+      "conditions": [
+        "和牌前为同花色1112345678999，以九面等待和牌；门清且无宣告杠。"
+      ],
+      "rule_switches": [
+        "double_yakuman",
+        "composite_yakuman"
+      ],
+      "replaces": [
+        "chuuren_poutou"
+      ],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "open_allowed": false,
+      "yakuman_multiplier_if_double_disabled": 1
+    },
+    {
+      "id": "dora",
+      "name": "宝牌",
+      "category": "bonus",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": false,
+      "conditions": [
+        "根据已揭示宝牌指示牌计算所持宝牌枚数，每枚通常加一番。",
+        "宝牌不是役，不能单独满足有役和牌要求，重复指示可重复加番。"
+      ],
+      "rule_switches": [],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "bonus_han_per_tile": 1
+    },
+    {
+      "id": "aka_dora",
+      "name": "赤宝牌",
+      "category": "bonus",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": false,
+      "conditions": [
+        "按实际赤牌配置计算持有的0m/0p/0s，每枚通常加一番。",
+        "同一张赤五还可能同时是指示宝牌；不单独构成役。"
+      ],
+      "rule_switches": [
+        "aka_dora"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "bonus_han_per_tile": 1
+    },
+    {
+      "id": "ura_dora",
+      "name": "里宝牌",
+      "category": "bonus",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": true,
+      "satisfies_win_yaku_requirement": false,
+      "conditions": [
+        "仅按已成立立直及房规允许的真实里宝牌揭示计算，不能在线保证未知里宝牌价值。",
+        "不单独构成役。"
+      ],
+      "rule_switches": [
+        "ura_dora"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "local_yaku_notes"
+      ],
+      "bonus_han_per_tile": 1
+    },
+    {
+      "id": "kazoe_yakuman",
+      "name": "累计役满",
+      "category": "score_limit",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": false,
+      "satisfies_win_yaku_requirement": false,
+      "conditions": [
+        "按房规，普通役及宝牌等累计番数达到13番及以上时适用的计分级别。",
+        "不是独立牌型役，不可凭宝牌达到番数就绕过有役要求。"
+      ],
+      "rule_switches": [
+        "counted_yakuman"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "reference_cross_checked",
+      "source_refs": [
+        "mahjong_library",
+        "protocol_rules"
+      ],
+      "aliases": [
+        "数满",
+        "数役满"
+      ],
+      "notes": [
+        "禁用累计役满或采用其他上限时按真实房间配置。"
+      ]
+    },
+    {
+      "id": "nagashi_mangan",
+      "name": "流局满贯",
+      "category": "special_settlement",
+      "closed_han": null,
+      "open_han": null,
+      "yakuman_multiplier": null,
+      "requires_closed": null,
+      "satisfies_win_yaku_requirement": false,
+      "conditions": [
+        "荒牌流局时检查本家完整牌河：弃牌均为幺九字牌，且没有被其他玩家鸣走。",
+        "其他细则必须匹配雀魂真实房规，最终以ActionNoTile等实际结算为准。",
+        "不能作为普通完成牌的五番役，不能用它为无役手提供和牌资格。"
+      ],
+      "rule_switches": [
+        "nagashi_mangan"
+      ],
+      "replaces": [],
+      "incompatible_with": [],
+      "verification_status": "partially_verified",
+      "source_refs": [
+        "mahjong_library",
+        "protocol_rules"
+      ],
+      "pending_conditions": [
+        "雀魂本人副露是否影响成立、暗杠是否影响成立，尚未取得足够独立规则来源；不得从计算库han_open=5推断。"
+      ]
+    }
+  ]
+}
