@@ -14,7 +14,8 @@
     "owner": "nanashi77777",
     "name": "xiaofeiyu-mahjong-llm",
     "visibility": "private",
-    "created": false
+    "created": true,
+    "url": "https://github.com/nanashi77777/xiaofeiyu-mahjong-llm"
   },
   "milestones": {
     "M0": "基线与契约",
