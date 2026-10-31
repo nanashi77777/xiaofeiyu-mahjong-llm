@@ -330,22 +330,24 @@ class Browser:
             raise TimeoutError('background input stopped after validation')
         try:
             await self.page.mouse.down()
-            # Unity samples held input in its render loop. A fixed 30ms press
-            # can fit between two frames in a background/low-FPS lobby. Two
-            # callbacks guarantee a Unity tick between press and release even
-            # when our callback runs before Unity's callback in the first frame.
+            # Browser RAF can run at 120Hz while the game samples input at
+            # 15/30Hz. Two RAF callbacks alone can miss a whole game tick.
+            # Hold through both callbacks AND a minimum sampling interval.
             try:
-                await asyncio.wait_for(self.page.evaluate('''() => new Promise(resolve=>
-                  requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))'''), .4)
+                await asyncio.wait_for(asyncio.gather(asyncio.sleep(.1),
+                    self.page.evaluate('''() => new Promise(resolve=>
+                      requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))''')),
+                    max(.001,min(.4,deadline-time.monotonic())))
             except TimeoutError:
                 self.errors.append('pressed_frame_not_observed')
         finally:
             await self.page.mouse.up()
         clicked=time.monotonic()
-        # Keep the target under the pointer until the release is sampled too.
+        # The game must also sample release before we restore the pointer;
+        # restoring after a fast browser RAF can move the effective click away.
         try:
-            await asyncio.wait_for(self.page.evaluate(
-                '() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))'), .4)
+            await asyncio.wait_for(asyncio.gather(asyncio.sleep(.1),self.page.evaluate(
+                '() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))')), .4)
         except TimeoutError:
             # A successful game action can replace the scene and suspend its
             # frame callback. Mouse press/release were sent: report mouse_sent

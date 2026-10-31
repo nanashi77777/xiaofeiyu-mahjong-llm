@@ -52,3 +52,4 @@
 | DEV-056 | 实现 | 结算确认等待可见按钮并准确记录提交点 | [完成记录](docs/development/completed/DEV-056-result-button-readiness.md) |
 | DEV-057 | 实现 | 渲染帧等待失败的按压前后分类 | [完成记录](docs/development/completed/DEV-057-prepress-render-timeout.md) |
 | DEV-058 | 实现 | 同帧识别去重与低频操作图像证据 | [完成记录](docs/development/completed/DEV-058-frame-reuse-evidence.md) |
+| DEV-060 | 实现 | 人机房指令未知结果持久化 | [完成记录](docs/development/completed/DEV-060-room-uncertainty.md) |

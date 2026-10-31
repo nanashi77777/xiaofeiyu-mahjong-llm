@@ -862,7 +862,7 @@
       "kind": "validation",
       "milestone": "M2",
       "title": "标准规则与全合法候选专项验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-014"
       ],
@@ -902,7 +902,7 @@
       "kind": "validation",
       "milestone": "M3",
       "title": "指定模型实际渠道兼容性验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-015",
         "DEV-016",
@@ -994,7 +994,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "自主经验修订与后续受益机制验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-025",
         "DEV-026"
@@ -1180,7 +1180,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "役种参考准确性、实时隔离与复盘引用验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-031",
         "DEV-013",
@@ -1926,6 +1926,48 @@
         "149 pytest passed; vision-reuse-v1双按钮同坐标; 339.615至299.359ms离线对照"
       ],
       "completed_record": "docs/development/completed/DEV-058-frame-reuse-evidence.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-059",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "后台按压及释放后的输入采样保护",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "status": "in_progress",
+      "design_refs": [
+        "docs/design/background-input.md"
+      ],
+      "acceptance": [
+        "保留73344开局点击未提交的失败，核对可见按钮、原房间与无客户端请求；后台按压和释放后各等待有界最短间隔与渲染帧，避免仅浏览器RAF不足以覆盖游戏低频输入采样；停止、原截止、按下后不重按仍有效；隔离低频采样页面对照、取消和真实客户端开始/鸣牌确认，不能把相似故障当已证明根因或覆盖旧报告"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": []
+    },
+    {
+      "id": "DEV-060",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "人机房指令未知结果持久化",
+      "depends_on": [
+        "DEV-036",
+        "DEV-045"
+      ],
+      "status": "done",
+      "design_refs": [
+        "docs/design/autonomous-validation.md"
+      ],
+      "acceptance": [
+        "未收到开局/添加电脑等服务端确认时持久记录uncertain及简短原因，同命令ID返回最新未知结果且不重复点击；保留原submitted历史，不把无回执或旧回执当成功；短化等待的隔离故障注入证明持久化、租约释放及幂等，正式开局失败报告不覆盖"
+      ],
+      "evidence": [
+        "150 pytest passed; missing room ack persists uncertainty and repeated command never presses"
+      ],
+      "completed_record": "docs/development/completed/DEV-060-room-uncertainty.md",
       "commits": [],
       "completed_on": "2026-10-31"
     }

@@ -57,6 +57,24 @@ async def test_practice_room_change_and_unknown_submission_never_click_again(sto
         await PracticeRooms(s).run(command.model_copy(update={'command_id':'wrong-room','room_code':'99999'}))
 
 
+async def test_missing_room_ack_persists_uncertainty_and_duplicate_never_represses(store,monkeypatch):
+    s,calls=service(store)
+    async def no_ack(scene,control,ctx,*,submit=None):
+        ctx.check()
+        calls.append((scene,control))
+        ctx.before_submit(submit)
+    s.lobby_ui.click=no_ack
+    monkeypatch.setattr(PracticeRooms,'ACK_TIMEOUT',0)
+    command=RoomAction(command_id='missing-ack',room_code='12345',action='start')
+    practice=PracticeRooms(s)
+    result=await practice.run(command)
+    assert result['status']=='uncertain' and result['reason']=='server_confirmation_not_observed'
+    assert store.records('room_command',limit=1)[0]['payload']==result
+    assert s.input_lease.owner is None
+    assert await PracticeRooms(s).run(command)==result
+    assert calls==[('room','start')]
+
+
 def test_room_updates_are_bound_to_authenticated_lobby_connection():
     session=LobbySession()
     session.connection='ours'

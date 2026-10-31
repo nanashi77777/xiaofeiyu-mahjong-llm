@@ -19,6 +19,8 @@ class RoomAction(Record):
 
 
 class PracticeRooms:
+    ACK_TIMEOUT = 12
+
     def __init__(self, service):
         self.service = service
 
@@ -69,7 +71,7 @@ class PracticeRooms:
             if method is None:
                 result = {"request":request, "status":"dialog_opened"}
             else:
-                deadline = time.monotonic()+12
+                deadline = time.monotonic()+self.ACK_TIMEOUT
                 ack = None
                 while time.monotonic() < deadline:
                     ack = session.latest.get(method)
@@ -79,9 +81,11 @@ class PracticeRooms:
                         raise LobbyError("navigation_stopped")
                     await asyncio.sleep(.05)
                 if not ack or ack["observed_mono"] < before:
-                    return {"request":request, "status":"uncertain"}
-                result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
-                          "error_code":ack["error_code"]}
+                    result = {"request":request, "status":"uncertain", "method":method,
+                              "reason":"server_confirmation_not_observed"}
+                else:
+                    result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
+                              "error_code":ack["error_code"]}
             store.record("room_command", result)
         if command.action == 'start' and command.takeover and result['status'] == 'confirmed':
             deadline = time.monotonic()+35
