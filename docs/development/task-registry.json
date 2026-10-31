@@ -2593,6 +2593,25 @@
       ],
       "completed_record": "docs/development/completed/DEV-080-private-model-configuration.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-081",
+      "kind": "delivery",
+      "milestone": "M0",
+      "title": "完整历史脱敏并公开只读仓库",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-080"
+      ],
+      "design_refs": [
+        "docs/design/public-repository-release.md"
+      ],
+      "acceptance": [
+        "当前和完整历史无个人信息/真实配置/真实局面标识，历史作者匿名化且原始对象不进入公开仓库",
+        "只有所有者可写，公开匿名读取验证、分支SHA与任务一致性通过；原仓库始终私有归档"
+      ],
+      "evidence": [],
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

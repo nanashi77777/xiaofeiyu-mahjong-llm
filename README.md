@@ -1,6 +1,6 @@
 # 小肥鱼 · 大模型麻将 AI
 
-独立项目目录：`<project-root>`。已建立独立私有仓库：[nanashi77777/xiaofeiyu-mahjong-llm](https://github.com/nanashi77777/xiaofeiyu-mahjong-llm)。
+项目仓库：[xiaofeiyu-mahjong-llm](https://github.com/nanashi77777/xiaofeiyu-mahjong-llm)。源码、测试和脱敏文档纳入版本控制；实际配置、账号、牌谱、记忆及运行资料只在本机保存。
 
 GitHub默认`main`已同步本批已验证开发提交；“had recent pushes”是开发分支更新提示。Git HTTPS当前网络不可达时可使用保留原提交哈希的API后备上传，命令与验证见[开发流程](DEVELOPMENT.md)及[DEV-043完成记录](docs/development/completed/DEV-043-github-sync.md)。
 

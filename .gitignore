@@ -19,6 +19,7 @@ browser-data/
 *.pem
 *.pfx
 *.har
+*.bundle
 
 # 本地环境和生成物
 .venv/

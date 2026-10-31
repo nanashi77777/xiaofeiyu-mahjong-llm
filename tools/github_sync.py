@@ -1,6 +1,6 @@
 """Sync exact existing Git commits through GitHub's API when Git HTTPS fails.
 
-Uses Git Credential Manager in memory, checks private ownership, audits committed
+Uses Git Credential Manager in memory, checks authenticated ownership, audits committed
 files and only advances refs without force. Never changes global proxy settings.
 """
 from __future__ import annotations
@@ -16,9 +16,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from audit_secrets import FORBIDDEN, rules_for
-
-ALLOWED = {"nanashi77777/xiaofeiyu-mahjong-llm", "nanashi77777/qq-integration-project"}
-
 
 def git(root, *args, data=None):
     return subprocess.run(["git", *args], cwd=root, input=data, capture_output=True, check=True).stdout
@@ -70,24 +67,35 @@ class GitHub:
         self.root = root
         remote = git(root, "remote", "get-url", "origin").decode().strip()
         match = re.fullmatch(r"https://github\.com/([^/]+/[^/]+?)(?:\.git)?", remote)
-        if not match or match[1] not in ALLOWED:
-            raise ValueError("unexpected private repository origin")
+        if not match:
+            raise ValueError("unexpected repository origin")
         self.repo = match[1]
         credentials = git(root, "credential", "fill", data=b"protocol=https\nhost=github.com\n\n")
         values = dict(line.split(b"=", 1) for line in credentials.splitlines() if b"=" in line)
         self._token = values[b"password"].decode()
+        account = self.api_request('/user')
         metadata = self.api("")
-        if metadata.get("full_name") != self.repo or metadata.get("private") is not True:
-            raise ValueError("repository private ownership check failed")
+        if (metadata.get("full_name") != self.repo
+                or metadata.get('owner', {}).get('login') != account.get('login')
+                or self.repo.split('/')[0] != account.get('login')
+                or not metadata.get('permissions', {}).get('admin')
+                or metadata.get('visibility') not in ('private', 'public')):
+            raise ValueError("repository authenticated ownership check failed")
 
     def api(self, path, *, method="GET", body=None):
-        request = urllib.request.Request("https://api.github.com/repos/"+self.repo+path,
+        return self.api_request('/repos/' + self.repo + path, method=method, body=body)
+
+    def api_request(self, path, *, method="GET", body=None):
+        if not path.startswith('/') or path.startswith('//'):
+            raise ValueError('invalid GitHub API path')
+        request = urllib.request.Request("https://api.github.com"+path,
             data=json.dumps(body, ensure_ascii=False).encode() if body is not None else None, method=method,
             headers={"Authorization":"Bearer "+self._token, "Accept":"application/vnd.github+json",
                      "Content-Type":"application/json", "X-GitHub-Api-Version":"2022-11-28"})
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
-                return json.load(response)
+                content = response.read()
+                return json.loads(content) if content else None
         except urllib.error.HTTPError as error:
             # Response bodies/headers are not included in user-visible errors.
             raise ValueError("GitHub API status "+str(error.code)) from None

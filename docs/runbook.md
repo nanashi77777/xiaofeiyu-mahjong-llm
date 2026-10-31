@@ -4,14 +4,14 @@
 
 正式人机验收使用`tools/practice_suite.py --games 3 --profile 5+10 --output runtime/<本次报告>.json`，只在已认证空闲大厅、无输入所有者且源码摘要一致时开始。失败场不删、不续作合格场，恢复/离开提示干预独立记账。当前已有5+10模型超时失败证据，500窗口和三完整场尚未通过。
 
-源码：<project-root>。私有远端：https://github.com/nanashi77777/xiaofeiyu-mahjong-llm 。
+源码位于自行选择的项目目录，仓库：https://github.com/nanashi77777/xiaofeiyu-mahjong-llm 。实际模型、账号和运行数据不随源码发布。
 
 ## 安装和启动
 
 Python 3.12，Windows，Chrome。首次在本目录执行：
 
 ```powershell
-C:\Python312\python.exe -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
 .\.venv\Scripts\python.exe -m pip install --no-deps -e .
 .\.venv\Scripts\majsoul-llm.exe init-config

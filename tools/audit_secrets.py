@@ -11,6 +11,9 @@ RULES = {
     "api-key": re.compile(rb"sk-[A-Za-z0-9_-]{24,}"),
     "github-token": re.compile(rb"(?:gh[pousr]_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,})"),
     "private-key": re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    "personal-email": re.compile(rb"[\w.+-]+@(?:qq|163|126|gmail|outlook|hotmail)\.[A-Za-z.]+", re.I),
+    "personal-directory": re.compile(rb"[A-Z]:[\\/]+Users[\\/]+[^\\/\s\"']+", re.I),
+    "live-match-reference": re.compile(rb"\b\d{6}-[a-f0-9]{8}-[a-f0-9-]{27,}\b"),
 }
 FORBIDDEN = ("runtime/", "browser-profile/", ".env", "config.local.")
 
@@ -18,7 +21,7 @@ FORBIDDEN = ("runtime/", "browser-profile/", ".env", "config.local.")
 def rules_for(root: Path):
     """Keep actual local model identities out of Git without printing them."""
     private_values = {'local-credential': set(), 'local-provider': set(), 'local-model': set(),
-                      'local-model-profile': set()}
+                      'local-model-profile': set(), 'local-private-value': set()}
 
     def collect(value):
         if isinstance(value, dict):
@@ -49,6 +52,13 @@ def rules_for(root: Path):
                 if not isinstance(data, dict):
                     raise ValueError('private configuration must be an object')
                 collect(data)
+        policy = root / 'runtime/privacy-values.json'
+        if policy.exists():
+            data = json.loads(policy.read_text(encoding='utf-8'))
+            if (not isinstance(data, dict) or not isinstance(data.get('blocked_strings'), list)
+                    or any(not isinstance(item, str) or not item for item in data['blocked_strings'])):
+                raise ValueError('invalid local privacy policy')
+            private_values['local-private-value'].update(data['blocked_strings'])
     except (OSError, ValueError):
         raise ValueError('private audit configuration invalid; details withheld') from None
     return {**RULES, **{name: re.compile(b'|'.join(re.escape(value.encode()) for value in sorted(values)),
@@ -75,12 +85,50 @@ def findings(root: Path, *, staged=False):
     return len(files), hits
 
 
+def history_findings(root: Path, rules=None):
+    """Audit every object reachable from refs, including author and committer."""
+    rules = rules_for(root) if rules is None else rules
+    objects = {}
+    for line in subprocess.check_output(['git', 'rev-list', '--objects', '--all'], cwd=root).splitlines():
+        oid, _, name = line.partition(b' ')
+        objects[oid] = name.decode('utf-8', errors='replace') or '<metadata>'
+    if not objects:
+        return 0, []
+    output = subprocess.run(['git', 'cat-file', '--batch'], cwd=root,
+                            input=b'\n'.join(objects) + b'\n', capture_output=True, check=True).stdout
+    cursor, hits = 0, []
+    for oid, name in objects.items():
+        end = output.index(b'\n', cursor)
+        _, kind, raw_size = output[cursor:end].split()
+        size = int(raw_size)
+        data = output[end + 1:end + 1 + size]
+        cursor = end + size + 2
+        location = oid.decode() + ':' + name
+        if kind == b'blob' and name.startswith(FORBIDDEN):
+            hits.append((location, 'runtime-file'))
+        if kind in (b'commit', b'blob', b'tag'):
+            for rule, pattern in rules.items():
+                if pattern.search(data):
+                    hits.append((location, rule))
+        if kind == b'commit':
+            for email in re.findall(rb'^(?:author|committer) [^\n]* <([^>]+)>', data, re.M):
+                if email != b'contributors@example.invalid':
+                    hits.append((location, 'nonanonymous-commit-identity'))
+    return len(objects), hits
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--staged", action="store_true")
+    p.add_argument('--history', action='store_true')
+    p.add_argument('--root', type=Path, default=ROOT)
+    p.add_argument('--private-root', type=Path)
     args = p.parse_args()
+    if args.history and args.staged:
+        p.error('--history and --staged are mutually exclusive')
     try:
-        count, hits = findings(ROOT, staged=args.staged)
+        count, hits = (history_findings(args.root, rules_for(args.private_root or args.root))
+                       if args.history else findings(args.root, staged=args.staged))
     except (OSError, ValueError, subprocess.CalledProcessError):
         print('secret audit stopped; private configuration or Git read failed, details withheld')
         return True
