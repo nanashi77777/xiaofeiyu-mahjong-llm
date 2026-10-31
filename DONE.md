@@ -17,3 +17,6 @@
 | DEV-036 | 实现 | 大厅命令契约与导航状态机 | [完成记录](docs/development/completed/DEV-036-navigation-state.md) |
 | DEV-042 | 实现 | QQ选场工具及独立导航接口 | [完成记录](docs/development/completed/DEV-042-qq-navigation.md) |
 | DEV-043 | 实现 | GitHub默认分支同步与API推送后备入口 | [完成记录](docs/development/completed/DEV-043-github-sync.md) |
+| DEV-044 | 实现 | 真实四人局制映射与建房确认持久恢复 | [完成记录](docs/development/completed/DEV-044-lobby-confirmation.md) |
+| DEV-045 | 实现 | 加入友人房后服务端核验准备及QQ契约 | [完成记录](docs/development/completed/DEV-045-friend-ready.md) |
+| DEV-046 | 实现 | 消除取图路径的视口缩放并串行稳定裁剪 | [完成记录](docs/development/completed/DEV-046-stable-capture.md) |

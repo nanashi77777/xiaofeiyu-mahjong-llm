@@ -1463,6 +1463,75 @@
         "5a7d89c3342f2c401d95043f4dda3324adfea8aa"
       ],
       "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-044",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "真实四人局制映射与建房确认持久恢复",
+      "status": "done",
+      "depends_on": [
+        "DEV-036"
+      ],
+      "design_refs": [
+        "docs/design/lobby-confirmation.md"
+      ],
+      "acceptance": [
+        "当前客户端可见选项与服务端mode枚举逐项核对；未知/三人模式拒绝，计时严格验证，敏感扩展字段不保留",
+        "脱敏确认在校验前按原命令落盘；失败/重启后只重验不重提；历史结果与当前房间分离，缺证据保持未知"
+      ],
+      "evidence": [
+        "66 pytest passed; ruff passed; real visible single/east/south/ai rooms confirmed from sanitized server results; restart revalidation performs zero clicks"
+      ],
+      "completed_record": "docs/development/completed/DEV-044-lobby-confirmation.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-045",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "加入友人房后服务端核验准备及QQ契约",
+      "status": "done",
+      "depends_on": [
+        "DEV-036"
+      ],
+      "design_refs": [
+        "docs/design/friend-room-ready.md"
+      ],
+      "acceptance": [
+        "加入命令默认准备、可明确只入房；准确区别准备/房主开始，入房与准备分步持久确认，未知不重提",
+        "窄协议脱敏及同房号保护；QQ/面板/CLI契约一致，真实54321入房准备或实际失败有记录，不发QQ测试消息"
+      ],
+      "evidence": [
+        "Real room 54321 joinRoom and readyPlay success with ready=true; enabled=false; 66 Python and 193 QQ tests; six live MCP tools read and four mapped sessions available after reload; no external test messages"
+      ],
+      "completed_record": "docs/development/completed/DEV-045-friend-ready.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-046",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "消除取图路径的视口缩放并串行稳定裁剪",
+      "status": "done",
+      "depends_on": [
+        "DEV-034"
+      ],
+      "design_refs": [
+        "docs/design/stable-capture.md"
+      ],
+      "acceptance": [
+        "直接完整视口取图，不传clip/scale或设置设备度量；仅本地裁剪并检查取图前后几何一致",
+        "隔离DPI/非全屏画布与真实连续取图尺寸稳定，后台最小化可用；旧缩放截图路径停用，保帧不请求缩放"
+      ],
+      "evidence": [
+        "66 pytest and ruff; DPR 1.25/1.5 offset canvas 12 captures each; live game 12 stable captures; isolated minimized 12 captures with 180 render frames and mouse event; user confirmed now stable"
+      ],
+      "completed_record": "docs/development/completed/DEV-046-stable-capture.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

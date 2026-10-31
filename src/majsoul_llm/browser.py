@@ -20,6 +20,7 @@ class Browser:
         self.consumer = None
         self.errors = []
         self.input_cdp = None
+        self.capture_lock = asyncio.Lock()
 
     async def prepare_background(self):
         if self.input_cdp:
@@ -28,8 +29,9 @@ class Browser:
         try:
             await session.send('Emulation.setFocusEmulationEnabled', {'enabled': True})
             # A minimized Chromium window may stop compositor frames even with
-            # timer throttling disabled. A tiny acknowledged screencast keeps
-            # canvas frames running; frames are discarded and never archived.
+            # timer throttling disabled. A native-size acknowledged screencast
+            # keeps canvas frames running without requesting scaled rendering;
+            # frames are discarded and never archived.
             async def acknowledge(event):
                 try:
                     await session.send('Page.screencastFrameAck', {'sessionId': event['sessionId']})
@@ -37,7 +39,7 @@ class Browser:
                     pass  # Session can close while its final frame is queued.
             session.on('Page.screencastFrame', lambda e: asyncio.create_task(acknowledge(e)))
             await session.send('Page.startScreencast', {'format':'jpeg', 'quality':10,
-                                'maxWidth':160, 'maxHeight':90, 'everyNthFrame':1})
+                                                       'everyNthFrame':1})
         except BaseException:
             await session.detach()
             raise
@@ -167,13 +169,48 @@ class Browser:
     async def image_bytes(self):
         if not self.page:
             raise ValueError("browser not started")
-        canvas=self.page.locator("#unity-canvas")
-        if await canvas.count()==1:
-            # locator.screenshot would scroll a clipped canvas into view. Reject
-            # it first so targets cannot be computed for a partially visible UI.
-            self.require_visible_canvas(await self.layout_metrics())
-            return await canvas.screenshot(type="png",scale="css")
-        return await self.page.screenshot(type="png", scale="css")
+        async with self.capture_lock:
+            page = self.page
+            before = await self.layout_metrics()
+            self.require_visible_canvas(before)
+            # No element screenshot, clip, CSS scale or device-metrics override.
+            # Crop the native compositor image locally, keeping Unity's viewport
+            # independent of how often recognition or the panel requests images.
+            session = self.cdp
+            temporary = session is None
+            if temporary:
+                session = await page.context.new_cdp_session(page)
+            try:
+                result = await session.send("Page.captureScreenshot", {
+                    "format":"png", "fromSurface":True, "captureBeyondViewport":False})
+            finally:
+                if temporary:
+                    await session.detach()
+            after = await self.layout_metrics()
+            if self.page is not page or after != before:
+                raise InputDeferred("layout changed during capture")
+            return self.crop_viewport(base64.b64decode(result["data"]), before)
+
+    @staticmethod
+    def crop_viewport(raw, layout):
+        import cv2
+        from .locator import decode_image
+        image = decode_image(raw)
+        ih, iw = image.shape[:2]
+        vw, vh = layout["width"], layout["height"]
+        if vw <= 0 or vh <= 0 or abs(iw/vw/(ih/vh)-1) > .01:
+            raise InputDeferred("viewport image scale mismatch")
+        canvas = layout.get("canvas")
+        if canvas:
+            x1, y1 = round(canvas["x"]*iw/vw), round(canvas["y"]*ih/vh)
+            x2, y2 = round(canvas["right"]*iw/vw), round(canvas["bottom"]*ih/vh)
+            if not (0 <= x1 < x2 <= iw and 0 <= y1 < y2 <= ih):
+                raise InputDeferred("canvas crop outside viewport")
+            image = image[y1:y2, x1:x2]
+            width, height = round(canvas["width"]), round(canvas["height"])
+        else:
+            width, height = vw, vh
+        return cv2.imencode(".png", cv2.resize(image, (width, height)))[1].tobytes()
 
     async def background_click(self,point,deadline,stop,validate=None):
         """Browser mouse events only: no game API calls or game packets."""

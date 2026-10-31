@@ -26,7 +26,11 @@ C:\Python312\python.exe -m venv .venv
 
 登录与选场已提供面板表单、CLI和QQ工具，见lobby-automation.md及本批开发日志。登录命令复用有效profile并等待实际认证回包；没有有效登录态时显示waiting_user，新凭据/验证码需在专用浏览器完成，不能将此阶段说成完整自动登录已交付。页面适配使用runtime/navigation本地模板，未校准/歧义/精确选项读回失败时暂停。
 
-CLI以`majsoul-llm navigate --path <命令JSON>`提交，`majsoul-llm navigation --id <原ID>`查询；取消未提交指令或验证后续跑分别添加`--action cancel/resume`。JSON必须带稳定command_id，kind为login/ranked/join_friend/create_friend，具体字段见lobby_commands.py。入房不会自行准备/开局。成功提交的匹配/入房不能用本机取消任务冒充服务端退出，可见取消适配尚待DEV-038。
+CLI以`majsoul-llm navigate --path <命令JSON>`提交，`majsoul-llm navigation --id <原ID>`查询；取消未提交指令或验证后续跑分别添加`--action cancel/resume`。JSON必须带稳定command_id，kind为login/ranked/join_friend/create_friend，具体字段见lobby_commands.py。join_friend默认ready=true，入房确认后识别“准备”标签并点击；明确只入房传ready=false。创建房间不自动开始。成功提交的匹配/入房不能用本机取消任务冒充服务端退出，可见取消适配尚待DEV-038。
+
+入房和准备分别保存脱敏joinRoom/readyPlay确认；准备提交结果未知时不重按，加入已确认而准备尚未提交时续跑只在同一房间准备。历史确认可在重启后重验，但current_room_verified=false的历史结果不能说成仍在房间。局制已按可见UI与真实回包核验：一局mode=4、东风=1、半庄=2、人机=3；GameMode.ai=true也出现在普通房，不能据此判断选了人机。导航room.players是服务端人类座位容量，人机为1，但仍是四人麻将。
+
+当前客户端房码键盘实测最多5位，54321完整加入并准备通过，01234前导零只做读回未提交。契约保留字符串输入，但超出客户端长度或读回不符会停止，不能宣称更长房码已支持。
 
 QQ runtime/mahjong-navigation.json仅包含固定loopback baseUrl和navigationToken；原mahjong-readonly.json仍只含readToken。mahjong_navigate绑定当前会话和本轮真实消息生成ID；mahjong_navigation查进度或对原ID操作。新凭据登录、所有入口矩阵和自动接管仍按DEV-037..041、VAL-012/013跟踪；工具可调用不等于自动打牌/5秒目标已经完成。
 
@@ -46,7 +50,9 @@ SQLite runtime/archive.sqlite 使用 WAL，逐事件保存投影，保留 interr
 
 用户于2026-10-31要求尝试后台点击，新增browser_background模式：面板切换后重新开始接管，使用浏览器鼠标事件，系统鼠标不移动，也不抢前台。此模式允许窗口最小化；仍要求绑定窗口/页面身份、截图与手牌核验、状态版本/期限和急停。Unity需先更新一帧悬停目标再按下，不依赖系统前台焦点。隔离最小化测试与一次真实8m弃牌均已有证据，连续及多组合验收仍独立进行。
 
-新增最小化真实1p弃牌服务端确认，系统光标与前台不变。为避免最小化后画布停帧，后台模式维持低分辨率CDP screencast，帧立即丢弃、不进入牌谱；切回物理模式释放。停止/过期或渲染期间状态变化不按下。
+新增最小化真实1p弃牌服务端确认，系统光标与前台不变。为避免最小化后画布停帧，后台模式维持原视口尺寸CDP screencast，不请求缩放，帧立即丢弃、不进入牌谱；切回物理模式释放。停止/过期或渲染期间状态变化不按下。
+
+2026-10-31修复用户反馈的反复伸缩：定位取图改为完整原生视口CDP截图，不传clip/scale，不滚动或设置设备度量；Python本地裁剪画布、归一化，单锁串行并核验取图前后几何。真实页面连续12次、DPR1.25/1.5各12次及独立最小化窗口12次取图验证通过；用户随后确认“现在稳定了”。独立最小化还验证持续渲染及浏览器鼠标事件，不代表所有实战按钮矩阵通过，当前54321准备窗口未为该测试最小化或重启。
 
 大厅联调进一步修复低帧率Unity漏按：后台模式按下后等待两次渲染回调，抬起后再等一帧才归位；渲染异常也必须抬起。该行为会用于后续打牌执行，正常速度仍须重新实战计量，不能沿用旧样本证明5秒达标。
 

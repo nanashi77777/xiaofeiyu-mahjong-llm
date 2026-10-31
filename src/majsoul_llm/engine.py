@@ -6,6 +6,7 @@ import hashlib
 import time
 
 from .domain import Event, Phase, Rules, Snapshot
+from .game_modes import FOUR_PLAYER_LENGTHS
 from .lobby_session import LobbySession
 from .state import apply_event, digest
 from .store import Store, packed, utcnow
@@ -21,8 +22,9 @@ def room_rules(config: dict) -> Rules:
               "huansanzhang", "chuanma", "field_spell_mode", "zhanxing", "tianming_mode", "enable_shiti",
               "yongchang_mode", "hunzhiyiji_mode", "wanxiangxiuluo_mode", "beishuizhizhan_mode")
     unsupported = [key for key in exotic if detail.get(key)]
-    # 1/2 are four-player East/South; other values need an explicit adapter.
-    if mode.get("mode", 0) not in (1, 2):
+    # Length values are verified from visible four-player room creation. AI
+    # capability alone does not imply a different length or nonstandard rules.
+    if mode.get("mode") not in FOUR_PLAYER_LENGTHS.values():
         unsupported.append("unverified_four_player_mode")
     if detail.get("enable_nontsumo_liqi") or detail.get("enable_renhe"):
         unsupported.append("nonstandard_yaku_option")

@@ -3,12 +3,15 @@ import json
 import threading
 from types import SimpleNamespace
 
+import cv2
+import numpy as np
 import pytest
 import httpx
 from pydantic import ValidationError
 
 from majsoul_llm.app import create_app
 from majsoul_llm.config import Settings
+from majsoul_llm.engine import room_rules
 from majsoul_llm.input_lease import InputBusy, InputLease, finish_input
 from majsoul_llm.lobby import LobbyError, LobbyJournal, Navigator, WaitingUser
 from majsoul_llm.lobby_commands import parse_command
@@ -19,11 +22,14 @@ from majsoul_llm.lobby_ui import LobbyDriver, LobbyUI
 def test_commands_explicit_parameters_and_zeroes():
     command = parse_command({"kind":"join_friend", "command_id":"test-1", "room_code":"001234"})
     assert command.room_code == "001234"
+    assert command.ready is True
+    assert not parse_command({"kind":"join_friend", "command_id":"observe", "room_code":"001234", "ready":False}).ready
     ranked = parse_command({"kind":"ranked", "command_id":"test-2", "tier":"银之间", "length":"四人南"})
     assert (ranked.tier, ranked.length) == ("silver", "south")
     invalid = [
         {"kind":"join_friend", "room_code":1234},
         {"kind":"join_friend", "room_code":"１２３４"},
+        {"kind":"join_friend", "room_code":"12345", "ready":"false"},
         {"kind":"ranked", "length":"east"},
         {"kind":"ranked", "tier":"auto", "length":"south"},
         {"kind":"login", "password":"never-accepted"},
@@ -212,11 +218,95 @@ def test_lobby_session_never_retains_credentials_and_socket_close_invalidates():
 def test_created_room_verified_against_real_server_fields():
     command = parse_command({"command_id":"create", "kind":"create_friend", "players":4, "length":"south",
                              "thinking":{"fixed_seconds":5,"bank_seconds":10}})
-    room = {"players":4,"mode":{"mode":2,"ai":False,"detail_rule":{"time_fixed":5,"time_add":10}}}
-    LobbyDriver._verify_created(command, room)
-    for patch in ({"players":3}, {"mode":{"mode":1}}, {"mode":{"mode":2,"detail_rule":{"time_fixed":5000,"time_add":10000}}}):
+    room = {"room_code":"12345", "players":4,"mode":{"mode":2,"ai":True,"detail_rule":{"time_fixed":5,"time_add":10}}}
+    for ai in (True, False):
+        LobbyDriver._verify_created(command, {**room, "mode":{**room["mode"], "ai":ai}})
+    for patch in ({"players":3}, {"room_code":None}, {"mode":{}}, {"mode":{"mode":1}},
+                  {"mode":{"mode":2,"detail_rule":{"time_fixed":5000,"time_add":10000}}}):
         with pytest.raises(LobbyError):
             LobbyDriver._verify_created(command, {**room, **patch})
+
+
+@pytest.mark.parametrize(("length", "mode"), [("single",4), ("east",1), ("south",2), ("ai",3)])
+def test_verified_four_player_modes_are_shared_with_game_rule_entry(length, mode):
+    command = parse_command({"command_id":"mode", "kind":"create_friend", "players":4, "length":length,
+                             "thinking":{"fixed_seconds":3,"bank_seconds":5}})
+    room = {"room_code":"12345", "players":1 if length == "ai" else 4, "mode":{"mode":mode,"ai":True,
+            "detail_rule":{"time_fixed":3,"time_add":5}}}
+    LobbyDriver._verify_created(command, room)
+    assert "unverified_four_player_mode" not in room_rules({"category":1,"mode":room["mode"]}).unsupported
+    for unverified in (None,0,11,12,999):
+        assert "unverified_four_player_mode" in room_rules({"mode":{"mode":unverified}}).unsupported
+
+
+def test_room_projection_excludes_free_text_and_server_errors_do_not_replace_room():
+    private = {"room_id":12345, "max_player_count":4, "owner_id":123,
+               "persons":[{"nickname":"private-name"}], "mode":{"mode":2, "ai":True,
+               "extendinfo":"private-extension", "testing_environment":{"paixing":123},
+               "detail_rule":{"time_fixed":5, "time_add":10, "unknown":"private-rule"}}}
+    data = sanitize_lobby("createRoom", {"room":private})
+    assert data["room"]["mode"] == {"mode":2,"ai":True,"detail_rule":{"time_fixed":5,"time_add":10}}
+    assert "private" not in json.dumps(data)
+    session = LobbySession()
+    session.observe({"method":".lq.Lobby.createRoom", "data":data, "connection":"c"})
+    original = session.room
+    session.observe({"method":".lq.Lobby.joinRoom", "data":{**data,"error_code":123}, "connection":"c"})
+    assert session.room is original
+    session.observe({"method":".lq.Lobby.fetchRoom", "data":{"error_code":0}, "connection":"c"})
+    assert session.room is None
+
+
+async def test_confirmation_survives_validation_error_and_restart_without_clicks(tmp_path):
+    command = {"command_id":"persisted", "kind":"create_friend", "players":4, "length":"south",
+               "thinking":{"fixed_seconds":5, "bank_seconds":10}}
+    room = {"room_code":"12345", "players":4, "playing":False, "robots":0,
+            "mode":{"mode":2,"ai":True,"extendinfo":"private-extension",
+                    "detail_rule":{"time_fixed":5,"time_add":10}}}
+    session = LobbySession()
+    session.latest["createRoom"] = {"error_code":0, "room":room, "observed_mono":float("inf")}
+    driver = LobbyDriver(None, session, None)
+    async def run(command, ctx):
+        ctx.stage("browser_ready")
+        ctx.stage("lobby")
+        ctx.stage("navigating")
+        ctx.before_submit("createRoom")
+        await driver._ack("createRoom", 0, ctx)
+        raise LobbyError("previous_adapter_validation_bug")
+    driver.run = run
+    n, _ = navigation(tmp_path, driver)
+    await n.submit(command)
+    await n.task
+    record = n.journal.get("persisted")
+    assert record["status"] == "uncertain" and record["confirmation"]["room"]["room_code"] == "12345"
+    assert "private" not in json.dumps(record) and "observed_mono" not in json.dumps(record)
+    n.journal.close()
+    # No browser or UI exists after restart, so any input would fail the test.
+    n, _ = navigation(tmp_path, LobbyDriver(None, LobbySession(), None))
+    await n.resume("persisted")
+    await n.task
+    result = n.journal.get("persisted")
+    assert result["status"] == "succeeded" and result["stage"] == "completed"
+    assert result["result"]["confirmation_scope"] == "historical_submission"
+    assert result["result"]["current_room_verified"] is False
+    assert result["result"]["ready_or_started"] is False
+    n.journal.close()
+
+
+async def test_failed_confirmation_is_durable_but_never_confirms_success(tmp_path):
+    class Rejected(Driver):
+        async def run(self, command, ctx):
+            ctx.before_submit("createRoom")
+            driver = LobbyDriver(None, SimpleNamespace(latest={"createRoom":{
+                "observed_mono":float("inf"), "error_code":123}}), None)
+            await driver._ack("createRoom", 0, ctx)
+    n, _ = navigation(tmp_path, Rejected())
+    await n.submit({"command_id":"rejected", "kind":"create_friend", "players":4, "length":"south",
+                    "thinking":{"fixed_seconds":5,"bank_seconds":10}})
+    await n.task
+    result = n.journal.get("rejected")
+    assert result["status"] == "failed" and result["reason"] == "server_rejected_123"
+    assert result["confirmation"]["error_code"] == 123
+    n.journal.close()
 
 
 async def test_ui_selection_waits_for_same_click_to_settle_without_reclicking():
@@ -233,3 +323,125 @@ async def test_ui_selection_waits_for_same_click_to_settle_without_reclicking():
     ctx = SimpleNamespace(check=lambda:checks.append(True))
     await ui.select("create_form", "time_5_10", ctx)
     assert len(clicks) == 1 and len(checks) == 2
+
+
+async def test_joined_room_resume_only_prepares_and_persists_both_steps(tmp_path):
+    session = LobbySession()
+    session.authenticated = True
+    session.room = {"room_code":"12345", "players":4, "playing":False, "robots":0,
+                    "mode":{"mode":2,"detail_rule":{"time_fixed":5,"time_add":10}}}
+    calls = []
+    class UI:
+        calibrated = False
+        async def wait_scene(self, scene, ctx):
+            ctx.check()
+            if not self.calibrated:
+                raise WaitingUser("ready_calibration_required")
+        async def click(self, scene, control, ctx, *, submit):
+            ctx.before_submit(submit)
+            calls.append(control)
+            session.latest["readyPlay"] = {"observed_mono":float("inf"), "error_code":0,"ready":True}
+    ui = UI()
+    driver = LobbyDriver(None, session, ui)
+    async def run(command, ctx):
+        ctx.stage("browser_ready")
+        ctx.stage("lobby")
+        ctx.stage("navigating")
+        ctx.before_submit("joinRoom")
+        session.latest["joinRoom"] = {"observed_mono":float("inf"),"error_code":0,"room":session.room}
+        await driver._ack("joinRoom", 0, ctx)
+        ctx.stage("room")
+        return await driver._prepare(command, session.room, ctx)
+    driver.run = run
+    n, _ = navigation(tmp_path, driver)
+    command = {"command_id":"join-ready", "kind":"join_friend", "room_code":"12345"}
+    await n.submit(command)
+    await n.task
+    assert n.journal.get("join-ready")["status"] == "waiting_user" and not calls
+    ui.calibrated = True
+    await n.resume("join-ready")
+    await n.task
+    record = n.journal.get("join-ready")
+    assert record["status"] == "succeeded" and record["result"]["prepared"]
+    assert set(record["confirmations"]) == {"joinRoom", "readyPlay"} and calls == ["ready"]
+    assert record["confirmation"]["ready"] is True
+    # A later identical request does not toggle ready off or rejoin.
+    assert (await n.submit(command))["status"] == "succeeded" and calls == ["ready"]
+    n.journal.close()
+
+
+async def test_prepare_guard_rechecks_room_after_wait_and_never_clicks_another_room(tmp_path):
+    session = LobbySession()
+    session.authenticated = True
+    session.room = {"room_code":"12345", "playing":False}
+    clicks = []
+    class UI:
+        async def wait_scene(self, scene, ctx):
+            session.room = {"room_code":"99999", "playing":False}
+        async def click(self, scene, control, ctx, *, submit):
+            ctx.before_submit(submit)
+            clicks.append(control)
+    driver = LobbyDriver(None, session, UI())
+    async def run(command, ctx):
+        ctx.stage("browser_ready")
+        return await driver._prepare(command, dict(session.room), ctx)
+    driver.run = run
+    n, _ = navigation(tmp_path, driver)
+    await n.submit({"command_id":"room-changed", "kind":"join_friend", "room_code":"12345"})
+    await n.task
+    record = n.journal.get("room-changed")
+    assert record["status"] == "waiting_user" and record["submitted_step"] is None and not clicks
+    n.journal.close()
+
+
+async def test_unknown_prepare_resume_only_accepts_late_original_response(tmp_path):
+    n, _ = navigation(tmp_path)
+    command = parse_command({"command_id":"ready-unknown", "kind":"join_friend", "room_code":"12345"})
+    n.journal.create(command)
+    room = {"room_code":"12345", "players":4}
+    n.journal.update(command.command_id, status="uncertain", stage="room", submitted_step="readyPlay",
+                     confirmation=None, confirmations={"joinRoom":{"method":"joinRoom","error_code":0,"room":room}})
+    # No browser/UI is present. Repeated resume cannot click an uncertain ready.
+    session = LobbySession()
+    driver = LobbyDriver(None, session, None)
+    async def no_response(predicate, ctx, seconds=12):
+        raise WaitingUser("waiting_for_original_ready_confirmation")
+    driver._wait = no_response
+    n.driver = driver
+    await n.resume(command.command_id)
+    await n.task
+    assert n.journal.get(command.command_id)["status"] == "waiting_user"
+    # Restore the normal observer wait after an original delayed response.
+    del driver._wait
+    session.latest["readyPlay"] = {"observed_mono":float("inf"), "error_code":0, "ready":True}
+    await n.resume(command.command_id)
+    await n.task
+    result = n.journal.get(command.command_id)
+    assert result["status"] == "succeeded" and result["result"]["prepared"]
+    assert not result["result"]["current_room_verified"]
+    n.journal.close()
+
+
+def test_canvas_room_code_keeps_leading_zeroes_and_rejects_ambiguous_glyphs(tmp_path):
+    ui = object.__new__(LobbyUI)
+    ui.folder = tmp_path
+    digits = {}
+    for digit in "0123456789":
+        glyph = np.zeros((45,32),dtype=np.uint8)
+        cv2.putText(glyph,digit,(4,34),cv2.FONT_HERSHEY_SIMPLEX,1,(255,),2,cv2.LINE_AA)
+        _,_,stats,_ = cv2.connectedComponentsWithStats((glyph > 180).astype("uint8")*255)
+        x,y,w,h,_ = max(stats[1:],key=lambda s:s[4])
+        glyph = (glyph[y:y+h,x:x+w] > 180).astype("uint8")*255
+        file = digit+".png"
+        cv2.imwrite(str(tmp_path/file),glyph)
+        digits[digit] = file
+    screen = np.zeros((60,240,3),dtype=np.uint8)
+    for index,digit in enumerate("054321"):
+        glyph = cv2.imread(str(tmp_path/digits[digit]),0)
+        h,w = glyph.shape
+        screen[10:10+h,10+index*35:10+index*35+w] = glyph[:,:,None]
+    scene = {"digit_region":[0,0,240,60],"digits":digits}
+    assert ui._read_digits(screen,scene) == "054321"
+    scene["digits"]["2"] = scene["digits"]["1"]
+    with pytest.raises(WaitingUser,match="room_code_digit_ambiguous"):
+        ui._read_digits(screen,scene)

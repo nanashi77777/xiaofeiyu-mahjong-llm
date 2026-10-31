@@ -4,7 +4,16 @@ from __future__ import annotations
 import time
 
 LOGIN_METHODS = {"login", "emailLogin", "oauth2Login", "fastLogin", "loginSuccess", "loginBeat"}
-LOBBY_METHODS = LOGIN_METHODS | {"fetchRoom", "createRoom", "joinRoom", "leaveRoom", "matchGame", "cancelMatch"}
+LOBBY_METHODS = LOGIN_METHODS | {"fetchRoom", "createRoom", "joinRoom", "readyPlay", "leaveRoom", "matchGame", "cancelMatch"}
+
+
+def room_facts(room):
+    """Project an already sanitized room again before durable confirmation."""
+    mode = room.get("mode", {})
+    detail = mode.get("detail_rule", {})
+    return {**{key:room.get(key) for key in ("room_code", "players", "playing", "robots")},
+            "mode":{**{key:mode[key] for key in ("mode", "ai") if key in mode},
+                    "detail_rule":{key:detail[key] for key in ("time_fixed", "time_add") if key in detail}}}
 
 
 def sanitize_lobby(method, data):
@@ -15,9 +24,9 @@ def sanitize_lobby(method, data):
     if room.get("room_id"):
         # IDs and the exact room mode are local navigation evidence. No player
         # identity, access token, address or account information is returned.
-        result["room"] = {"room_code":str(room["room_id"]), "players":room.get("max_player_count"),
-                          "playing":room.get("is_playing", False), "robots":room.get("robot_count", 0),
-                          "mode":room.get("mode", {})}
+        result["room"] = room_facts({"room_code":str(room["room_id"]), "players":room.get("max_player_count"),
+                                     "playing":room.get("is_playing", False), "robots":room.get("robot_count", 0),
+                                     "mode":room.get("mode", {})})
     return result
 
 
@@ -31,6 +40,7 @@ class LobbySession:
         self.observed_mono = 0
         self.has_game = False
         self.room = None
+        self.prepared = None
         self.matching = False
         self.latest = {}
         self.generation = getattr(self, "generation", 0) + 1
@@ -51,14 +61,21 @@ class LobbySession:
             # pending reconnect signalled by the preceding full login response.
             if method not in ("loginBeat", "loginSuccess"):
                 self.has_game = data.get("has_game", False)
-        if data.get("room"):
+        if data.get("room") and not data["error_code"]:
             self.room = data["room"]
+            self.prepared = None
+        if method == "fetchRoom" and not data["error_code"] and not data.get("room"):
+            self.room = None
+            self.prepared = None
         if method == "leaveRoom" and not data["error_code"]:
             self.room = None
+            self.prepared = None
+        if method == "readyPlay" and not data["error_code"] and self.room:
+            self.prepared = data.get("ready")
         if method in ("matchGame", "cancelMatch") and not data["error_code"]:
             self.matching = method == "matchGame"
 
     def public(self):
         return {"authenticated":self.authenticated, "has_game":self.has_game,
-                "has_room":bool(self.room), "matching":self.matching, "generation":self.generation,
+                "has_room":bool(self.room), "prepared":self.prepared, "matching":self.matching, "generation":self.generation,
                 "age_seconds":round(time.monotonic()-self.observed_mono, 1) if self.observed_mono else None}

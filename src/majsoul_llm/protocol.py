@@ -72,7 +72,11 @@ class Protocol:
                     descriptor = self.pool.FindServiceByName(service).methods_by_name[method]
                     # Login request bytes can include passwords/tokens. Don't
                     # decode or forward them, even to an in-memory observer.
-                    self.pending[(connection, request_id)] = (name, descriptor.output_type.full_name, None)
+                    safe_input = None
+                    if method == "readyPlay":
+                        request = self.decode(descriptor.input_type.full_name, base64.b64decode(wrapper.get("data", "")))
+                        safe_input = {"ready":request["ready"]}
+                    self.pending[(connection, request_id)] = (name, descriptor.output_type.full_name, safe_input)
                     return None
                 # Only gameplay RPCs. Auth values are never returned or persisted.
                 if not name.startswith(".lq.FastTest."):
@@ -101,6 +105,8 @@ class Protocol:
             decoded = self.decode(response_type, data)
             if name.startswith(".lq.Lobby."):
                 decoded = sanitize_lobby(name.rsplit(".", 1)[-1], decoded)
+                if name.endswith(".readyPlay") and original_input is not None:
+                    decoded["ready"] = original_input["ready"]
             if name.endswith("authGame"):
                 decoded = {k: decoded[k] for k in ("error", "seat_list", "game_config", "is_game_start") if k in decoded}
             restore = decoded.get("game_restore")

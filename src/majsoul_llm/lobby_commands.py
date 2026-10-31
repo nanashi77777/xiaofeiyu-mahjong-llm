@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt, StrictStr, TypeAdapter, field_validator
+from pydantic import Field, StrictBool, StrictInt, StrictStr, TypeAdapter, field_validator
 
 from .domain import Record
 
@@ -39,6 +39,7 @@ class JoinFriend(Command):
     kind: Literal["join_friend"]
     # Never coerce a JSON number to text: its leading zeroes are already lost.
     room_code: Annotated[StrictStr, Field(pattern=r"^[0-9]{1,12}$")]
+    ready: StrictBool = True
 
 
 class ThinkingTime(Record):

@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 
 from .input_lease import finish_input
+from .game_modes import FOUR_PLAYER_LENGTHS
 from .lobby import LobbyError, WaitingUser
 from .locator import decode_image, glyph_similarity
 
@@ -89,6 +90,8 @@ class LobbyUI:
         target = profile["scenes"][scene]["controls"].get(control)
         if target is None:
             raise WaitingUser("lobby_control_not_calibrated")
+        if scene == "room" and control == "ready" and not target.get("anchor"):
+            raise WaitingUser("room_ready_label_calibration_required")
         searched = None
         if target.get("search"):
             for _ in range(18):
@@ -233,7 +236,13 @@ class LobbyUI:
                 if abs(cw/ch/(template.shape[1]/template.shape[0])-1) > .25:
                     continue
                 normalized = cv2.resize(patch, (template.shape[1], template.shape[0]))
-                score = float(cv2.matchTemplate(normalized, template, cv2.TM_CCOEFF_NORMED)[0, 0])
+                score = glyph_similarity(normalized, template)
+                # Centering the whole number moves glyph edges across the
+                # canvas pixel grid. Preserve shape under a one-pixel bounds
+                # change as well as comparing the normalized crop.
+                if abs(cw-template.shape[1]) <= 2 and abs(ch-template.shape[0]) <= 2:
+                    padded = cv2.copyMakeBorder(patch, 2, 2, 2, 2, cv2.BORDER_CONSTANT, value=0)
+                    score = max(score, glyph_similarity(padded, template))
                 scores.append((score, digit))
             scores.sort(reverse=True)
             if not scores or scores[0][0] < .9 or len(scores)>1 and scores[0][0]-scores[1][0] < .05:
@@ -320,6 +329,9 @@ class LobbyDriver:
             # the original string in the command and input/readback records.
             if not room or int(room["room_code"]) != int(command.room_code):
                 raise LobbyError("joined_room_not_verified")
+            ctx.stage("room")
+            if command.ready:
+                return await self._prepare(command, room, ctx)
         else:
             pair = (command.thinking.fixed_seconds, command.thinking.bank_seconds)
             if pair not in {(3, 5), (5, 10), (5, 20), (60, 0), (300, 0)}:
@@ -341,24 +353,42 @@ class LobbyDriver:
 
     async def _ack(self, method, before, ctx):
         ack = await self._wait(lambda: (r if (r := self.session.latest.get(method)) and r["observed_mono"] >= before else None), ctx)
+        ctx.confirmed(method, ack)
         if ack["error_code"]:
             raise LobbyError("server_rejected_"+str(ack["error_code"]), definitive=True)
         return ack
 
     @staticmethod
     def _verify_created(command, room):
-        if not room or room.get("players") != 4:
+        # The AI practice option has one human seat but still uses the visible
+        # four-player board. max_player_count is human capacity, not board size.
+        if not room or room.get("players") != (1 if command.length == "ai" else 4):
             raise LobbyError("created_room_players_not_verified")
-        mode = room["mode"]
-        expected = {"single":0, "east":1, "south":2}
-        if command.length == "ai":
-            if not mode.get("ai"):
-                raise LobbyError("created_ai_mode_not_verified")
-        elif mode.get("mode", 0) != expected[command.length] or mode.get("ai"):
+        code = room.get("room_code")
+        if not isinstance(code, str) or not code.isascii() or not code.isdigit() or int(code) == 0:
+            raise LobbyError("created_room_code_not_verified")
+        mode = room.get("mode", {})
+        # GameMode.ai is also true in ordinary four-player friend rooms with
+        # zero robots. It does not encode the length selected on the form.
+        if mode.get("mode") != FOUR_PLAYER_LENGTHS[command.length]:
             raise LobbyError("created_room_length_not_verified")
         detail = mode.get("detail_rule", {})
         if (detail.get("time_fixed"), detail.get("time_add")) != (command.thinking.fixed_seconds, command.thinking.bank_seconds):
             raise LobbyError("created_room_time_not_verified")
+
+    async def _prepare(self, command, room, ctx):
+        ctx.bind_room(self.session, room["room_code"])
+        if self.session.prepared is not True:
+            await self.ui.wait_scene("room", ctx)
+            before = time.monotonic()
+            # Requires a calibrated visible ready label. The room owner's
+            # start button must never be accepted at the same screen position.
+            await self.ui.click("room", "ready", ctx, submit="readyPlay")
+            ack = await self._ack("readyPlay", before, ctx)
+            if ack.get("ready") is not True:
+                raise LobbyError("room_ready_state_not_verified")
+        return {"outcome":"room", "room":room, "prepared":True, "started_by_bot":False,
+                "current_room_verified":True}
 
     async def reconcile(self, command, ctx):
         record = ctx.navigator.journal.get(command.command_id)
@@ -366,15 +396,40 @@ class LobbyDriver:
             # Waiting for manual login before any submission is safe to retry.
             ctx.navigator.journal.update(command.command_id, stage="stopped")
             return await self.run(command, ctx)
-        # No click here. Require evidence observed after this resume started;
-        # persisted/stale room evidence cannot establish a successful command.
-        before = time.monotonic()
         method = record["submitted_step"]
-        ack = await self._ack(method, before, ctx)
+        ack = record.get("confirmation")
+        if ack is None:
+            # Only an original response arriving late can confirm this command.
+            # No new create/join/match or guessed room equivalence is allowed.
+            ack = await self._ack(method, time.monotonic(), ctx)
+        elif ack["method"] != method:
+            raise LobbyError("confirmation_method_mismatch")
+        if ack["error_code"]:
+            raise LobbyError("server_rejected_"+str(ack["error_code"]), definitive=True)
         if command.kind == "create_friend":
             self._verify_created(command, ack.get("room"))
         elif command.kind == "join_friend":
-            room = ack.get("room")
+            joined = record.get("confirmations", {}).get("joinRoom", ack if method == "joinRoom" else {})
+            room = joined.get("room")
             if not room or int(room["room_code"]) != int(command.room_code):
                 raise LobbyError("joined_room_not_verified")
-        return {"outcome":"reconciled_from_fresh_server_evidence", "room":ack.get("room")}
+            if method == "readyPlay":
+                if ack.get("ready") is not True:
+                    raise LobbyError("room_ready_state_not_verified")
+                ctx.stage("completed")
+                return {"outcome":"room_submission_confirmed", "room":room, "prepared":True,
+                        "confirmation_scope":"historical_submission", "current_room_verified":False,
+                        "started_by_bot":False}
+            # Pre-upgrade records had no ready field and must retain their
+            # original behavior when explicitly resumed after a code upgrade.
+            if record["command"].get("ready", False):
+                ctx.stage("room")
+                return await self._prepare(command, room, ctx)
+        # The persisted response proves this submission's historical outcome.
+        # It cannot prove that the client is still in that room after reconnect.
+        if command.kind in ("create_friend", "join_friend"):
+            ctx.stage("completed")
+            return {"outcome":"room_submission_confirmed", "room":ack.get("room"),
+                    "confirmation_scope":"historical_submission", "current_room_verified":False,
+                    "ready_or_started":False}
+        raise WaitingUser("matching_current_state_requires_fresh_verification")

@@ -48,12 +48,15 @@ def fixture_protocol():
     message('ResAuth',[('is_game_start',8)])
     message('ReqLogin',[('password',9)])
     message('ResLogin',[('access_token',9)])
+    message('ReqReady',[('ready',8)])
+    message('ResReady',[])
     message('ActionDiscardTile',[('seat',13),('tile',9)])
     message('ActionPrototype',[('step',13),('name',9),('data',12)])
     service=file.service.add(name='FastTest')
     service.method.add(name='authGame',input_type='.lq.ReqAuth',output_type='.lq.ResAuth')
     lobby=file.service.add(name='Lobby')
     lobby.method.add(name='login',input_type='.lq.ReqLogin',output_type='.lq.ResLogin')
+    lobby.method.add(name='readyPlay',input_type='.lq.ReqReady',output_type='.lq.ResReady')
     return Protocol(file.SerializeToString())
 
 
@@ -87,6 +90,17 @@ def test_lobby_login_request_is_not_decoded_or_forwarded():
     result=protocol.frame('lobby',response,False)
     assert result['data']=={'error_code':0,'has_game':False}
     assert 'secret' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('ready',[True,False])
+def test_prepare_confirmation_tracks_the_requested_boolean_without_identity(ready):
+    protocol=fixture_protocol()
+    wrapper=protocol.message('lq.Wrapper')
+    request=protocol.message('lq.ReqReady')(ready=ready)
+    frame=b'\x02'+struct.pack('<H',5)+wrapper(name='.lq.Lobby.readyPlay',data=request.SerializeToString()).SerializeToString()
+    assert protocol.frame('lobby',frame,True) is None
+    response=b'\x03'+struct.pack('<H',5)+wrapper(data=b'').SerializeToString()
+    assert protocol.frame('lobby',response,False)['data']=={'error_code':0,'ready':ready}
 
 
 def test_store_committed_state_survives_reopen_and_future_schema_rejected(tmp_path,state):

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .input_lease import InputBusy
 from .lobby_commands import parse_command
+from .lobby_session import room_facts
 from .store import utcnow
 
 
@@ -32,7 +33,7 @@ STAGES = {
     "browser_ready": {"authenticating", "lobby", "in_game"},
     "authenticating": {"lobby", "in_game"},
     "lobby": {"navigating", "completed", "in_game"},
-    "navigating": {"matching", "room", "in_game"},
+    "navigating": {"matching", "room", "in_game", "completed"},
     "matching": {"in_game", "completed"},
     "room": {"in_game", "completed"},
     "in_game": {"completed"},
@@ -99,6 +100,7 @@ class LobbyJournal:
 class NavigationContext:
     def __init__(self, navigator, command_id):
         self.navigator, self.command_id = navigator, command_id
+        self.room_guard = None
 
     def check(self):
         n = self.navigator
@@ -108,6 +110,15 @@ class NavigationContext:
             raise LobbyError("active_game_requires_handoff")
         if n.gameplay_enabled():
             raise LobbyError("gameplay_enabled")
+        if self.room_guard:
+            session, code, generation = self.room_guard
+            if not (session.authenticated and session.generation == generation and session.room and
+                    session.room["room_code"] == code and not session.room.get("playing")):
+                raise WaitingUser("joined_room_not_current_no_prepare")
+
+    def bind_room(self, session, code):
+        self.room_guard = (session, code, session.generation)
+        self.check()
 
     def stage(self, stage):
         self.check()
@@ -118,11 +129,29 @@ class NavigationContext:
 
     def before_submit(self, step):
         self.check()
-        if self.navigator.journal.get(self.command_id)["submitted_step"]:
-            raise LobbyError("submission_already_recorded_check_actual_state")
+        record = self.navigator.journal.get(self.command_id)
+        previous = record.get("confirmation")
+        if record["submitted_step"]:
+            if not (step == "readyPlay" and record["submitted_step"] == "joinRoom" and
+                    previous and previous["method"] == "joinRoom" and not previous["error_code"]):
+                raise LobbyError("submission_already_recorded_check_actual_state")
         # Commit before the irreversible click. A failed click can leave a false
         # uncertainty; it must never leave a false permission to click twice.
-        self.navigator.journal.update(self.command_id, submitted_step=step)
+        self.navigator.journal.update(self.command_id, submitted_step=step, confirmation=None)
+
+    def confirmed(self, method, ack):
+        record = self.navigator.journal.get(self.command_id)
+        if record["submitted_step"] != method:
+            raise LobbyError("confirmation_method_mismatch")
+        # Persist before option validation. A correct server response can expose
+        # an adapter bug; restarting must not lose the proof or repeat the click.
+        confirmation = {"method":method, "error_code":ack["error_code"], "confirmed_at":utcnow()}
+        if ack.get("room"):
+            confirmation["room"] = room_facts(ack["room"])
+        if method == "readyPlay" and "ready" in ack:
+            confirmation["ready"] = ack["ready"]
+        confirmations = {**record.get("confirmations", {}), method:confirmation}
+        self.navigator.journal.update(self.command_id, confirmation=confirmation, confirmations=confirmations)
 
 
 class Navigator:
