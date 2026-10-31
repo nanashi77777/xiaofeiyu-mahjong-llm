@@ -117,26 +117,44 @@ class ScreenLocator:
             template = profile["templates"].get(label)
             if not template:
                 raise InputDeferred("required visual label is not calibrated")
-            patch = decode_image((self.folder/template["file"]).read_bytes())
-            ph,pw = patch.shape[:2]
-            if search.shape[0] < ph or search.shape[1] < pw:
-                continue
-            if float(np.std(patch)) < 3:
-                raise InputDeferred("calibration patch has no identifying detail")
-            result = cv2.matchTemplate(search,patch,cv2.TM_CCOEFF_NORMED)
-            if resampled:
-                result = np.maximum(result, cv2.matchTemplate(
-                    cv2.GaussianBlur(search,(3,3),.6),cv2.GaussianBlur(patch,(3,3),.6),
-                    cv2.TM_CCOEFF_NORMED))
-            # Suppress adjacent pixel maxima for one physical tile/button.
-            for _ in range(20):
-                _,value,_,point = cv2.minMaxLoc(result)
-                if value < profile.get("threshold",.94):
-                    break
-                x,y = point
-                boxes.append(Box(round((x+ox)*sx),round((y+oy)*sy),round(pw*sx),round(ph*sy),value,label))
-                result[max(0,y-ph//2):y+ph//2+1,max(0,x-pw//2):x+pw//2+1] = -1
-        return sorted(boxes,key=lambda b:(b.x,b.y,b.label))
+            variants = ([template] if 'file' in template else []) + template.get('variants', [])
+            if not variants:
+                raise InputDeferred('visual label has no calibrated glyph variants')
+            for variant in variants:
+                boxes.extend(self._patch_matches(search, variant, label, profile, ox, oy, sx, sy, resampled))
+        # Two glyph variants may recognize the same physical button. Preserve
+        # separate locations as ambiguity rather than choosing the best score.
+        unique = []
+        for box in sorted(boxes, key=lambda b:-b.confidence):
+            if not any(box.label == other.label
+                       and abs(box.center[0]-other.center[0]) < min(box.width,other.width)*.45
+                       and abs(box.center[1]-other.center[1]) < min(box.height,other.height)*.45
+                       for other in unique):
+                unique.append(box)
+        return sorted(unique,key=lambda b:(b.x,b.y,b.label))
+
+    def _patch_matches(self, search, template, label, profile, ox, oy, sx, sy, resampled):
+        patch = decode_image((self.folder/template["file"]).read_bytes())
+        ph,pw = patch.shape[:2]
+        if search.shape[0] < ph or search.shape[1] < pw:
+            return []
+        if float(np.std(patch)) < 3:
+            raise InputDeferred("calibration patch has no identifying detail")
+        result = cv2.matchTemplate(search,patch,cv2.TM_CCOEFF_NORMED)
+        if resampled:
+            result = np.maximum(result, cv2.matchTemplate(
+                cv2.GaussianBlur(search,(3,3),.6),cv2.GaussianBlur(patch,(3,3),.6),
+                cv2.TM_CCOEFF_NORMED))
+        # Suppress adjacent pixel maxima for one physical tile/button.
+        boxes = []
+        for _ in range(20):
+            _,value,_,point = cv2.minMaxLoc(result)
+            if value < profile.get("threshold",.94):
+                break
+            x,y = point
+            boxes.append(Box(round((x+ox)*sx),round((y+oy)*sy),round(pw*sx),round(ph*sy),value,label))
+            result[max(0,y-ph//2):y+ph//2+1,max(0,x-pw//2):x+pw//2+1] = -1
+        return boxes
 
     def hand(self, raw, state):
         signature = self.hand_signature(state)
@@ -286,12 +304,8 @@ class ScreenLocator:
         return found[occurrence]
 
     def combo(self, raw, kind, tiles, offered=None):
-        # Crops identify the complete offered combination including red tiles.
-        label = "combo_"+kind+"_"+"_".join(sorted(tiles))
-        if label in self.profile()['templates']:
-            found = self.matches(raw,[label])
-            if len(found) == 1:
-                return found[0]
+        # An old matching crop cannot prove that all CURRENT choices are
+        # visible. Always classify and reconcile the complete menu first.
         groups = self.menu_groups(raw)
         actual = [tuple(sorted(names)) for names,_ in groups]
         if offered is not None and (set(actual) != {tuple(sorted(t)) for t in offered}
@@ -300,6 +314,17 @@ class ScreenLocator:
         found = [box for names,box in groups if sorted(names) == sorted(tiles)]
         if len(found) != 1:
             raise InputDeferred('selected meld combination is not uniquely visible')
+        label = "combo_"+kind+"_"+"_".join(sorted(tiles))
+        if label in self.profile()['templates']:
+            crops = self.matches(raw,[label])
+            if len(crops) > 1:
+                raise InputDeferred('combination crop is ambiguous')
+            if crops:
+                x,y = crops[0].center
+                group = found[0]
+                if not (group.x <= x <= group.x+group.width and group.y <= y <= group.y+group.height):
+                    raise InputDeferred('combination crop disagrees with classified menu')
+                return crops[0]
         return found[0]
 
     def menu_groups(self, raw):

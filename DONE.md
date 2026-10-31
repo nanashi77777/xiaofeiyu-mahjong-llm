@@ -62,3 +62,5 @@
 | DEV-061 | 实现 | 多枚赤五计番与对手暗杠颜色未知表示 | [完成记录](docs/development/completed/DEV-061-red-multiplicity.md) |
 | DEV-062 | 实现 | 新鲜服务端时间池校正与确认延时分离 | [完成记录](docs/development/completed/DEV-062-server-pool-reconciliation.md) |
 | DEV-063 | 实现 | 荣和放铳与自摸事实归属、查询和复盘输入 | [完成记录](docs/development/completed/DEV-063-win-outcomes.md) |
+| DEV-064 | 实现 | 低频按钮校准、多字形匹配与鸣牌菜单完整性核对 | [完成记录](docs/development/completed/DEV-064-button-calibration.md) |
+| DEV-065 | 实现 | 面板慢请求超时、重连隔离和停止按钮可恢复 | [完成记录](docs/development/completed/DEV-065-panel-request-deadlines.md) |

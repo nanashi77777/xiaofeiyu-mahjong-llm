@@ -851,7 +851,7 @@
       "kind": "validation",
       "milestone": "M1",
       "title": "真实协议、状态和恢复专项验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-006",
         "DEV-007",
@@ -905,7 +905,7 @@
       "kind": "validation",
       "milestone": "M4",
       "title": "隔离及真实界面输入专项验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-021"
       ],
@@ -952,7 +952,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "500窗口5+10不耗尽计时验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-028",
         "VAL-004",
@@ -979,7 +979,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "三场完整友人四南与中断恢复验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "VAL-001",
         "VAL-002",
@@ -1003,7 +1003,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "QQ按需查询、权限和真实经历验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-023",
         "DEV-026",
@@ -1141,7 +1141,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "紧凑格式真实token与模型理解配对验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-030",
         "VAL-004",
@@ -1511,7 +1511,7 @@
       "kind": "validation",
       "milestone": "M9",
       "title": "登录与大厅状态流程专项验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-036",
         "DEV-037",
@@ -1532,7 +1532,7 @@
       "kind": "validation",
       "milestone": "M9",
       "title": "真实段位与友人房入口专项验收",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "VAL-012",
         "DEV-038",
@@ -2111,6 +2111,56 @@
       ],
       "implementation_progress": "code_ready",
       "completed_record": "docs/development/completed/DEV-063-win-outcomes.md",
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-064",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "低频按钮校准、多字形匹配与鸣牌菜单完整性核对",
+      "status": "done",
+      "depends_on": [
+        "DEV-017",
+        "DEV-058"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "本机真实历史自摸/杠/九种九牌截图可追溯裁剪并离线验证；自验与独立截图区分，生产校准只在输入空闲时安装且保留备份，不改变浏览器布局",
+        "同一语义可配置多字形，匹配同一物理目标去重，多个不同目标拒绝；未知/错按钮不点击；三类杠共享字形但操作类型由原合法动作决定",
+        "鸣牌组合即使命中完整模板也核对当前全部候选，不能绕过菜单完整性/赤牌/歧义检查；测试、真实档案验证和任务消费齐全"
+      ],
+      "evidence": [
+        "239 pytest and ruff; real dual-chi completeness; independent kan glyph .978 and no-button negative; idle calibration installed with backup",
+        "Final full suite 240 pytest passed; ruff and 82-task registry checks passed"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-064-button-calibration.md",
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-065",
+      "kind": "development",
+      "milestone": "M7",
+      "title": "面板慢请求超时、重连隔离和停止按钮可恢复",
+      "status": "done",
+      "depends_on": [
+        "DEV-036"
+      ],
+      "design_refs": [
+        "docs/design/api-and-qq.md"
+      ],
+      "acceptance": [
+        "状态请求及响应体有界等待，超时标未知并释放刷新锁，后续刷新可恢复；连接切换旧请求不得覆盖新凭据状态",
+        "控制提交超时明确结果未知，不自动重复；停止按钮独立于轮询锁可用；正式HTML隔离真实浏览器故障路由验证，零生产控制"
+      ],
+      "evidence": [
+        "production HTML isolated browser 20 checks passed; hung headers/body, reconnect races, unknown POST and independent stop; zero production controls",
+        "Final full suite 240 pytest passed; ruff and 82-task registry checks passed"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-065-panel-request-deadlines.md",
       "completed_on": "2026-10-31"
     }
   ],

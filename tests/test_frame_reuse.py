@@ -47,3 +47,20 @@ def test_missing_button_evidence_keeps_first_mature_frame_once_per_window(state,
     state.operation.window_id='new-window'
     executor._save_uncalibrated_offers(b'new frame',state,actions)
     assert len(list(folder.glob('*.png')))==2
+
+
+def test_missing_button_evidence_keeps_later_animation_frame_without_extra_capture(state,tmp_path):
+    executor=object.__new__(Executor)
+    executor.offered_window,executor.offered_saved=None,set()
+    executor.browser=SimpleNamespace(settings=SimpleNamespace(runtime=tmp_path))
+    executor.locator=SimpleNamespace(profile=lambda:{'templates':{}})
+    actions=[SimpleNamespace(kind='ankan')]
+    state.operation.received_mono=time.monotonic()-.5
+    executor._save_uncalibrated_offers(b'animation has no button yet',state,actions)
+    state.operation.received_mono=time.monotonic()-1.8
+    executor._save_uncalibrated_offers(b'later visible button',state,actions)
+    executor._save_uncalibrated_offers(b'repeated same stage',state,actions)
+    folder=tmp_path/'calibration'/'offered'
+    assert {p.read_bytes() for p in folder.glob('*.png')} == {
+        b'animation has no button yet', b'later visible button'}
+    assert {json.loads(p.read_text(encoding='utf8'))['extra_captures'] for p in folder.glob('*.json')} == {0}

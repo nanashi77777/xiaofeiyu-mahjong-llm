@@ -92,6 +92,10 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 ## 验证工具
 
+低频按钮可使用`python tools/calibrate_buttons.py --manifest runtime/<本机清单>.json --output runtime/<报告>.json`先离线核验，再加`--install`在生产输入空闲时安装；源清单和截图留本机，profile自动备份。清单包含width/height/threshold、crops的kind/source/box/provenance=local_real_capture以及cases的source/expected。三类杠可共享字形，但实际动作仍来自合法候选。报告区分同源自验和独立截图，旧截图局部等比归一化不能替代当前浏览器几何或真实点击验收。新字形可作为同语义variants，不要为了通过降低置信阈值或用固定坐标。
+
+面板查询和响应体5秒未完成即显示当前未知、释放刷新锁，后续轮询可恢复；控制15秒无结果会提示操作结果未知，先查实际状态，不要重复建房/匹配。重新连接会取消旧请求，停止入口不等待旧轮询完成。
+
 物理输入专项会实际操作一次性本机窗口并合成Esc；运行前自动查询生产输入必须空闲，接管/导航/结算进行中直接拒绝。先暂停生产接管，再运行`python tools/validate_physical_input.py --output runtime/physical-input-validation-<批次>.json`，不能与正式计时重叠。报告分别记录真实Windows点击和合成干预，不控制游戏。默认完整验证约数秒，桌面无法取得前台时保留受阻结果。
 
 `python tools/validate_panel.py --output runtime/panel-validation-<批次>.json`在独立headless浏览器加载正式面板，拦截全部路由；面板断线/恢复、既有QQ导航指令和表单/响应布局可复现，所有控制请求只到构造处理器。`python tools/audit_archive.py --output runtime/archive-replay-audit-<批次>.json`对正式库建立只读一致性事务，重建事件并比较事实缓存，不修改生产数据；未知老字段或差异会保留并返回失败，不自动重写缓存。

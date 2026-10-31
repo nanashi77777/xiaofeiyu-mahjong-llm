@@ -79,3 +79,49 @@ def test_dynamic_menu_reads_all_choices_and_rejects_red_or_candidate_mismatch(tm
     locator.classifier.predictions[0] = ('1s',.98)
     with pytest.raises(InputDeferred,match='uncertain'):
         locator.combo(raw,'chi',['3s','4s'])
+
+
+def test_button_variants_deduplicate_one_target_but_never_choose_between_locations(tmp_path):
+    import json
+    rng = np.random.default_rng(664)
+    glyph = rng.integers(20,240,(35,44,3),dtype=np.uint8)
+    second = rng.integers(20,240,(35,44,3),dtype=np.uint8)
+    screen = np.zeros((120,280,3),dtype=np.uint8)
+    screen[40:75,30:74] = glyph
+    locator = ScreenLocator(tmp_path)
+    raw = png(screen)
+    locator.save_crop(raw,'button_ankan',[30,40,44,35])
+    profile = locator.profile()
+    cv2.imencode('.png', second)[1].tofile(str(locator.folder/'variant.png'))
+    profile['templates']['button_ankan']['variants'] = [
+        {'file':'button_ankan.png'}, {'file':'variant.png'}]
+    locator.path.write_text(json.dumps(profile))
+    assert locator.button(raw,'ankan').center == (52,57.5)
+    screen[40:75,30:74] = second
+    assert locator.button(png(screen),'ankan').center == (52,57.5)
+    screen[40:75,170:214] = glyph
+    with pytest.raises(InputDeferred,match='ambiguous'):
+        locator.button(png(screen),'ankan')
+    with pytest.raises(InputDeferred,match='absent'):
+        locator.button(png(np.zeros_like(screen)),'ankan')
+
+
+def test_matching_combo_crop_still_requires_complete_current_menu(tmp_path):
+    from majsoul_llm.locator import Box
+    rng = np.random.default_rng(665)
+    screen = np.zeros((120,280,3),dtype=np.uint8)
+    screen[40:75,30:74] = rng.integers(20,240,(35,44,3),dtype=np.uint8)
+    locator = ScreenLocator(tmp_path)
+    raw = png(screen)
+    locator.save_crop(raw,'combo_pon_0p_5p',[30,40,44,35])
+    group = Box(20,30,80,65,1.,'combo_dynamic')
+    locator.menu_groups = lambda raw:[(['0p','5p'],group)]
+    with pytest.raises(InputDeferred,match='complete server choices'):
+        locator.combo(raw,'pon',['0p','5p'],[['0p','5p'],['5p','5p']])
+    assert locator.combo(raw,'pon',['0p','5p'],[['0p','5p']]).center == (52,57.5)
+    locator.menu_groups = lambda raw:[(['5p','5p'],group)]
+    with pytest.raises(InputDeferred):
+        locator.combo(raw,'pon',['0p','5p'],[['0p','5p']])
+    locator.menu_groups = lambda raw:[(['0p','5p'],Box(150,30,80,65,1.,'combo_dynamic'))]
+    with pytest.raises(InputDeferred,match='disagrees'):
+        locator.combo(raw,'pon',['0p','5p'],[['0p','5p']])

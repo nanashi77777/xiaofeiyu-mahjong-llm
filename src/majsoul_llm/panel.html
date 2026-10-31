@@ -18,10 +18,23 @@ body{margin:0;background:#0b1b24;color:#dfecec;font:15px/1.6 system-ui}main{max-
 <div id="observations" class="grid"><section><h2>当前牌局</h2><pre id="state">尚无观察记录</pre></section><section><h2>本局思路与执行</h2><pre id="plan"></pre><pre id="receipts"></pre></section><section><h2>时间与模型消耗</h2><pre id="metrics"></pre></section><section><h2>查询与经验</h2><div class="row"><button onclick="read('matches')">最近二十场</button><button onclick="read('big-hands')">本家大牌</button><button onclick="read('memories')">打法经验</button></div><pre id="history"></pre></section></div></main>
 <script>
 let token='',timer;const $=id=>document.getElementById(id);const show=(id,data)=>$(id).textContent=JSON.stringify(data,null,2);
-let navigationId=null,refreshing=false,connectionVersion=0,lastUpdate=null;
+let navigationId=null,refreshing=false,connectionVersion=0,lastUpdate=null,refreshRequest=null;const requests=new Set();
 if(location.hash){$('token').value=decodeURIComponent(location.hash.slice(1));history.replaceState(null,'',location.pathname)}
-async function api(path,data){let r=await fetch(path,{method:data?'POST':'GET',headers:{Authorization:'Bearer '+token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});let value=await r.json();if(!r.ok)throw Error(value.detail||value.error||r.status);return value}
-async function connect(){token=$('token').value;connectionVersion++;clearInterval(timer);await refresh();timer=setInterval(refresh,1500)}
+function reportError(e){if(e.name!=='StaleConnection')$('message').textContent=e.message}
+async function api(path,data,{signal,timeoutMs=data?15000:5000}={}){
+  const controller=new AbortController(),version=connectionVersion,requestToken=token;let deadline;
+  requests.add(controller);const abort=()=>controller.abort();
+  if(signal){if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true})}
+  try{
+    const work=(async()=>{let r=await fetch(path,{method:data?'POST':'GET',headers:{Authorization:'Bearer '+requestToken,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:controller.signal});return {r,value:await r.json()}})();
+    const timeout=new Promise((_,reject)=>{deadline=setTimeout(()=>{controller.abort();reject(Error('请求超时'))},timeoutMs)});
+    let result;
+    try{result=await Promise.race([work,timeout])}catch(e){if(version!==connectionVersion)throw Object.assign(Error('旧连接已替换'),{name:'StaleConnection'});throw Error(data?'请求中断，操作结果未知。请先查询实际状态，不要重复提交。':'状态读取失败或超时。')}
+    if(version!==connectionVersion)throw Object.assign(Error('旧连接已替换'),{name:'StaleConnection'});
+    if(!result.r.ok)throw Error(result.value.detail||result.value.error||result.r.status);return result.value;
+  }finally{clearTimeout(deadline);requests.delete(controller);signal?.removeEventListener('abort',abort)}
+}
+async function connect(){connectionVersion++;const version=connectionVersion;for(const controller of requests)controller.abort();refreshRequest=null;refreshing=false;token=$('token').value;clearInterval(timer);await refresh();if(version===connectionVersion)timer=setInterval(refresh,1500)}
 function navigationCommands(n){
   const recent=n?.recent||[],ids=recent.map(c=>c.command_id);
   if(!ids.includes(navigationId))navigationId=n?.active_command||recent.find(c=>['waiting_user','uncertain'].includes(c.status))?.command_id||ids[0]||null;
@@ -30,9 +43,9 @@ function navigationCommands(n){
 }
 async function refresh(){
   if(refreshing)return;
-  refreshing=true;const version=connectionVersion;
+  refreshing=true;const version=connectionVersion,controller=new AbortController();refreshRequest=controller;
   try{
-    let s=await api('/control/status');if(version!==connectionVersion)return;
+    let s=await api('/control/status',undefined,{signal:controller.signal});if(version!==connectionVersion)return;
     lastUpdate=new Date();$('updated').textContent='最后收到状态：'+lastUpdate.toLocaleTimeString();
     $('observations').removeAttribute('data-stale');$('observations').style.opacity='';
     $('badge').textContent=s.status;show('state',s.state);show('plan',s.plan);show('receipts',s.receipts);show('navigation',s.navigation);navigationCommands(s.navigation);
@@ -42,14 +55,14 @@ async function refresh(){
     if(version!==connectionVersion)return;
     $('badge').textContent='连接中断 · 当前状态未知';$('observations').setAttribute('data-stale','true');$('observations').style.opacity='.55';
     $('message').textContent='刷新失败，以下为上次收到的数据，不能视作实时状态。'+e.message;
-  }finally{refreshing=false}
+  }finally{if(refreshRequest===controller){refreshRequest=null;refreshing=false}}
 }
 function navFields(){let k=$('nav-kind').value;$('nav-tier').hidden=k!=='ranked';$('nav-code').hidden=k!=='join_friend';$('nav-ready-field').hidden=k!=='join_friend';$('nav-time').hidden=k!=='create_friend';$('nav-length').hidden=!['ranked','create_friend'].includes(k);for(let o of $('nav-length').options)o.hidden=k==='ranked'&&!['east','south'].includes(o.value);if(k==='ranked'&&!['east','south'].includes($('nav-length').value))$('nav-length').value='east'}
-async function navigate(){try{let kind=$('nav-kind').value,c={kind,command_id:crypto.randomUUID()};if(kind==='ranked')Object.assign(c,{tier:$('nav-tier').value,length:$('nav-length').value});if(kind==='join_friend')Object.assign(c,{room_code:$('nav-code').value,ready:$('nav-ready').checked});if(kind==='create_friend'){let [fixed_seconds,bank_seconds]=$('nav-time').value.split(',').map(Number);Object.assign(c,{players:4,length:$('nav-length').value,thinking:{fixed_seconds,bank_seconds}})}navigationId=c.command_id;show('navigation',await api('/api/v1/mahjong/navigation/commands',c));await refresh()}catch(e){$('message').textContent=e.message}}
-async function navigationAction(action){try{if(!navigationId)throw Error('请先选择已有选场指令');show('navigation',await api('/api/v1/mahjong/navigation/commands/'+encodeURIComponent(navigationId)+'/'+action,{}));await refresh()}catch(e){$('message').textContent=e.message}}
-async function control(action,data={}){try{await api('/control/'+action,data);await refresh()}catch(e){$('message').textContent=e.message}}
-async function windows(){try{let data=await api('/control/windows');$('window').replaceChildren(...data.map(w=>{let o=document.createElement('option');o.value=w.hwnd;o.textContent=w.title+' / '+w.pid;return o}))}catch(e){$('message').textContent=e.message}}
+async function navigate(){try{let kind=$('nav-kind').value,c={kind,command_id:crypto.randomUUID()};if(kind==='ranked')Object.assign(c,{tier:$('nav-tier').value,length:$('nav-length').value});if(kind==='join_friend')Object.assign(c,{room_code:$('nav-code').value,ready:$('nav-ready').checked});if(kind==='create_friend'){let [fixed_seconds,bank_seconds]=$('nav-time').value.split(',').map(Number);Object.assign(c,{players:4,length:$('nav-length').value,thinking:{fixed_seconds,bank_seconds}})}navigationId=c.command_id;show('navigation',await api('/api/v1/mahjong/navigation/commands',c));await refresh()}catch(e){reportError(e)}}
+async function navigationAction(action){try{if(!navigationId)throw Error('请先选择已有选场指令');show('navigation',await api('/api/v1/mahjong/navigation/commands/'+encodeURIComponent(navigationId)+'/'+action,{}));await refresh()}catch(e){reportError(e)}}
+async function control(action,data={}){try{await api('/control/'+action,data);await refresh()}catch(e){reportError(e)}}
+async function windows(){try{let data=await api('/control/windows');$('window').replaceChildren(...data.map(w=>{let o=document.createElement('option');o.value=w.hwnd;o.textContent=w.title+' / '+w.pid;return o}))}catch(e){reportError(e)}}
 async function bind(){await control('bind',{hwnd:Number($('window').value)})}
 async function mode(){await control('input-mode',{mode:$('mode').value})}
-async function read(kind){try{show('history',await api('/api/v1/mahjong/'+kind+(kind==='matches'?'?limit=20':'')))}catch(e){$('message').textContent=e.message}}
+async function read(kind){try{show('history',await api('/api/v1/mahjong/'+kind+(kind==='matches'?'?limit=20':'')))}catch(e){reportError(e)}}
 </script></html>

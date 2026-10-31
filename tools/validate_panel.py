@@ -74,6 +74,54 @@ async def run(output):
             await page.evaluate('refresh()')
             check('reconnect_removes_stale_marker', await page.locator('#observations').get_attribute('data-stale') is None)
             check('reconnect_reports_current_status', await page.locator('#badge').inner_text()=='deciding')
+            # A fetch that never produces headers must still release refresh.
+            await page.evaluate("""() => {window.fixtureFetch=fetch;window.fetch=()=>new Promise(()=>{});window.fixtureRefresh=refresh()}""")
+            await page.wait_for_function('refreshing===false', timeout=7000)
+            check('hung_status_releases_refresh_lock', '当前状态未知' in await page.locator('#badge').inner_text())
+            await page.evaluate('window.fetch=window.fixtureFetch')
+            await page.evaluate('refresh()')
+            check('status_recovers_after_timeout', await page.locator('#badge').inner_text()=='deciding')
+            # Response-body stalls are bounded by the same overall deadline.
+            body_result = await page.evaluate("""async() => {
+                window.fetch=async()=>({ok:true,json:()=>new Promise(()=>{})});
+                try{await api('/fixture/body',undefined,{timeoutMs:60});return false}
+                catch(e){return e.message.includes('超时')}
+                finally{window.fetch=window.fixtureFetch}
+            }""")
+            check('response_body_stall_is_bounded', body_result)
+            post_result = await page.evaluate("""async() => {
+                let calls=0;window.fetch=()=>{calls++;return new Promise(()=>{})};
+                try{await api('/control/fixture',{}, {timeoutMs:60});return false}
+                catch(e){return calls===1&&e.message.includes('结果未知')}
+                finally{window.fetch=window.fixtureFetch}
+            }""")
+            check('post_timeout_reports_unknown_without_retry', post_result)
+            # Reconnecting while an old read is pending must start a new read.
+            await page.evaluate("""() => {
+                window.fixtureOldResolve=null;let first=true;
+                window.fetch=(...args)=>first?(first=false,new Promise(r=>window.fixtureOldResolve=r)):window.fixtureFetch(...args);
+                window.fixtureOldRefresh=refresh();
+            }""")
+            await page.wait_for_function('window.fixtureOldResolve!==null')
+            status['status'] = 'new-connection'
+            await page.evaluate('connect()')
+            await page.evaluate('clearInterval(timer)')
+            await page.evaluate("""async() => {
+                fixtureOldResolve({ok:true,json:async()=>({status:'obsolete-connection'})});
+                await fixtureOldRefresh;window.fetch=window.fixtureFetch;
+            }""")
+            check('reconnect_can_replace_pending_poll', await page.locator('#badge').inner_text()=='new-connection')
+            check('old_request_cannot_overwrite_new_connection', await page.locator('#badge').inner_text()!='obsolete-connection')
+            # A stop request dispatches even with a pending poll.
+            await page.evaluate("""() => {
+                window.fixtureStopResolve=null;
+                window.fetch=(path,...args)=>path==='/control/status'?new Promise(r=>window.fixtureStopResolve=r):window.fixtureFetch(path,...args);
+                window.fixtureStopRefresh=refresh();
+            }""")
+            await page.wait_for_function('window.fixtureStopResolve!==null')
+            await page.evaluate("control('stop')")
+            check('stop_dispatches_independent_of_poll_lock', report['posts'][-1]['path']=='control/stop')
+            await page.evaluate("""async() => {fixtureStopResolve({ok:true,json:async()=>({status:'stopped',navigation:{recent:[]}})});await fixtureStopRefresh;window.fetch=window.fixtureFetch}""")
             await page.select_option('#nav-kind', 'join_friend')
             await page.locator('#nav-code').fill('001234')
             await page.locator('#nav-ready').uncheck()

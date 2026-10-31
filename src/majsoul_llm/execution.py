@@ -112,21 +112,24 @@ class Executor:
             if self.offered_window != window:
                 self.offered_window,self.offered_saved = window,set()
             templates = self.locator.profile()['templates']
+            age = time.monotonic()-state.operation.received_mono
+            stage = sum(age >= threshold for threshold in (.35, .9, 1.6)) - 1
             missing = {a.kind for a in actions if a.kind != 'discard'
-                       and 'button_'+a.kind not in templates} - self.offered_saved
-            if not missing or time.monotonic()-state.operation.received_mono < .35:
+                       and 'button_'+a.kind not in templates and (a.kind,stage) not in self.offered_saved}
+            if not missing or stage < 0:
                 return
             folder = self.browser.settings.runtime / 'calibration' / 'offered'
             folder.mkdir(parents=True,exist_ok=True)
-            name = hashlib.sha256((state.match_id+window).encode()).hexdigest()[:24]
+            name = hashlib.sha256((state.match_id+window).encode()).hexdigest()[:24]+f'-{stage}'
             (folder/(name+'.png')).write_bytes(raw)
             (folder/(name+'.json')).write_text(json.dumps({
                 'match_id':state.match_id,'round_uid':state.round_uid,
                 'window_id':window,'state_version':state.state_version,
                 'missing_buttons':sorted(missing),'offered_kinds':sorted({a.kind for a in actions}),
+                'observation_stage':stage,'window_age_ms':round(age*1000),
                 'source':'parallel_observation_existing_frame','extra_captures':0,
             },ensure_ascii=False,indent=2),encoding='utf8')
-            self.offered_saved.update(missing)
+            self.offered_saved.update((kind,stage) for kind in missing)
         except (OSError,ValueError,InputDeferred):
             # Optional diagnostic evidence cannot affect the selected action.
             return
