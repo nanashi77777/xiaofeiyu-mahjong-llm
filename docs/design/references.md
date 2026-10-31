@@ -27,6 +27,6 @@
 
 ## 模型渠道事实
 
-本项目已使用指定your-model-id、Responses、`reasoning.effort=none`，真实验证JSON Schema、SSE首动作、尾段、usage和取消；证据见VAL-004完成记录。`https://model-provider.invalid/monitor`的页面壳可访问，但真正状态接口需网页登录。监控只作人工辅助，不当实时动作依赖；TTFT不等于完整操作耗时。
+本项目已使用指定基线模型、Responses、`reasoning.effort=none`，真实验证JSON Schema、SSE首动作、尾段、usage和取消；证据见VAL-004完成记录。`本机供应商监控页`的页面壳可访问，但真正状态接口需网页登录。监控只作人工辅助，不当实时动作依赖；TTFT不等于完整操作耗时。
 
 麻将专用密钥已用于本机决策与复盘，所有用量按mahjong及凭据指纹登记。凭据与实际usage、模型结果保存在被忽略的runtime，代码和文档不包含密钥；未将监控登录设为运行依赖。

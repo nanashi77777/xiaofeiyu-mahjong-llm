@@ -17,7 +17,7 @@ C:\Python312\python.exe -m venv .venv
 .\.venv\Scripts\majsoul-llm.exe init-config
 ```
 
-在被忽略的 runtime/private.json 配置 api_key；也可通过 MAJSOUL_API_KEY 环境变量覆盖。read_token、navigation_token和control_token分别用于查询、窄导航、通用本机控制，自动生成且权限分离。旧配置升级需保存新增导航令牌后重启，再把navigationToken单独提供给QQ导航适配器。禁止将配置、浏览器资料、牌谱或截图提交到 Git。
+在被忽略的 runtime/private.json 配置实际 base_url、model、model_provider、model_profile 与 api_key；也可通过 MAJSOUL_API_KEY 环境变量覆盖密钥。runtime/model-profiles.json 只在本机保存命名配置与回退点。源码和 config.example.json 只有保留域名及模型占位符，不能直接用于模型请求。read_token、navigation_token和control_token分别用于查询、窄导航、通用本机控制，自动生成且权限分离。旧配置升级需保存新增导航令牌后重启，再把navigationToken单独提供给QQ导航适配器。禁止将配置、浏览器资料、牌谱或截图提交到 Git。
 
 ```powershell
 .\.venv\Scripts\majsoul-llm.exe serve
@@ -70,7 +70,7 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 ## 模型和计时
 
-指定 your-model-id、Responses、reasoning.effort=none、store=false。完整独立上下文，每次不延长远程会话。非流式模式使用q/a/r/p；stream_actions=true时以完整首动作字段及逗号提前提交，r/p继续有界接收，正常服务器事件不取消解释。stream_action_format=nested输出d={q,a}/r/p，short输出a/r/p并由本机请求绑定q，默认保留nested。p不变为空，变化才输出完整本小局计划。两种流式格式都核对候选、窗口、版本、停止和输入截止；尾段失败不重发动作。token_usage保存真实usage；中断和缺usage保留null。详见streaming-action.md。
+指定 基线模型、Responses、reasoning.effort=none、store=false。完整独立上下文，每次不延长远程会话。非流式模式使用q/a/r/p；stream_actions=true时以完整首动作字段及逗号提前提交，r/p继续有界接收，正常服务器事件不取消解释。stream_action_format=nested输出d={q,a}/r/p，short输出a/r/p并由本机请求绑定q，默认保留nested。p不变为空，变化才输出完整本小局计划。两种流式格式都核对候选、窗口、版本、停止和输入截止；尾段失败不重发动作。token_usage保存真实usage；中断和缺usage保留null。详见streaming-action.md。
 
 2026-10-31切换麻将专用密钥：decision、repair、review及经验迭代共用同一ModelClient，本机runtime/private.json的api_key覆盖全部麻将用途，不读取QQ/DSH凭据。控制面板usage_summary按billing_scope=mahjong及凭据指纹分组，并分decision/repair/review/probe；旧无标记请求单列legacy_unattributed，不记到新密钥。cached/reasoning是输入/输出中的子项，不能重复加到总token。缺usage显示未知，不据此推算供应商余额或货币金额。
 
@@ -139,8 +139,10 @@ benchmark 是真实渠道调用加构造场况，明确不包含物理点击，�
 
 ## 供应商与模型配置
 
-当前仍用terra、Responses、none及麻将专用密钥。`python -m majsoul_llm.cli models --action list`显示安全标识；`--action capture --id baseline`保存当前配置作为本机回退点，已有名字不覆盖。本机已建立baseline，不需重复捕获。
+当前使用本机指定的基线模型、Responses、none及麻将专用密钥。`python -m majsoul_llm.cli models --action list`在本机显示已存配置名；`--action capture --id baseline`是创建回退点的示范，已有名字不覆盖。本机已建立回退点，不需重复捕获；实际名称只保存在本机，不保证与示范相同。
 
 编辑ignored runtime/model-profiles.json添加供应商/model/base_url/api_style/api_key（不要把密钥放命令行）。当前api_style只支持responses，远程必须HTTPS且URL不能携带认证/query/fragment；协议不同需要实现新适配。新增配置不要复制旧validation_identity/validated，修改目标也会使旧身份失效。然后先停止接管与服务、确认没有活动局，运行`python -m majsoul_llm.cli models --action select --id 配置名`，重启服务生效。决策/修复/复盘共用这一配置，QQ不能改。环境MAJSOUL_API_KEY与选择不符会拒绝；直接环境覆盖也清除已有身份绑定门禁。
 
-新渠道/模型清除compact/table/schema/stream相关门禁，并将副请求归零；按现有工具独立验证Schema、SSE动作、完整事实理解和usage后再启用本机标记，不继承旧报告。精确回退baseline可以恢复其原门禁，副请求仍0。请求记录包含provider/profile/api_style/身份指纹，取消无usage仍为未知。当前未增加chat/completions、跨渠道自动重试或运行中热切换。
+新渠道/模型清除compact/table/schema/stream相关门禁，并将副请求归零；按现有工具独立验证Schema、SSE动作、完整事实理解和usage后再启用本机标记，不继承旧报告。精确回退本机原配置可以恢复其原门禁，副请求仍0。请求记录包含provider/profile/api_style/身份指纹，取消无usage仍为未知。当前未增加chat/completions、跨渠道自动重试或运行中热切换。
+
+实际渠道、模型及配置名不能写入源码、文档、提交说明或示范配置。`tools/audit_secrets.py --staged`按本机私有值扫描暂存区，GitHub同步前复用同一规则扫描待上传对象及提交说明；报告只含路径/规则名。没有本机私有文件的克隆仍有通用密钥规则，但无法推断原机器的私有模型值。普通删除提交不会移除旧提交中的配置，历史情况见DEV-080。

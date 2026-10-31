@@ -115,3 +115,25 @@ def test_empty_conditions_and_omitted_unchanged_text_are_valid():
     assert 'claim' not in proposal.model_dump(exclude_none=True)
     assert 'conditions' not in proposal.model_dump(exclude_none=True)
     assert MemoryProposal(claim='独立短原则', conditions=[]).conditions == []
+
+
+async def test_review_revalidates_legacy_text_with_null_fields_without_resetting_support(store, state):
+    source, event = add_match(store, state, 0)
+    m = Memories(store)
+    original = m.revise({'claim':'旧原则', 'supports':[event]}, source.match_id)
+    legacy = {**original, 'claim':'带有限制的历史长原则'*30,
+              'conditions':['旧限制甲','旧限制乙','旧限制丙','旧例外丁','旧例外戊']}
+    with store.db:
+        store.db.execute('UPDATE memories SET payload=? WHERE id=? AND revision=1', (packed(legacy), legacy['id']))
+    following, evidence = add_match(store, state, 1)
+    async def request(payload, **kwargs):
+        assert payload['existing_memories'][0]['claim'] == legacy['claim']
+        return {'summary':'补充新场证据，保留原主张', 'lessons':[{
+            'id':legacy['id'], 'revision':1, 'status':'candidate', 'claim':None, 'conditions':None,
+            'supports':[evidence], 'counterexamples':[], 'reason':'只补证'}]}, {}
+    reviewer = Reviewer(store, SimpleNamespace(request=request), lambda:False)
+    await reviewer.review(following.match_id)
+    current = m.get(legacy['id'])
+    assert current['claim'] == legacy['claim'] and current['conditions'] == legacy['conditions']
+    assert current['supports'] == [event, evidence] and len(current['reviewed_matches']) == 2
+    assert current['origin_match'] == source.match_id

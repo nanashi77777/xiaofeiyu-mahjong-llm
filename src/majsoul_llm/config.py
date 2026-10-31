@@ -51,6 +51,7 @@ def atomic_private_json(path: Path, data: dict):
 
 class Settings(Record):
     model_config = ConfigDict(hide_input_in_errors=True)
+    # Runnable routes and model identifiers belong only in local private files.
     base_url: str = "https://model-provider.invalid/v1"
     model: str = "your-model-id"
     model_provider: str = Field(default='default', pattern=r'^[a-zA-Z0-9_.-]{1,64}$')

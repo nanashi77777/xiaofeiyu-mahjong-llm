@@ -2,7 +2,7 @@
 
 ## 独立实时调用
 
-模型固定 `your-model-id`，base URL 为 `https://model-provider.invalid/v1`。已实测 Responses 路径 `/responses`、`reasoning: {"effort":"none"}`、`store:false`、SSE及严格JSON Schema，真实usage中推理token为0。动态Schema约束请求/动作归属和旧计划版本，本地仍完整验证；输出长度参数的全部组合和取消计费语义不作额外保证，缺失usage继续记unknown。
+模型与 base URL 由本机私有配置指定，仓库仅使用基线/候选标签及占位示范。已实测 Responses 路径 `/responses`、`reasoning: {"effort":"none"}`、`store:false`、SSE及严格JSON Schema，真实usage中推理token为0。动态Schema约束请求/动作归属和旧计划版本，本地仍完整验证；输出长度参数的全部组合和取消计费语义不作额外保证，缺失usage继续记unknown。
 
 密钥由本机私密配置注入，示例只留占位。麻将进程直接调用，不经 QQ/DSH 的长会话与工具目录。请求不携带 QQ 聊天、私信或其他活动原文。固定规则前缀保持稳定以利可能的缓存，但不依赖渠道必然缓存。
 

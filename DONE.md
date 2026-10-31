@@ -83,8 +83,9 @@
 | DEV-072 | 验收 | 真实字形的三吃和更多组合构造菜单专项 | [完成记录](docs/development/completed/DEV-072-real-glyph-melds.md) |
 | DEV-073 | 实现 | 退出房间按真实回执区分已退出和确认弹窗 | [完成记录](docs/development/completed/DEV-073-observed-room-exit.md) |
 | DEV-074 | 实现 | 同模型延迟副请求首合法动作单次提交 | [完成记录](docs/development/completed/DEV-074-stream-race.md) |
-| DEV-075 | 实现 | 用户指定sol模型对照试用及无明显收益回退 | [完成记录](docs/development/completed/DEV-075-sol-trial.md) |
+| DEV-075 | 实现 | 用户指定候选模型模型对照试用及无明显收益回退 | [完成记录](docs/development/completed/DEV-075-sol-trial.md) |
 | DEV-076 | 实现 | 本机命名供应商模型配置与安全切换回退 | [完成记录](docs/development/completed/DEV-076-model-profiles.md) |
 | DEV-077 | 实现 | 并行识别取消交接保留当前完整帧 | [完成记录](docs/development/completed/DEV-077-observation-handoff.md) |
 | DEV-078 | 实现 | 按模型已选动作提前交接新鲜观察目标 | [完成记录](docs/development/completed/DEV-078-selected-handoff.md) |
 | DEV-079 | 实现 | 提高经验召回条数并在复盘生成端压缩 | [完成记录](docs/development/completed/DEV-079-concise-experience.md) |
+| DEV-080 | 实现 | 实际模型配置仅留本机并加强提交隐私检查 | [完成记录](docs/development/completed/DEV-080-private-model-configuration.md) |

@@ -2,7 +2,7 @@
 
 类别：验收。完成日期：2026-10-31（Asia/Shanghai）。
 
-固定渠道model-provider.invalid/v1、模型your-model-id，Responses且reasoning.effort=none；不换模型、不启用传统策略兜底。实际出站请求通过httpx request hook在发送前核对参数并保留不含headers的构造样本，见runtime/yaku-reference-validation-v2.json。short首动作、严格Schema、SSE首段与尾段均由实际渠道完成，usage显示reasoning_tokens=0；没有以完整尾段耗时冒充首动作耗时。
+固定渠道本机私有渠道、模型基线模型，Responses且reasoning.effort=none；不换模型、不启用传统策略兜底。实际出站请求通过httpx request hook在发送前核对参数并保留不含headers的构造样本，见runtime/yaku-reference-validation-v2.json。short首动作、严格Schema、SSE首段与尾段均由实际渠道完成，usage显示reasoning_tokens=0；没有以完整尾段耗时冒充首动作耗时。
 
 真实渠道累计快照中，当前麻将专用凭据1453次completed、62次cancelled、27次failed；用途包含1151次decision、346次wire_validation、25次repair、19次review及1次probe。62次取消的usage均未知，保留null；25次实际修复成功记录保留原初次尝试。计数包括开发/探针/失败续录，不能当成正常实战有效窗口或500窗口通过率。用途与凭据归属正确，未知usage不算零，不对缺失缓存计量伪造命中。
 

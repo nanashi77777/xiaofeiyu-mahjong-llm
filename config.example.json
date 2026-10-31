@@ -1,6 +1,10 @@
 {
   "base_url": "https://model-provider.invalid/v1",
   "model": "your-model-id",
+  "model_provider": "example",
+  "model_profile": "example",
+  "model_api_style": "responses",
+  "api_key": "",
   "port": 8765,
   "debug_port": 9223,
   "base_seconds": 5,

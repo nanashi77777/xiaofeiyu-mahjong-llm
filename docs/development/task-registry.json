@@ -2440,7 +2440,7 @@
       "id": "DEV-075",
       "kind": "development",
       "milestone": "M3",
-      "title": "用户指定sol模型对照试用及无明显收益回退",
+      "title": "用户指定候选模型模型对照试用及无明显收益回退",
       "status": "done",
       "depends_on": [
         "DEV-015",
@@ -2450,11 +2450,11 @@
         "docs/design/model-sol-trial.md"
       ],
       "acceptance": [
-        "同完整归档局面、none、同专用密钥、单请求交替比较terra/sol首动作时延、合法性、失败和token",
-        "明显改善后切换决策与复盘并真实短场检验；无明显改善切回terra，保留两模型失败及结论，不启用副请求混淆对照"
+        "同完整归档局面、none、同专用密钥、单请求交替比较基线模型/候选模型首动作时延、合法性、失败和token",
+        "明显改善后切换决策与复盘并真实短场检验；无明显改善切回基线模型，保留两模型失败及结论，不启用副请求混淆对照"
       ],
       "evidence": [
-        "24 actual alternating same-context requests, 12 per model; zero invalid/failed, action P50 terra3461.5ms/sol3437ms (0.71%), means3640.67/3348.92; no clear overall improvement, production and local config verified terra, hedge0. All records retained."
+        "24 actual alternating same-context requests, 12 per model; zero invalid/failed, action P50 基线模型3461.5ms/候选模型3437ms (0.71%), means3640.67/3348.92; no clear overall improvement, production and local config verified 基线模型, hedge0. All records retained."
       ],
       "completed_record": "docs/development/completed/DEV-075-sol-trial.md",
       "commits": [
@@ -2559,12 +2559,36 @@
         "生成Schema与保存入口同时限制新文本，保留适用条件/例外/真实证据，不截断或自动改旧经验；长历史可读可停用，批次验证与回滚通过"
       ],
       "evidence": [
-        "30 targeted tests and ruff passed; eight-entry recall cap, zero, frozen scopes, shared schema/storage text limits, atomic long-output rejection, legacy read/support/disable and explicit rewrite preserved. No model request or production mutation."
+        "31 targeted tests and ruff passed; ten new memory tests include actual Reviewer null-text legacy support preservation. Full suite with DEV-080: 324 passed. No live model request or production mutation."
       ],
       "completed_record": "docs/development/completed/DEV-079-concise-experience.md",
       "commits": [
         "5d7131f1388b74bc2c97a1996afac9aa44388a7b"
       ],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-080",
+      "kind": "development",
+      "milestone": "M0",
+      "title": "实际模型配置仅留本机并加强提交隐私检查",
+      "status": "done",
+      "depends_on": [
+        "DEV-001",
+        "DEV-076"
+      ],
+      "design_refs": [
+        "docs/design/private-model-configuration.md"
+      ],
+      "acceptance": [
+        "当前源码、示范配置及文档不含实际渠道或模型配置；本机私有配置及运行身份保持",
+        "暂存与GitHub上传审计拒绝本机秘密及实际模型配置，不输出值；历史扫描如实披露，不自动重写历史"
+      ],
+      "evidence": [
+        "324 pytest passed including 7 new privacy tests and 10 concise-memory tests; ruff passed. All 40 reachable commits audited: no key/token findings, known historical provider/model metadata retained and explicitly disclosed. Current GitHub repository verified private; local private configuration unchanged."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-080-private-model-configuration.md",
       "completed_on": "2026-11-01"
     }
   ],

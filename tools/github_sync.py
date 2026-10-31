@@ -15,7 +15,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from audit_secrets import FORBIDDEN, RULES
+from audit_secrets import FORBIDDEN, rules_for
 
 ALLOWED = {"nanashi77777/xiaofeiyu-mahjong-llm", "nanashi77777/qq-integration-project"}
 
@@ -93,6 +93,10 @@ class GitHub:
             raise ValueError("GitHub API status "+str(error.code)) from None
 
     def audit(self, target, parent=None):
+        rules = rules_for(self.root)
+        metadata = git(self.root, 'cat-file', 'commit', target)
+        if any(pattern.search(metadata) for pattern in rules.values()):
+            raise ValueError('committed secret pattern in commit metadata')
         count = 0
         uploaded = {e["sha"] for e in changes(self.root, parent, target) if e["sha"]} if parent else None
         for record in git(self.root, "ls-tree", "-rz", target).split(b"\0"):
@@ -106,7 +110,7 @@ class GitHub:
             if path.startswith(FORBIDDEN) or kind != b"blob":
                 raise ValueError("committed runtime or unsupported entry: "+path)
             data = git(self.root, "cat-file", "blob", sha.decode())
-            if any(pattern.search(data) for pattern in RULES.values()):
+            if any(pattern.search(data) for pattern in rules.values()):
                 raise ValueError("committed secret pattern: "+path)
             count += 1
         return count
