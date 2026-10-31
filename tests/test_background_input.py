@@ -6,6 +6,7 @@ import pytest
 
 from majsoul_llm.browser import Browser
 from majsoul_llm.config import Settings
+from majsoul_llm.native import TargetExpired
 
 
 class Session:
@@ -107,6 +108,6 @@ async def test_background_stall_before_press_never_sends_input():
             return None
         raise TimeoutError('renderer stalled before press')
     b.page.evaluate = evaluate
-    with pytest.raises(TimeoutError):
+    with pytest.raises(TargetExpired,match='before press'):
         await b.background_click((30,40),time.monotonic()+2,threading.Event())
     assert [event[0] for event in mouse.events] == ['move']

@@ -49,3 +49,4 @@
 | DEV-052 | 实现 | 流式动作提前执行与延后解释归档 | [完成记录](docs/development/completed/DEV-052-streaming-action.md) |
 | DEV-053 | 实现 | 事件驱动手牌预识别与可见像素缓存 | [完成记录](docs/development/completed/DEV-053-hand-preobservation.md) |
 | DEV-054 | 实现 | 精简流式首动作字段与等价验证 | [完成记录](docs/development/completed/DEV-054-short-stream-action.md) |
+| DEV-057 | 实现 | 渲染帧等待失败的按压前后分类 | [完成记录](docs/development/completed/DEV-057-prepress-render-timeout.md) |

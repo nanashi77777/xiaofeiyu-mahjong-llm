@@ -1875,6 +1875,30 @@
       "completed_record": null,
       "commits": [],
       "implementation_progress": "code_ready"
+    },
+    {
+      "id": "DEV-057",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "渲染帧等待失败的按压前后分类",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "初始悬停帧未确认且明确尚未按下时抛TargetExpired，复用既有至多三次同目标重取；原deadline/状态/停止核验不放宽",
+        "按下后的帧异常仍释放并报告已发送，不重复按压；停止/过期仍不触发输入",
+        "真实原失败保留，隔离回归证明首帧失败零按压、可重取与按后异常单按；连续实战由VAL-003/005重新验证"
+      ],
+      "evidence": [
+        "147 pytest and ruff; exact prepress TargetExpired, no down/up; existing bounded semantic retry and after-press one-send regressions; original 28th live failure retained; next production restart and full VAL still pending"
+      ],
+      "completed_record": "docs/development/completed/DEV-057-prepress-render-timeout.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

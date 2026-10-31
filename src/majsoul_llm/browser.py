@@ -11,7 +11,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 from .config import Settings
-from .native import InputDeferred
+from .native import InputDeferred, TargetExpired
 
 
 class Browser:
@@ -317,7 +317,9 @@ class Browser:
         try:
             await asyncio.wait_for(self.page.evaluate('() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))'),.4)
         except TimeoutError:
-            raise TimeoutError('background renderer did not acknowledge a frame') from None
+            # No mouse-down has been sent. The executor may reobserve the same
+            # semantic target within its existing retry count and deadline.
+            raise TargetExpired('background renderer did not acknowledge a frame before press') from None
         if stop.is_set() or time.monotonic()>=deadline:
             raise TimeoutError('background input stopped before press')
         if validate:
