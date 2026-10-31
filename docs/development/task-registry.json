@@ -1811,7 +1811,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "精简流式首动作字段与等价验证",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-052"
       ],
@@ -1824,11 +1824,14 @@
         "正式5+10按实际格式重新实测，不以输出减少宣称五秒已通过"
       ],
       "evidence": [
-        "143 full regression tests; 10/10 short specified-model probes, reasoning zero, no-plan output 34-36 tokens; actual short 5+10 run pending"
+        "147 pytest and ruff; each format 10/10 actual specified-model probes; fresh short 5+10 has first 20 ordinary confirmations and complete annotations, 12 within 5s, 21st in flight; full 500-window/three-match acceptance remains separate"
       ],
-      "completed_record": null,
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "completed_record": "docs/development/completed/DEV-054-short-stream-action.md",
+      "commits": [
+        "d48837f8c214288eacb4eaa984faea6f65c02a8f"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-055",
