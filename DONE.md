@@ -40,6 +40,7 @@
 | VAL-008 | 验收 | 自主经验修订与后续受益机制验收 | [完成记录](docs/development/completed/VAL-008-memory-lifecycle.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |
+| VAL-010 | 验收 | 紧凑格式真实token与模型理解配对验收 | [完成记录](docs/development/completed/VAL-010-final-wire-pairs.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
 | DEV-031 | 实现 | 役种表运行加载、按需检索与版本证据接入 | [完成记录](docs/development/completed/DEV-031-yaku-runtime.md) |
 | VAL-011 | 验收 | 役种参考准确性、实时隔离与复盘引用验收 | [完成记录](docs/development/completed/VAL-011-yaku-reference.md) |
@@ -49,6 +50,7 @@
 | DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |
 | DEV-035 | 实现 | 麻将专用密钥与决策复盘用量分账 | [完成记录](docs/development/completed/DEV-035-mahjong-billing.md) |
 | DEV-036 | 实现 | 大厅命令契约与导航状态机 | [完成记录](docs/development/completed/DEV-036-navigation-state.md) |
+| DEV-040 | 实现 | 创建四人友人房与思考时间设置 | [完成记录](docs/development/completed/DEV-040-create-room-matrix.md) |
 | DEV-042 | 实现 | QQ选场工具及独立导航接口 | [完成记录](docs/development/completed/DEV-042-qq-navigation.md) |
 | DEV-043 | 实现 | GitHub默认分支同步与API推送后备入口 | [完成记录](docs/development/completed/DEV-043-github-sync.md) |
 | DEV-044 | 实现 | 真实四人局制映射与建房确认持久恢复 | [完成记录](docs/development/completed/DEV-044-lobby-confirmation.md) |
@@ -78,3 +80,4 @@
 | DEV-069 | 实现 | 面板同步实际输入模式并保留未提交选择 | [完成记录](docs/development/completed/DEV-069-panel-mode.md) |
 | DEV-071 | 实现 | 跨小局断线恢复保持唯一序号与可重放归档 | [完成记录](docs/development/completed/DEV-071-recovery-round-index.md) |
 | DEV-072 | 验收 | 真实字形的三吃和更多组合构造菜单专项 | [完成记录](docs/development/completed/DEV-072-real-glyph-melds.md) |
+| DEV-073 | 实现 | 退出房间按真实回执区分已退出和确认弹窗 | [完成记录](docs/development/completed/DEV-073-observed-room-exit.md) |
