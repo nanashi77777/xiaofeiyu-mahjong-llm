@@ -40,6 +40,8 @@ async def run(args):
         browser.page=chrome.contexts[0].pages[0]
         executor=Executor(browser,lambda:db.latest(state.match_id))
         windows=executor.mouse.windows()
+        if args.hwnd is not None:
+            windows=[w for w in windows if w.hwnd == args.hwnd]
         if len(windows)!=1:
             print({'status':'game_window_not_unique'})
             return
@@ -134,4 +136,5 @@ if __name__=='__main__':
     parser.add_argument('--execute',action='store_true')
     parser.add_argument('--hover-frame',action='store_true',help='Diagnostic same-target hover before immediate press')
     parser.add_argument('--background',action='store_true',help='User-authorized browser mouse simulation without system pointer')
+    parser.add_argument('--hwnd',type=int,help='Explicit dedicated browser window when multiple game windows exist')
     asyncio.run(run(parser.parse_args()))

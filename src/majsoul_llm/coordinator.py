@@ -6,6 +6,8 @@ import time
 import uuid
 
 from .memory import Memories
+from .input_lease import finish_input
+from .native import InputDeferred
 from .rules import legal_actions
 from .store import utcnow
 from .timing import TimeBank
@@ -38,11 +40,15 @@ class Coordinator:
             return
         action=self.pending["receipt"]["action"]
         if stage=="accepted" and action["kind"]=="pass" and payload.get("cancel_operation"):
+            if self.pending["receipt"]["status"] == "validated":
+                self.pending["early_ack"] = (payload, ack_id)
+                return
             elapsed=time.monotonic()-self.pending["start"]
             receipt={**self.pending["receipt"],"status":"server_confirmed","actual_ack_id":ack_id,
                      "confirmation_source":"server_rpc_ack_for_cancel_operation","elapsed_ms":elapsed*1000}
             state=self.pending["state"]
             self.store.record("receipt",receipt,state.match_id,state.round_uid)
+            self.adopt_plan(self.pending)
             remaining=self.bank.charge(window_id,elapsed)
             self.store.record("time_bank",{"remaining":remaining,"window_id":window_id},state.match_id,state.round_uid)
             self.pending=None
@@ -62,6 +68,11 @@ class Coordinator:
                 await self.task
             except asyncio.CancelledError:
                 pass
+        if self.pending:
+            pending, self.pending = self.pending, None
+            state = pending['state']
+            self.store.record('receipt', {**pending['receipt'], 'status':'cancelled', 'reason':reason},
+                              state.match_id, state.round_uid)
 
     async def start(self, shadow=True):
         if self.executor and self.executor.lease.owner is not None:
@@ -118,25 +129,36 @@ class Coordinator:
         start = op.received_mono
         try:
             self.status = "deciding"
-            deadline = self.bank.deadline(op, verified=self.settings.timer_verified)
+            rules_start = time.monotonic()
             if self.settings.integration_test and op.fixed_ms and op.fixed_ms >= 300000 and op.add_ms == 0:
                 # Explicit user-authorized 300+0 integration run; excluded from speed acceptance.
                 deadline = op.received_mono + op.fixed_ms/1000 - self.settings.execution_margin
+            else:
+                deadline = self.bank.deadline(op, verified=self.settings.timer_verified)
             actions = await asyncio.to_thread(legal_actions, state)
+            rules_done = time.monotonic()
             if not actions:
                 raise ValueError("no legal candidate representation")
-            context = build_context(state, actions, plan=self.plan, memories=self.frozen_memories,
+            memory_store = Memories(self.store)
+            recalled = [m for m in self.frozen_memories
+                        if (current := memory_store.get(m['id'])) and current['status'] != 'inactive']
+            context = build_context(state, actions, plan=self.plan, memories=recalled,
                                     compact=self.settings.compact_validated)
             context.data["clock"]["local_bank_remaining"] = self.bank.remaining
             context.data["clock"]["decision_seconds_remaining"] = max(0, deadline-time.monotonic())
+            model_start = time.monotonic()
             decision, action, metrics = await self.model.decide(context, deadline)
+            metrics.update(rules_ms=(rules_done-rules_start)*1000,
+                           wire_ms=(model_start-rules_done)*1000,
+                           read_to_model_ms=(model_start-start)*1000)
             current = self.engine.state
             if not current or not current.operation or current.state_version != state.state_version or time.monotonic() >= deadline:
                 raise TimeoutError("decision superseded or expired")
+            proposed_plan = None
             if decision.plan_update:
-                self.plan = {**decision.plan_update.model_dump(), "version":(self.plan or {}).get("version", 0)+1,
-                             "round_uid":state.round_uid, "state_version":state.state_version}
-                self.store.record("round_plan", self.plan, state.match_id, state.round_uid)
+                proposed_plan = {**decision.plan_update.model_dump(), "version":(self.plan or {}).get("version", 0)+1,
+                                 "round_uid":state.round_uid, "state_version":state.state_version}
+                self.store.record("round_plan_proposed", proposed_plan, state.match_id, state.round_uid)
             self.store.record("decision", {"decision":decision.model_dump(), "action":action.model_dump(),
                                            "context_fingerprint":context.fingerprint, "wire_version":context.data["v"],
                                            "metrics":metrics, "shadow":self.shadow}, state.match_id, state.round_uid)
@@ -146,17 +168,37 @@ class Coordinator:
             if not self.executor:
                 raise ValueError("no physical executor")
             receipt = {"id":uuid.uuid4().hex, "action":action.model_dump(), "status":"validated", "created_at":utcnow()}
-            self.pending = {"receipt":receipt, "state":state, "start":start}
-            clicked = await self.executor.execute(state, action, deadline + self.settings.execution_margin)
-            receipt.update(status="mouse_sent", clicked_mono=clicked)
-            self.store.record("receipt", receipt, state.match_id, state.round_uid)
-            self.status = "awaiting_actual_event"
+            self.pending = {"receipt":receipt, "state":state, "start":start, "proposed_plan":proposed_plan}
+            async def send():
+                try:
+                    input_start = time.monotonic()
+                    clicked = await self.executor.execute(state, action, deadline + self.settings.execution_margin)
+                    receipt.update(status="mouse_sent", clicked_mono=clicked,
+                                   input_ms=(clicked-input_start)*1000, read_to_mouse_ms=(clicked-start)*1000)
+                    self.store.record("receipt", receipt, state.match_id, state.round_uid)
+                    self.status = "awaiting_actual_event"
+                    if self.pending and self.pending.get("early_ack"):
+                        payload, ack_id = self.pending.pop("early_ack")
+                        await self.input_observed("accepted", action.window_id, payload, ack_id)
+                except Exception:
+                    # A compound click may already have opened a menu. Preserve
+                    # uncertainty, stop further input, and do not compare the
+                    # next unrelated event to an unsent action.
+                    self.store.record("receipt", {**receipt, "status":"execution_uncertain"},
+                                      state.match_id, state.round_uid)
+                    self.pending = None
+                    self.enabled = False
+                    raise
+            # A server event may arrive during mouse release. Finish the input
+            # and its journal write before changed() confirms the actual event.
+            await finish_input(send())
         except asyncio.CancelledError:
             self.store.record("decision_cancelled", {"window_id":op.window_id}, state.match_id, state.round_uid)
             raise
         except Exception as error:
             self.status = "decision_or_input_deferred_" + type(error).__name__
             self.store.record("decision_failure", {"window_id":op.window_id, "error_type":type(error).__name__,
+                                                   "detail":str(error) if isinstance(error, InputDeferred) else None,
                                                    "elapsed_ms":(time.monotonic()-start)*1000}, state.match_id, state.round_uid)
 
     def confirm(self, state, event):
@@ -168,6 +210,10 @@ class Coordinator:
             relevant = True
         if not relevant:
             return
+        if kind == "pass":
+            # Only the matching cancel_operation RPC acknowledgement confirms
+            # a pass; the next draw/discard is not evidence of our input.
+            return
         if kind in ("discard", "riichi"):
             tile = pending["state"].hand[action["tile_index"]]
             matches = event.kind == "ActionDiscardTile" and data.get("tile") == tile
@@ -178,7 +224,12 @@ class Coordinator:
             actual = [t for t,s in zip(data.get("tiles", []), data.get("froms", []), strict=True) if s == state.self_seat]
             matches = event.kind == "ActionChiPengGang" and data.get("type") == {"chi":0,"pon":1,"daiminkan":2}[kind] and sorted(consumed) == sorted(actual)
         elif kind in ("ankan", "kakan"):
-            matches = event.kind == "ActionAnGangAddGang" and data.get("type") == (3 if kind == "ankan" else 2)
+            from .domain import tile_index
+            expected = pending["state"].hand[action["consume_indices"][0]]
+            actual = data.get("tiles")
+            actual = actual[0] if isinstance(actual, list) and actual else actual
+            matches = (event.kind == "ActionAnGangAddGang" and data.get("type") == (3 if kind == "ankan" else 2)
+                       and isinstance(actual, str) and tile_index(actual) == tile_index(expected))
         elif kind in ("tsumo", "ron"):
             matches = event.kind == "ActionHule" and any(w.get("seat",0) == state.self_seat for w in data.get("hules",[]))
         elif kind == "abort9":
@@ -188,8 +239,18 @@ class Coordinator:
         receipt = {**pending["receipt"], "status":"server_confirmed" if matches else "mismatch", "actual_event_id":event.id,
                    "confirmed_at":utcnow(), "elapsed_ms":(event.received_mono-pending["start"])*1000}
         self.store.record("receipt", receipt, state.match_id, pending["state"].round_uid)
+        if matches:
+            self.adopt_plan(pending)
         remaining = self.bank.charge(action["window_id"], max(0,event.received_mono-pending["start"]))
         self.store.record("time_bank", {"remaining":remaining,"window_id":action["window_id"]}, state.match_id, pending["state"].round_uid)
         self.pending = None
         if not matches:
             self.enabled, self.status = False, "paused_input_mismatch"
+
+    def adopt_plan(self, pending):
+        proposed = pending.get("proposed_plan")
+        if proposed:
+            state = pending["state"]
+            self.store.record("round_plan", proposed, state.match_id, state.round_uid)
+            if self.round_uid == state.round_uid:
+                self.plan = proposed

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextlib import nullcontext
 
 from .store import Store, packed, utcnow
 
@@ -22,7 +23,7 @@ class Memories:
         return [m for m in result if (m["status"] == status if status else m["status"] != "inactive")
                 and (not words or any(w in packed(m).casefold() for w in words))][:min(limit, 50)]
 
-    def revise(self, proposal, match_id, *, catalog_version=None):
+    def revise(self, proposal, match_id, *, catalog_version=None, commit=True):
         allowed = {"id", "revision", "status", "claim", "conditions", "supports", "counterexamples", "reviewed_matches", "reason", "yaku_ids"}
         if set(proposal) - allowed:
             raise ValueError("memory update has forbidden fields")
@@ -48,25 +49,38 @@ class Memories:
         if not isinstance(claim, str) or not claim or len(claim) > 1200:
             raise ValueError("invalid memory claim")
         supports = list(dict.fromkeys((previous or {}).get("supports", []) + proposal.get("supports", [])))
-        for event_id in proposal.get("supports", []):
+        for event_id in proposal.get("supports", []) + proposal.get("counterexamples", []):
             row = self.store.db.execute("SELECT match_id FROM events WHERE id=?", (event_id,)).fetchone()
             if not row or row[0] != match_id:
                 raise ValueError("memory support is not from reviewed match")
         reviewed = set((previous or {}).get("reviewed_matches", []))
-        reviewed.add(match_id)
+        if proposal.get("supports") or proposal.get("counterexamples"):
+            reviewed.add(match_id)
+        changed_claim = bool(previous and (claim != previous['claim'] or
+                              proposal.get('conditions',previous['conditions']) != previous['conditions']))
+        if changed_claim and status != 'inactive':
+            if status != 'candidate' or not proposal.get('supports'):
+                raise ValueError('changed claim requires new evidence and candidate review')
+            reviewed = {match_id}
+            supports = list(dict.fromkeys(proposal['supports']))
         if status == "stable":
             original = (previous or {}).get("origin_match", match_id)
             if len(reviewed - {original}) < 3 or "counterexamples" not in proposal:
                 raise ValueError("stable memory needs three subsequent distinct matches and counterexample check")
-            origin_state=self.store.latest(original)
-            if not origin_state or any(not (s:=self.store.latest(mid)) or not s.observed_at or s.observed_at<=origin_state.observed_at for mid in reviewed-{original}):
+            origin = self.store.db.execute('SELECT MIN(received_at) FROM events WHERE match_id=?',(original,)).fetchone()[0]
+            subsequent = [self.store.db.execute('SELECT MIN(received_at) FROM events WHERE match_id=?',(mid,)).fetchone()[0]
+                          for mid in reviewed-{(previous or {}).get('origin_match',match_id)}]
+            if not origin or any(not timestamp or timestamp <= origin for timestamp in subsequent):
                 raise ValueError('stable memory review matches must actually follow its source match')
         memory = {"schema_version":"mahjong.memory.v1","id": id, "revision": (previous or {}).get("revision", 0) + 1, "status": status, "claim": claim,
-                  "conditions": proposal.get("conditions", []), "supports": supports,
-                  "counterexamples": proposal.get("counterexamples", []), "reviewed_matches": sorted(reviewed),
-                  "origin_match": (previous or {}).get("origin_match", match_id), "catalog_version": catalog_version,
-                  "yaku_ids": proposal.get("yaku_ids", []), "reason": proposal.get("reason", ""), "updated_at": utcnow()}
-        with self.store.db:
+                  "conditions": proposal.get("conditions", (previous or {}).get('conditions',[])), "supports": supports,
+                  "counterexamples": list(dict.fromkeys((previous or {}).get('counterexamples',[])+proposal.get("counterexamples", []))),
+                  "reviewed_matches": sorted(reviewed),
+                  "origin_match": match_id if changed_claim else (previous or {}).get("origin_match", match_id),
+                  "catalog_version": catalog_version or (previous or {}).get('catalog_version'),
+                  "yaku_ids": proposal.get("yaku_ids", (previous or {}).get('yaku_ids',[])),
+                  "reason": proposal.get("reason", ""), "updated_at": utcnow()}
+        with self.store.db if commit else nullcontext():
             self.store.db.execute("INSERT INTO memories VALUES(?,?,?,?,?)", (id, memory["revision"], status, utcnow(), packed(memory)))
         return memory
 

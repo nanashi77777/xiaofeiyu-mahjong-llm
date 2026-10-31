@@ -50,6 +50,7 @@ def fixture_protocol():
     message('ResLogin',[('access_token',9)])
     message('ReqReady',[('ready',8)])
     message('ResReady',[])
+    message('NotifyRoomGameStart',[('connect_token',9),('game_uuid',9)])
     message('ActionDiscardTile',[('seat',13),('tile',9)])
     message('ActionPrototype',[('step',13),('name',9),('data',12)])
     service=file.service.add(name='FastTest')
@@ -117,3 +118,11 @@ def test_store_committed_state_survives_reopen_and_future_schema_rejected(tmp_pa
     store.close()
     with pytest.raises(ValueError,match='newer'):
         Store(path)
+
+
+def test_room_start_notification_drops_connection_credentials():
+    p=fixture_protocol()
+    notice=p.message('lq.NotifyRoomGameStart')(connect_token='private-connection',game_uuid='private-game')
+    wrapper=p.message('lq.Wrapper')(name='.lq.NotifyRoomGameStart',data=notice.SerializeToString())
+    result=p.frame('lobby',b'\x01'+wrapper.SerializeToString(),False)
+    assert result['data']=={} and 'private-' not in json.dumps(result)

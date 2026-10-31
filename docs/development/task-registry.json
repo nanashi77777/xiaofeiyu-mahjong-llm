@@ -1538,6 +1538,27 @@
         "3f4b2d4228e78481c173039075d6b7bcffb615d3"
       ],
       "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-047",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "自主人机测试房间管理与新鲜对局接管",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-036",
+        "DEV-045"
+      ],
+      "design_refs": [
+        "docs/design/autonomous-validation.md"
+      ],
+      "acceptance": [
+        "同房号/未开局保护下通过可见UI离房、添加电脑、开始，实测真实对局认证与新小局后交接",
+        "测试会话可重复建房但普通模式终场停止；机会/失败/耗时/牌谱及结算证据保留，QQ零测试外发"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

@@ -90,7 +90,7 @@ class LobbyUI:
         target = profile["scenes"][scene]["controls"].get(control)
         if target is None:
             raise WaitingUser("lobby_control_not_calibrated")
-        if scene == "room" and control == "ready" and not target.get("anchor"):
+        if scene == "room" and control in ("ready", "start") and not target.get("anchor"):
             raise WaitingUser("room_ready_label_calibration_required")
         searched = None
         if target.get("search"):

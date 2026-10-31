@@ -7,7 +7,7 @@ import time
 
 from .domain import Event, Phase, Rules, Snapshot
 from .game_modes import FOUR_PLAYER_LENGTHS
-from .lobby_session import LobbySession
+from .lobby_session import LobbySession, ROOM_NOTIFICATIONS
 from .state import apply_event, digest
 from .store import Store, packed, utcnow
 
@@ -49,14 +49,47 @@ class Engine:
         self.input_windows = {}
         self.on_input = None
         self.lobby_session = LobbySession()
+        self.authenticated_mono = 0
+        self.last_frame_mono = 0
+
+    def capture_health(self):
+        age = max(0, time.monotonic()-self.last_frame_mono) if self.last_frame_mono else None
+        return {"connected":bool(self.connection and age is not None and age < 45),
+                "age_seconds":age, "match_id":self.state.match_id if self.connection and self.state else None}
 
     def browser_reset(self):
         self.lobby_session.reset()
+        self._disconnect("browser_reset")
 
     def socket_closed(self, connection):
         self.lobby_session.closed(connection)
+        self.auth.pop(connection, None)
+        if connection == self.connection:
+            self._disconnect("game_socket_closed")
+
+    def _disconnect(self, reason):
+        # Invalidate synchronously: a queued model completion cannot use the
+        # previous operation while the async cancellation callback is pending.
+        self.connection = None
+        self.authenticated_mono = 0
+        self.last_frame_mono = 0
+        self.input_windows.clear()
+        if not self.state or self.state.lifecycle != "active":
+            return
+        state = self.state.model_copy(deep=True)
+        state.lifecycle, state.phase, state.operation = "interrupted", Phase.INTERRUPTED, None
+        self.state = state
+        self.store.save_snapshot(state)
+        self.store.record("interruption", {"reason":reason}, state.match_id, state.round_uid)
+
+        async def notify():
+            if self.state is state:
+                await self.changed(None)
+        asyncio.create_task(notify())
 
     async def frame(self, connection, raw, from_client):
+        if connection == self.connection and not from_client:
+            self.last_frame_mono = time.monotonic()
         if not self.protocol:
             self.last_error = "protocol_not_loaded"
             return
@@ -84,7 +117,7 @@ class Engine:
 
     async def message(self, message):
         async with self.lock:
-            if message["method"].startswith(".lq.Lobby."):
+            if message["method"].startswith(".lq.Lobby.") or message["method"].rsplit(".", 1)[-1] in ROOM_NOTIFICATIONS:
                 self.lobby_session.observe(message)
                 return
             method, direction = message["method"].rsplit(".", 1)[-1], message["direction"]
@@ -100,6 +133,9 @@ class Engine:
                 if len(seats) != 4 or auth["account_id"] not in seats:
                     raise ValueError("not an authenticated four-player seat")
                 self.connection = connection
+                self.authenticated_mono = time.monotonic()
+                self.last_frame_mono = self.authenticated_mono
+                self.lobby_session.has_game = True
                 match_id = auth["game_uuid"]
                 if self.state and self.state.match_id != match_id and self.state.lifecycle == "active":
                     await self.interrupt("different_match_authenticated")
@@ -137,6 +173,10 @@ class Engine:
                 await self.action(data["name"], data["data"], data.get("step"))
             elif method in ("NotifyGameEndResult", "NotifyGameTerminate"):
                 await self.action(method, data, None)
+                self.lobby_session.has_game = False
+                self.lobby_session.prepared = None
+                if self.lobby_session.room:
+                    self.lobby_session.room['playing'] = False
 
     async def action(self, kind, data, step=None, historical=False):
         if not self.state:

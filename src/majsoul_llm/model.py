@@ -11,7 +11,7 @@ import httpx
 from .config import Settings
 from .domain import Decision
 from .store import Store
-from .wire import SYSTEM, Context
+from .wire import Context, prompt_for
 
 
 class ModelFailure(RuntimeError):
@@ -28,14 +28,14 @@ class ModelClient:
     def credential_id(self):
         return hashlib.sha256(self.settings.api_key.get_secret_value().encode()).hexdigest()[:16]
 
-    async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=SYSTEM):
+    async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=None):
         start = time.monotonic()
         credential = self.settings.api_key.get_secret_value()
         metrics = {"purpose": purpose, "model": self.settings.model, "usage": None, "ttft_ms": None,
                    "elapsed_ms": None, "status": "failed", "billing_scope":"mahjong",
                    "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16]}
         body = {"model": self.settings.model, "reasoning": {"effort": "none"}, "store": False,
-                "stream": True, "instructions": system,
+                "stream": True, "instructions": system if system is not None else prompt_for(payload.get('v')),
                 "input": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}]}
         body["text"] = {"verbosity":"low"}
         if self.settings.json_schema and purpose == "decision":
@@ -43,11 +43,13 @@ class ModelClient:
                             "schema": Decision.model_json_schema()}
         text_parts, completed = [], False
         try:
-            timeout = min(self.settings.request_timeout, deadline - time.monotonic()) if deadline else self.settings.request_timeout
+            request_limit = max(self.settings.request_timeout, 90) if purpose == "review" else self.settings.request_timeout
+            timeout = min(request_limit, deadline - time.monotonic()) if deadline else request_limit
             if timeout <= 0:
                 raise ModelFailure("deadline exhausted")
             async with asyncio.timeout(timeout):
-                async with self.http.stream("POST", "responses", headers={"Authorization": "Bearer " + credential}, json=body) as response:
+                async with self.http.stream("POST", "responses", headers={"Authorization": "Bearer " + credential},
+                                            json=body, timeout=timeout) as response:
                     if response.status_code != 200:
                         raise ModelFailure(f"model HTTP {response.status_code}")
                     async for line in response.aiter_lines():

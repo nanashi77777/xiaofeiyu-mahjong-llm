@@ -43,7 +43,10 @@ def apply_event(previous: Snapshot, event: Event) -> Snapshot:
         state.consistent = True
         state.unknown_fields = []
         state.hand = list(d.get("tiles", []))
-        state.drawn_index = len(state.hand) - 1 if len(state.hand) == 14 else None
+        # The initial dealer receives 14 unsorted tiles. Unity sorts all of
+        # them and displays the last sorted tile across a gap; the last item
+        # in ActionNewRound.tiles is not an identified draw instance.
+        state.drawn_index = None
         state.dora = list(d.get("doras") or ([d["dora"]] if d.get("dora") else []))
         state.public_events = []
         state.context = {"first_turn": True, "last_discard": None, "new_round_signature": digest(event.id),

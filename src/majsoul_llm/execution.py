@@ -37,10 +37,17 @@ class Executor:
 
     async def bind(self, hwnd):
         matches = [w for w in self.mouse.windows() if w.hwnd == hwnd]
-        if len(matches) != 1:
+        if len(matches) != 1 or matches[0].pid != await self.browser.process_id():
             raise ValueError("game window not found")
         self.window = matches[0]
         self.mouse.stop.clear()
+
+    async def bind_dedicated(self):
+        pid = await self.browser.process_id()
+        windows = [w for w in self.mouse.windows() if w.pid == pid]
+        if len(windows) != 1:
+            raise InputDeferred('dedicated browser window is not unique')
+        await self.bind(windows[0].hwnd)
 
     async def target(self, semantic, state, indices=None):
         if not self.window:
@@ -71,17 +78,33 @@ class Executor:
             node = found[0]
             evidence = "visible_ui_semantics"
         else:
-            raw = await self.browser.image_bytes()
-            observed = time.monotonic()
-            if semantic == "tile":
-                box = await asyncio.to_thread(self.locator.hand,raw,state)
-                box = box[indices[0]]
-            elif semantic.startswith("combo:"):
-                kind = semantic.split(":",1)[1]
-                tiles = [state.hand[i] for i in indices]
-                box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles)
-            else:
-                box = await asyncio.to_thread(self.locator.button,raw,semantic)
+            for attempt in range(3):
+                raw = await self.browser.image_bytes()
+                observed = time.monotonic()
+                try:
+                    if semantic == "riichi_tile":
+                        box = await asyncio.to_thread(self.locator.riichi_tile,raw,state,indices[0])
+                    elif semantic == "tile":
+                        box = await asyncio.to_thread(self.locator.hand,raw,state)
+                        box = box[indices[0]]
+                    elif semantic.startswith("combo:"):
+                        kind = semantic.split(":",1)[1]
+                        tiles = [state.hand[i] for i in indices]
+                        box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles)
+                    else:
+                        box = await asyncio.to_thread(self.locator.button,raw,semantic)
+                    break
+                except InputDeferred:
+                    import hashlib
+                    folder = self.locator.folder / 'failures'
+                    folder.mkdir(parents=True, exist_ok=True)
+                    (folder / (hashlib.sha256(raw).hexdigest()[:20]+'.png')).write_bytes(raw)
+                    current = self.state_getter()
+                    if attempt == 2 or not current or current.state_version != state.state_version:
+                        raise
+                    # Reobserve the same intended target after an animation;
+                    # never press another button or weaken glyph validation.
+                    await asyncio.sleep(.06)
             node = {"x":box.center[0],"y":box.center[1]}
             evidence = "calibrated_screenshot_matching"
         geometry = await self.browser.page.evaluate("""() => ({x:window.screenX+(window.outerWidth-window.innerWidth)/2,
@@ -124,17 +147,29 @@ class Executor:
         if action.kind == "discard":
             return await click("tile", [action.tile_index])
         if action.kind == "riichi":
+            # Verify the whole hand before dimming makes full segmentation
+            # unavailable. Following clicks target only the offered bright tile.
+            await self.target('tile', state, [action.tile_index])
             await click("riichi")
             # UI selection is independent of the authoritative state version.
             for _ in range(15):
                 if time.monotonic() >= deadline:
                     raise TimeoutError("riichi selection expired")
                 try:
-                    return await click("tile", [action.tile_index])
+                    return await click("riichi_tile", [action.tile_index])
                 except InputDeferred:
                     await asyncio.sleep(0.02)
             raise InputDeferred("riichi selection not verified")
         if action.kind in ("chi", "pon", "daiminkan", "ankan", "kakan"):
+            from .rules import legal_actions
+            button_kinds = {"daiminkan", "ankan", "kakan"} if action.kind in ("daiminkan", "ankan", "kakan") else {action.kind}
+            choices = {(a.kind, tuple(sorted(state.hand[i] for i in a.consume_indices)), a.meld_id)
+                       for a in legal_actions(state) if a.kind in button_kinds}
+            if len(choices) == 1:
+                # Unity immediately submits a sole meld choice. There is no
+                # combination menu, even if two identical hand instances are
+                # represented by several equivalent legal action IDs.
+                return await click(action.kind)
             # A combination crop is required before opening the menu, so an
             # unsupported menu never strands the UI after the first click.
             profile = self.locator.profile()

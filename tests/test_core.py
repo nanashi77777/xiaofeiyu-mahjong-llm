@@ -7,7 +7,7 @@ from majsoul_llm.engine import Engine
 from majsoul_llm.rules import legal_actions, score, shanten, visible_counts
 from majsoul_llm.state import apply_event
 from majsoul_llm.timing import TimeBank
-from majsoul_llm.wire import build_context, semantic_actions
+from majsoul_llm.wire import build_context, semantic_actions, semantic_context
 from majsoul_llm.yaku import YakuReference
 
 
@@ -22,6 +22,13 @@ def test_red_and_immutable_actual_state(state):
     with pytest.raises(ValueError, match="tsumogiri"):
         apply_event(state, event("ActionDiscardTile", {"seat": 0, "tile": "5m", "moqie": True}, 3))
     assert tile_index("0m") == tile_index("5m")
+
+
+def test_initial_dealer_hand_has_no_identified_draw_until_deal_event(state):
+    assert len(state.hand) == 14 and state.drawn_index is None
+    state = apply_event(state,event('ActionDiscardTile',{'seat':0,'tile':'1z'},2))
+    state = apply_event(state,event('ActionDealTile',{'seat':0,'tile':'0p'},3))
+    assert state.drawn_index == 13 and state.hand[state.drawn_index] == '0p'
 
 
 def test_meld_consumption_and_called_discard_count():
@@ -77,6 +84,7 @@ def test_wire_information_equivalence_and_evidence(state):
     rich = build_context(state, actions)
     compact = build_context(state, actions, compact=True)
     assert semantic_actions(rich) == semantic_actions(compact)
+    assert semantic_context(rich) == semantic_context(compact)
     assert compact.data["unknown_fields"] == ["test_unknown"]
     assert compact.data["current_shanten"]["min"] == -1
     assert "catalog_version" not in rich.data and "yaku_reference" not in rich.data

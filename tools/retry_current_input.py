@@ -1,5 +1,6 @@
 """At most one same-action retry, only with current model intent and no client input."""
 import asyncio
+import argparse
 import json
 
 from playwright.async_api import async_playwright
@@ -11,7 +12,7 @@ from majsoul_llm.execution import Executor
 from majsoul_llm.store import Store
 
 
-async def main():
+async def main(args):
     settings=Settings.load()
     settings.input_mode='browser_background'
     db=Store(settings.runtime/'archive.sqlite')
@@ -35,6 +36,8 @@ async def main():
         browser.page=chrome.contexts[0].pages[0]
         executor=Executor(browser,lambda:db.latest(state.match_id))
         windows=executor.mouse.windows()
+        if args.hwnd is not None:
+            windows=[w for w in windows if w.hwnd==args.hwnd]
         if len(windows)!=1:
             return
         await executor.bind(windows[0].hwnd)
@@ -64,4 +67,6 @@ async def main():
 
 
 if __name__=='__main__':
-    asyncio.run(main())
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--hwnd',type=int)
+    asyncio.run(main(parser.parse_args()))

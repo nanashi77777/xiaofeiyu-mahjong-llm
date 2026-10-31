@@ -19,8 +19,10 @@ from .lobby_commands import LobbyCommand
 from .lobby_ui import LobbyDriver, LobbyUI
 from .model import ModelClient
 from .protocol import Protocol
+from .practice import PracticeRooms, RoomAction
 from .queries import Queries
 from .review import Reviewer
+from .round_flow import RoundFlow
 from .store import Store
 from .usage import usage_summary
 
@@ -45,19 +47,28 @@ class Service:
                                    self.input_lease, self.executor.mouse.stop,
                                    lambda:bool(self.engine.state and self.engine.state.lifecycle == "active"),
                                    lambda:self.coordinator.enabled)
-        self.reviewer = Reviewer(self.store, self.client, self.coordinator.active)
+        self.reviewer = Reviewer(self.store, self.client,
+                                 lambda:self.coordinator.enabled or self.coordinator.active())
         self.engine.on_state = self.changed
         self.engine.on_input = self.coordinator.input_observed
-        self.queries = Queries(self.store, settings.read_token.get_secret_value())
+        self.queries = Queries(self.store, settings.read_token.get_secret_value(), self.engine.capture_health)
+        self.practice = PracticeRooms(self)
+        self.round_flow = RoundFlow(self)
 
     async def changed(self, state, event):
+        was_enabled = self.coordinator.enabled
         if state and state.operation:
             await self.reviewer.pause_for_decision()
         await self.coordinator.changed(state, event)
+        await self.round_flow.changed(state, was_enabled and not self.coordinator.shadow)
+        if state and state.lifecycle == 'ended':
+            self.coordinator.enabled = False
+            self.coordinator.status = 'match_complete'
         if state and state.lifecycle in ("ended", "interrupted"):
             await self.reviewer.enqueue(state.match_id)
 
     async def close(self):
+        await self.round_flow.stop()
         await self.navigator.stop()
         await self.coordinator.stop("service_stopped")
         await self.engine.interrupt()
@@ -84,6 +95,7 @@ class Service:
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
                 "navigation":self.navigator.status(), "login_session":self.engine.lobby_session.public(),
                 "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
+                "capture_health":self.engine.capture_health(),
                 "token_usage":self.store.records("token_usage", limit=20),
                 "usage_summary":usage_summary(self.store, self.client.credential_id),
                 "receipts":self.store.records("receipt", limit=10)}
@@ -222,6 +234,10 @@ def create_app(settings=None, service=None):
     @app.get("/control/windows")
     async def windows(s=Depends(controller)):
         return [w.__dict__ for w in s.executor.mouse.windows()]
+
+    @app.post("/control/room")
+    async def room_action(command:RoomAction, s=Depends(controller)):
+        return await s.practice.run(command)
 
     @app.get("/control/screenshot")
     async def screenshot(s=Depends(controller)):

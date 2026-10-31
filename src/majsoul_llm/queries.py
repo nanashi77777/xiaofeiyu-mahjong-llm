@@ -12,8 +12,9 @@ from .store import Store, packed, utcnow
 
 
 class Queries:
-    def __init__(self, store: Store, secret: str):
+    def __init__(self, store: Store, secret: str, capture_health=None):
         self.store, self.secret = store, secret.encode()
+        self.capture_health = capture_health
 
     def cursor(self, data):
         raw = base64.urlsafe_b64encode(packed(data).encode()).rstrip(b"=")
@@ -41,8 +42,13 @@ class Queries:
         age = None
         if state and state.observed_at:
             age = max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(state.observed_at)).total_seconds())
+        health = self.capture_health() if self.capture_health else None
+        live = bool(state and state.lifecycle == "active" and health
+                    and health["connected"] and health["match_id"] == state.match_id)
         return {"schema_version":"mahjong.query.v1", "as_of":utcnow(), "source":"local_websocket_archive",
-                "freshness":{"age_seconds":age, "status":"no_data" if not state else "live" if age is not None and age < 15 and state.lifecycle == "active" else "last_observed"},
+                "freshness":{"age_seconds":age, "status":"no_data" if not state else "live" if live else "last_observed",
+                             "capture_connected":health["connected"] if health else False,
+                             "capture_age_seconds":health["age_seconds"] if health else None},
                 "completeness":state.completeness if state else "unknown", "data":data, "next_cursor":next_cursor, **extra}
 
     def summary(self, state):

@@ -116,6 +116,10 @@ class ScreenLocator:
         return sorted(boxes,key=lambda b:(b.x,b.y,b.label))
 
     def hand(self, raw, state):
+        if state.public_events and state.public_events[-1]['kind'] == 'ActionNewRound':
+            # Also accept pre-fix cached snapshots: initial dealing is a sorted
+            # complete row, not an ActionDealTile draw instance.
+            state = state.model_copy(update={'drawn_index':None})
         profile = self.profile()
         if "hand_region" not in profile:
             raise InputDeferred("hand region not calibrated")
@@ -207,6 +211,29 @@ class ScreenLocator:
         if len(found) != 1:
             raise InputDeferred("button is absent or ambiguous")
         return found[0]
+
+    def riichi_tile(self, raw, state, index):
+        # The selection overlay dims every forbidden tile, so normal full-row
+        # white-face segmentation is no longer valid. Only a server-offered
+        # discard glyph may be bright; match the exact requested tile and keep
+        # its occurrence/slot in the independently verified sorted row.
+        options = [o for o in state.operation.raw['operation_list'] if o['type'] == 7]
+        tile = state.hand[index]
+        if not options or not any(tile in o.get('combination', []) for o in options):
+            raise InputDeferred('riichi tile is not offered by the server')
+        profile = self.profile()
+        region = profile['hand_region']
+        found = self.matches(raw, ['tile_'+tile], region=region)
+        if not found:
+            raise InputDeferred('legal riichi discard glyph is not visible')
+        found.sort(key=lambda b:b.x)
+        if state.drawn_index == index:
+            return found[-1]
+        same = [i for i,t in enumerate(state.hand) if t == tile and i != state.drawn_index]
+        occurrence = same.index(index)
+        if occurrence >= len(found):
+            raise InputDeferred('riichi tile instance is not visible')
+        return found[occurrence]
 
     def combo(self, raw, kind, tiles):
         # Crops identify the complete offered combination including red tiles.

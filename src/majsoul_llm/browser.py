@@ -109,6 +109,16 @@ class Browser:
             canvas:canvas?canvas.getBoundingClientRect().toJSON():null};
         }""")
 
+    async def process_id(self):
+        if not self.page or not self.page.context.browser:
+            raise InputDeferred('dedicated browser identity unavailable')
+        session = await self.page.context.browser.new_browser_cdp_session()
+        try:
+            processes = (await session.send('SystemInfo.getProcessInfo'))['processInfo']
+            return next(int(p['id']) for p in processes if p['type'] == 'browser')
+        finally:
+            await session.detach()
+
     @staticmethod
     def require_visible_canvas(layout):
         canvas = layout.get("canvas")

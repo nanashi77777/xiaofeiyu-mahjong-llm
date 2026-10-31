@@ -12,7 +12,7 @@ from typing import Any
 
 from google.protobuf import descriptor_pool, json_format, message_factory
 
-from .lobby_session import LOBBY_METHODS, sanitize_lobby
+from .lobby_session import LOBBY_METHODS, ROOM_NOTIFICATIONS, sanitize_lobby, sanitize_room_notification
 
 
 def xor_action(data: bytes) -> bytes:
@@ -96,6 +96,9 @@ class Protocol:
             name, response_type, original_input = route
         data = base64.b64decode(wrapper.get("data", ""))
         if kind == 1:
+            if name.rsplit(".", 1)[-1] in ROOM_NOTIFICATIONS:
+                decoded = sanitize_room_notification(name.rsplit(".", 1)[-1], self.decode(name, data))
+                return {"method":name, "direction":"notify", "data":decoded, "connection":connection}
             if name not in (".lq.ActionPrototype", ".lq.NotifyGameEndResult", ".lq.NotifyGameTerminate"):
                 return None
             decoded = self.decode(name, data)
