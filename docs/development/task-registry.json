@@ -855,7 +855,9 @@
         "2026-11-01 actual QQ MCP four read tools available, zero external messages/navigation submissions; temporary privacy and role-token boundary tests pass; current runbook/dependency/license checks documented."
       ],
       "completed_record": "docs/development/completed/DEV-029-runbook.md",
-      "commits": [],
+      "commits": [
+        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -1035,7 +1037,7 @@
       ],
       "completed_record": "docs/development/completed/VAL-007-query-privacy.md",
       "commits": [
-        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
       ],
       "completed_on": "2026-11-01"
     },
@@ -2221,7 +2223,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "保留完整场况的具名列传输及独立模型理解门禁",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-030",
         "DEV-054"
@@ -2234,10 +2236,15 @@
         "真实同模型none配对比较usage、理解与流式首动作耗时，单独门禁，失败保留且可回退"
       ],
       "evidence": [
-        "251 pytest passed and named-row roundtrip/whole-context equivalence tests; actual paired channel validation running, production gate remains false."
+        "251 pytest passed and named-row roundtrip/whole-context equivalence tests; actual paired channel validation running, production gate remains false.",
+        "Final 24 real paired-channel rows: all equivalent/legal, no repairs or factual errors, retry-inclusive input 81068 to 76116 (~6.11%); six final stream probes all complete, long-tail still retained. 259 pytest/ruff passed. Full VAL remains separate."
       ],
-      "completed_record": null,
-      "commits": []
+      "completed_record": "docs/development/completed/DEV-067-named-table-wire.md",
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875",
+        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
+      ],
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-068",
@@ -2306,9 +2313,15 @@
         "仅控制令牌、无活动输入且真实阶段为小局/终场结果时允许继续可见结算，不能自动恢复打牌",
         "新局/停止/状态变化撤销，页面实际提交留证；已有结算任务不重复启动，隔离事务验证"
       ],
-      "evidence": [],
+      "evidence": [
+        "259 pytest passed; panel-v4 32 isolated checks passed, zero production controls; actual final page not yet verified for this explicit resume endpoint."
+      ],
       "completed_record": null,
-      "commits": []
+      "commits": [
+        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
+      ],
+      "implementation_progress": "code_ready",
+      "status_reason": "Stopped-result-only control and 4 isolated lifecycle tests pass; actual result-page click remains to verify on a subsequent observed result."
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

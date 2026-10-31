@@ -73,5 +73,6 @@
 | DEV-064 | 实现 | 低频按钮校准、多字形匹配与鸣牌菜单完整性核对 | [完成记录](docs/development/completed/DEV-064-button-calibration.md) |
 | DEV-065 | 实现 | 面板慢请求超时、重连隔离和停止按钮可恢复 | [完成记录](docs/development/completed/DEV-065-panel-request-deadlines.md) |
 | DEV-066 | 实现 | 三吃及多组合、赤牌与多行菜单执行核验 | [完成记录](docs/development/completed/DEV-066-multi-choice-melds.md) |
+| DEV-067 | 实现 | 保留完整场况的具名列传输及独立模型理解门禁 | [完成记录](docs/development/completed/DEV-067-named-table-wire.md) |
 | DEV-068 | 实现 | 多组合菜单观察区域覆盖与边界拒绝 | [完成记录](docs/development/completed/DEV-068-menu-band.md) |
 | DEV-069 | 实现 | 面板同步实际输入模式并保留未提交选择 | [完成记录](docs/development/completed/DEV-069-panel-mode.md) |

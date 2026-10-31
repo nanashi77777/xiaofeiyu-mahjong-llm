@@ -80,7 +80,7 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 早期紧凑格式曾出现解释/引用错误，失败已保留；后续可读mj.readable.2只共享重复条件说明，semantic_actions可完全还原。最新80条配对记录为每格式40次，完成校验后全部合法且未发现关键事实误读；末次请求input均值从7609.8降至6517.1，约减少14.36%，含字段说明和Schema开销。这不是全部重试总量的净节省：旧报告末次结果含repair，缺每次尝试关联，VAL-010继续开放。新版compare_wire工具逐次收集原始尝试，不把修复代价隐去。本机compact_validated=true沿用readable.2。仍保留完整牌河、事件、候选和当前相关役种事实，完整役种表不进入实时请求；500窗口和三场完整5+10尚未通过。
 
-DEV-067新增mj.tables.1具名列候选，完整保留public_events和四家river，动作及牌效仍为可读对象。独立table_wire_validated默认false；对照工具加`--candidate tables`，首动作工具加`--compare-tables`，均为本机离线渠道调用，不控制游戏。未完成该版本真实理解及usage核验前保持原格式，不能沿用readable.2的通过结果为新格式背书。
+DEV-067的mj.tables.1在public_events达到16条时采用具名列，river少于8行仍用原对象数组；完整保留字段/顺序/缺失与null，动作及牌效为可读对象。独立table_wire_validated默认false，本机在12组最终真实对照全部合法、零事实错误后可停接管启用；关闭即回退readable.2。对照工具加`--candidate tables`，首动作工具加`--compare-tables`，均为本机离线渠道调用，不控制游戏。最终样本决策全尝试input减少6.11%，不能将小样本首动作收益当作正式五秒达标，VAL-010的rich配对净收益仍开放。
 
 手牌空闲预识别与当前操作并行观察共用输入租约。只有新截图手牌像素、手牌/摸牌槽/副露签名、尺度和校准版本全同才复用牌实例映射；点击目标仍有原0.6秒缓存和1.2秒按下检查。vision_cache命中数不等于已节省毫秒。
 
