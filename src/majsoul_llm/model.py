@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import time
+import uuid
 
 import httpx
 
@@ -38,20 +39,23 @@ class ModelClient:
         self.http = httpx.AsyncClient(base_url=settings.base_url.rstrip("/") + "/", timeout=settings.request_timeout,
                                       transport=transport, trust_env=False)
         self.streams = set()
+        self.races = set()
 
     @property
     def credential_id(self):
         return hashlib.sha256(self.settings.api_key.get_secret_value().encode()).hexdigest()[:16]
 
     async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=None, output_schema=None,
-                      on_text=None):
+                      on_text=None, trace=None):
         start = time.monotonic()
         credential = self.settings.api_key.get_secret_value()
         metrics = {"purpose": purpose, "model": self.settings.model, "usage": None, "ttft_ms": None,
+                   "model_config": self.settings.model_status(),
                    "text_delta_count":0, "text_characters":0, "last_delta_ms":None,
                    "elapsed_ms": None, "status": "failed", "billing_scope":"mahjong",
                    "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16],
-                   "request_q":payload.get('q')}
+                   "request_q":payload.get('q'), "request_id":uuid.uuid4().hex,
+                   **(trace or {})}
         body = {"model": self.settings.model, "reasoning": {"effort": "none"}, "store": False,
                 "stream": True, "instructions": system if system is not None else prompt_for(payload.get('v')),
                 "input": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}]}
@@ -143,6 +147,74 @@ class ModelClient:
         raise ModelFailure("no valid decision")
 
     async def begin_decision(self, context: Context, deadline):
+        if self.settings.stream_hedge_delay_seconds:
+            task = asyncio.current_task()
+            self.races.add(task)
+            try:
+                return await self._race_decision(context,deadline)
+            finally:
+                self.races.discard(task)
+        return await self._begin_decision(context,deadline)
+
+    async def _race_decision(self, context, deadline):
+        started = time.monotonic()
+        race_id = uuid.uuid4().hex
+        tasks, selected = {}, None
+        def launch():
+            lane = len(tasks)
+            task = asyncio.create_task(self._begin_decision(context,deadline,attempts=1,
+                trace={'race_id':race_id,'race_lane':lane}))
+            tasks[task] = lane
+        launch()
+        failures = set()
+        try:
+            while True:
+                candidates = []
+                for task in tasks:
+                    if task.done() and task not in failures:
+                        try:
+                            candidates.append((task.result(),task))
+                        except (ModelFailure,ValueError,asyncio.CancelledError):
+                            failures.add(task)
+                if candidates:
+                    selected, winner = min(candidates,key=lambda pair:pair[0].metrics['action_committed_mono'])
+                    selected.metrics.update(action_ready_ms=(selected.metrics['action_committed_mono']-started)*1000,
+                                            race_id=race_id,race_lane=tasks[winner],race_requests=len(tasks))
+                    if self.store:
+                        self.store.record('stream_race',{'race_id':race_id,'request_q':context.q,
+                            'winner_lane':tasks[winner],'requests':len(tasks),'action_id':selected.action.id,
+                            'action_ready_ms':selected.metrics['action_ready_ms']},
+                            context.data.get('match_id'),context.data.get('round_uid'))
+                    break
+                remaining = deadline-time.monotonic()
+                if remaining <= 0 or len(failures)==2:
+                    raise ModelFailure('no valid model prefix before shared deadline')
+                delay = started+self.settings.stream_hedge_delay_seconds-time.monotonic()
+                if len(tasks)==1 and (delay <= 0 or failures):
+                    launch()
+                    continue
+                pending = set(tasks)-failures
+                await asyncio.wait(pending,timeout=min(remaining,max(0,delay)) if len(tasks)==1 else remaining,
+                                   return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            try:
+                results = await asyncio.gather(*tasks,return_exceptions=True)
+                abandoned = [result.completion for result in results
+                             if isinstance(result,StreamChoice) and result is not selected]
+                for task in abandoned:
+                    task.cancel()
+                await asyncio.gather(*abandoned,return_exceptions=True)
+            except BaseException:
+                if selected:
+                    selected.completion.cancel()
+                    await asyncio.gather(selected.completion,return_exceptions=True)
+                raise
+        return selected
+
+    async def _begin_decision(self, context: Context, deadline, *, attempts=2, trace=None):
         ready = asyncio.get_running_loop().create_future()
         format = self.settings.stream_action_format
         prefix = ActionPrefix(context,format)
@@ -154,12 +226,13 @@ class ModelClient:
             if action is None:
                 return False
             early = {**metrics,'status':'action_ready',
-                     'action_ready_ms':metrics['elapsed_ms'],'stream_action_format':format}
+                     'action_ready_ms':metrics['elapsed_ms'],'stream_action_format':format,
+                     'action_committed_mono':time.monotonic()}
             ready.set_result((action,early))
             return True
         async def receive():
             try:
-                for attempt in range(2):
+                for attempt in range(attempts):
                     try:
                         payload = context.data if attempt == 0 else {**context.data,
                             'repair_instruction':('上次动作段无效。严格先输出本请求合法a字段，再输出r/p。'
@@ -168,7 +241,7 @@ class ModelClient:
                         raw,metrics = await self.request(payload,deadline=deadline,on_text=on_text,
                             purpose='decision' if attempt == 0 else 'repair',
                             output_schema=context.stream_response_schema(format),
-                            system=stream_prompt(prompt_for(context.data.get('v')),format))
+                            system=stream_prompt(prompt_for(context.data.get('v')),format),trace=trace)
                         if prefix.committed is None:
                             raise ModelFailure('no committed stream action')
                         expected = {'a','r','p'} if format == 'short' else {'d','r','p'}
@@ -180,7 +253,7 @@ class ModelClient:
                     except (ModelFailure,ValueError):
                         # The prefix is irrevocable. Repairs are only allowed
                         # before any action was committed, never for its tail.
-                        if prefix.committed is not None or attempt or deadline-time.monotonic() < 1:
+                        if prefix.committed is not None or attempt+1 >= attempts or deadline-time.monotonic() < 1:
                             raise
                 raise ModelFailure('no committed stream action')
             except BaseException as error:
@@ -202,6 +275,10 @@ class ModelClient:
             raise
 
     async def close(self):
+        races = list(self.races)
+        for task in races:
+            task.cancel()
+        await asyncio.gather(*races,return_exceptions=True)
         for task in list(self.streams):
             task.cancel()
         await asyncio.gather(*self.streams,return_exceptions=True)

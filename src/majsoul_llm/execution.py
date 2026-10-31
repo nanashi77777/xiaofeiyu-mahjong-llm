@@ -151,18 +151,11 @@ class Executor:
                     if not current or current.match_id != state.match_id or current.state_version != state.state_version:
                         return
                     try:
-                        layout = await self.browser.layout_metrics()
-                        raw = await self.browser.image_bytes()
-                        observed = time.monotonic()
-                        boxes = await finish_input(asyncio.to_thread(self._recognize_candidates,raw,state,actions))
-                        if await self.browser.layout_metrics() == layout:
-                            canvas = layout.get('canvas') or {'x':0,'y':0}
-                            cached = {}
-                            for key,box in boxes.items():
-                                point = (box.center[0]+canvas['x'],box.center[1]+canvas['y'])
-                                cached[key] = Target(point,(0,0,0,0),observed,
-                                                     'parallel_visible_observation',point,layout,raw,box.confidence)
-                            self.observed_targets = {(state.match_id,state.state_version,state.operation.window_id):cached}
+                        # Drain only the frame already started when the model
+                        # becomes ready. Publishing belongs to that transaction,
+                        # so cancellation cannot discard a completed recognition
+                        # and force execution to capture the same scene again.
+                        await finish_input(self._observe_frame(state, actions, deadline))
                     except InputDeferred:
                         pass  # Optional observation; execution still has full recognition.
                     await asyncio.sleep(.15)
@@ -170,6 +163,24 @@ class Executor:
             raise
         except Exception as error:
             self.metrics.append({'stage':'preobserve_unavailable','error_type':type(error).__name__})
+
+    async def _observe_frame(self, state, actions, deadline):
+        async with asyncio.timeout_at(deadline):
+            self._observation_current(state, deadline)
+            layout = await self.browser.layout_metrics()
+            raw = await self.browser.image_bytes()
+            observed = time.monotonic()
+            boxes = await finish_input(asyncio.to_thread(self._recognize_candidates, raw, state, actions))
+            if await self.browser.layout_metrics() != layout:
+                return
+            self._observation_current(state, deadline)
+            canvas = layout.get('canvas') or {'x':0, 'y':0}
+            cached = {}
+            for key, box in boxes.items():
+                point = (box.center[0]+canvas['x'], box.center[1]+canvas['y'])
+                cached[key] = Target(point, (0,0,0,0), observed,
+                    'parallel_visible_observation', point, layout, raw, box.confidence)
+            self.observed_targets = {(state.match_id, state.state_version, state.operation.window_id):cached}
 
     async def bind(self, hwnd):
         matches = [w for w in self.mouse.windows() if w.hwnd == hwnd]

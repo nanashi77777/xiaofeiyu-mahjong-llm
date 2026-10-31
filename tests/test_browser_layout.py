@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import asyncio
 import base64
 import json
+import threading
 
 import cv2
 import numpy as np
@@ -94,6 +95,35 @@ async def test_resize_during_native_capture_cannot_become_an_input_image():
     browser.cdp = SimpleNamespace(send=send)
     with pytest.raises(InputDeferred,match='layout changed during capture'):
         await browser.image_bytes()
+
+
+async def test_crop_never_blocks_event_loop_and_cancel_drains_capture_lock(monkeypatch):
+    browser = Browser(Settings(), None)
+    started, release = threading.Event(), threading.Event()
+    def crop(raw, layout):
+        started.set()
+        release.wait(2)
+        return b'crop'
+    async def layout():
+        return {'width':100, 'height':60, 'canvas':None}
+    async def send(*args):
+        return {'data':''}
+    browser.page = object()
+    browser.cdp = SimpleNamespace(send=send)
+    browser.layout_metrics = layout
+    monkeypatch.setattr(browser, 'crop_viewport', crop)
+    task = asyncio.create_task(browser.image_bytes())
+    try:
+        while not started.is_set():
+            await asyncio.sleep(.001)
+        # The event loop can receive a model prefix or WebSocket while crop is busy.
+        task.cancel()
+        await asyncio.sleep(0)
+        assert browser.capture_lock.locked()
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+    assert not browser.capture_lock.locked() and task.cancelled()
 
 
 def test_reattach_rejects_another_profile_or_executable(monkeypatch, tmp_path):

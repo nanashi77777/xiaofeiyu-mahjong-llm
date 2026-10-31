@@ -127,3 +127,12 @@ benchmark 是真实渠道调用加构造场况，明确不包含物理点击，�
 数据库v2回退到旧程序前必须停止全部写入并成套恢复迁移前备份；普通功能回退仅git revert源码，不回滚事实。需要备份正在运行的SQLite时用SQLite backup接口取得一致副本，不能仅复制WAL主文件；浏览器profile备份应先关闭其进程。保留所有原始失败报告，重测使用新文件名。
 
 新机器安装源码还需要当前兼容的本机proto、用户自行登录的专用profile及本机界面校准；仓库不附带这些运行资产。`python -m playwright install chromium`供隔离浏览器验证使用，生产使用已配置的系统Chrome。当前环境`pip check`通过；独立全新机器/账号的最终交付演练仍由VAL-009验收，不能以当前机器运行成功代替。
+
+
+## 供应商与模型配置
+
+当前仍用terra、Responses、none及麻将专用密钥。`python -m majsoul_llm.cli models --action list`显示安全标识；`--action capture --id baseline`保存当前配置作为本机回退点，已有名字不覆盖。本机已建立baseline，不需重复捕获。
+
+编辑ignored runtime/model-profiles.json添加供应商/model/base_url/api_style/api_key（不要把密钥放命令行）。当前api_style只支持responses，远程必须HTTPS且URL不能携带认证/query/fragment；协议不同需要实现新适配。新增配置不要复制旧validation_identity/validated，修改目标也会使旧身份失效。然后先停止接管与服务、确认没有活动局，运行`python -m majsoul_llm.cli models --action select --id 配置名`，重启服务生效。决策/修复/复盘共用这一配置，QQ不能改。环境MAJSOUL_API_KEY与选择不符会拒绝；直接环境覆盖也清除已有身份绑定门禁。
+
+新渠道/模型清除compact/table/schema/stream相关门禁，并将副请求归零；按现有工具独立验证Schema、SSE动作、完整事实理解和usage后再启用本机标记，不继承旧报告。精确回退baseline可以恢复其原门禁，副请求仍0。请求记录包含provider/profile/api_style/身份指纹，取消无usage仍为未知。当前未增加chat/completions、跨渠道自动重试或运行中热切换。

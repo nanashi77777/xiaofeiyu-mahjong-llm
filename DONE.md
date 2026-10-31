@@ -78,6 +78,11 @@
 | DEV-067 | 实现 | 保留完整场况的具名列传输及独立模型理解门禁 | [完成记录](docs/development/completed/DEV-067-named-table-wire.md) |
 | DEV-068 | 实现 | 多组合菜单观察区域覆盖与边界拒绝 | [完成记录](docs/development/completed/DEV-068-menu-band.md) |
 | DEV-069 | 实现 | 面板同步实际输入模式并保留未提交选择 | [完成记录](docs/development/completed/DEV-069-panel-mode.md) |
+| DEV-070 | 实现 | 停止接管后显式继续真实结算页 | [完成记录](docs/development/completed/DEV-070-explicit-results.md) |
 | DEV-071 | 实现 | 跨小局断线恢复保持唯一序号与可重放归档 | [完成记录](docs/development/completed/DEV-071-recovery-round-index.md) |
 | DEV-072 | 验收 | 真实字形的三吃和更多组合构造菜单专项 | [完成记录](docs/development/completed/DEV-072-real-glyph-melds.md) |
 | DEV-073 | 实现 | 退出房间按真实回执区分已退出和确认弹窗 | [完成记录](docs/development/completed/DEV-073-observed-room-exit.md) |
+| DEV-074 | 实现 | 同模型延迟副请求首合法动作单次提交 | [完成记录](docs/development/completed/DEV-074-stream-race.md) |
+| DEV-075 | 实现 | 用户指定sol模型对照试用及无明显收益回退 | [完成记录](docs/development/completed/DEV-075-sol-trial.md) |
+| DEV-076 | 实现 | 本机命名供应商模型配置与安全切换回退 | [完成记录](docs/development/completed/DEV-076-model-profiles.md) |
+| DEV-077 | 实现 | 并行识别取消交接保留当前完整帧 | [完成记录](docs/development/completed/DEV-077-observation-handoff.md) |

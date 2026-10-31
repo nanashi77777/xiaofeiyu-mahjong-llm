@@ -278,7 +278,8 @@ class Browser:
             after = await self.layout_metrics()
             if self.page is not page or after != before:
                 raise InputDeferred("layout changed during capture")
-            return self.crop_viewport(base64.b64decode(result["data"]), before)
+            from .input_lease import finish_input
+            return await finish_input(asyncio.to_thread(self.crop_viewport, base64.b64decode(result["data"]), before))
 
     @staticmethod
     def crop_viewport(raw, layout):

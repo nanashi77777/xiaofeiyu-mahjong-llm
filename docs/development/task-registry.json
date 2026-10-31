@@ -2313,7 +2313,7 @@
       "kind": "development",
       "milestone": "M7",
       "title": "停止接管后显式继续真实结算页",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-027",
         "DEV-056"
@@ -2326,14 +2326,14 @@
         "新局/停止/状态变化撤销，页面实际提交留证；已有结算任务不重复启动，隔离事务验证"
       ],
       "evidence": [
-        "259 pytest passed; panel-v4 32 isolated checks passed, zero production controls; actual final page not yet verified for this explicit resume endpoint."
+        "Actual explicit endpoint: initial final, HTTP200 / duplicate409; result_ui submitted, returned room, enabled false, cursor/foreground unchanged. v1 observation-only retained as failed."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/DEV-070-explicit-results.md",
       "commits": [
         "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
       ],
       "implementation_progress": "code_ready",
-      "status_reason": "Stopped-result-only control and 4 isolated lifecycle tests pass; actual result-page click remains to verify on a subsequent observed result."
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-071",
@@ -2407,6 +2407,102 @@
         "d26aface75464a9db8b058858418121a75f509f8"
       ],
       "implementation_progress": "code_ready",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-074",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "同模型延迟副请求首合法动作单次提交",
+      "status": "done",
+      "depends_on": [
+        "DEV-051",
+        "DEV-067"
+      ],
+      "design_refs": [
+        "docs/design/model-request-race.md"
+      ],
+      "acceptance": [
+        "最多两次同模型none完整上下文请求共享原截止时间，首次合法首动作只提交一次，失败不本地选牌",
+        "原请求先返回不发副请求；竞态停止和过期取消全部支路，胜者尾段保存，败者用量未知诚实记录；隔离及真实渠道验证后再启用"
+      ],
+      "evidence": [
+        "24 related streaming tests; actual 6+6 alternating requests, 2.64% P50 gain, 6 canceled usage unknown; production remains delay0."
+      ],
+      "completed_record": "docs/development/completed/DEV-074-stream-race.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-075",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "用户指定sol模型对照试用及无明显收益回退",
+      "status": "done",
+      "depends_on": [
+        "DEV-015",
+        "DEV-051"
+      ],
+      "design_refs": [
+        "docs/design/model-sol-trial.md"
+      ],
+      "acceptance": [
+        "同完整归档局面、none、同专用密钥、单请求交替比较terra/sol首动作时延、合法性、失败和token",
+        "明显改善后切换决策与复盘并真实短场检验；无明显改善切回terra，保留两模型失败及结论，不启用副请求混淆对照"
+      ],
+      "evidence": [
+        "24 actual alternating same-context requests, 12 per model; zero invalid/failed, action P50 terra3461.5ms/sol3437ms (0.71%), means3640.67/3348.92; no clear overall improvement, production and local config verified terra, hedge0. All records retained."
+      ],
+      "completed_record": "docs/development/completed/DEV-075-sol-trial.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-076",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "本机命名供应商模型配置与安全切换回退",
+      "status": "done",
+      "depends_on": [
+        "DEV-003",
+        "DEV-015"
+      ],
+      "design_refs": [
+        "docs/design/model-profiles.md"
+      ],
+      "acceptance": [
+        "命名配置保留协议模型和麻将密钥；停止服务且无活动局时原子选择重启生效，QQ无配置权限",
+        "新目标清除旧渠道门禁，精确回退恢复；隔离请求验证路由、none、凭据与秘密不外泄"
+      ],
+      "evidence": [
+        "9 isolated profile tests plus actual local capture/list and live-service select rejection; mocked decision/repair/review routing, no new provider called."
+      ],
+      "completed_record": "docs/development/completed/DEV-076-model-profiles.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-077",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "并行识别取消交接保留当前完整帧",
+      "status": "done",
+      "depends_on": [
+        "DEV-051",
+        "DEV-049"
+      ],
+      "design_refs": [
+        "docs/design/observation-handoff.md"
+      ],
+      "acceptance": [
+        "取消排空当前一帧并核对状态后发布，不启动下帧、不按键、不延长原截止",
+        "原缓存0.6秒及按下1.2秒门槛保持；竞态停止变局拒绝，命中零重复捕获，真实性能另报告"
+      ],
+      "evidence": [
+        "14 frame handoff races and browser threading/lock test; 32 related checks passed, fresh cache reuses exactly one capture; production performance separately tested."
+      ],
+      "completed_record": "docs/development/completed/DEV-077-observation-handoff.md",
+      "commits": [],
       "completed_on": "2026-11-01"
     }
   ],
