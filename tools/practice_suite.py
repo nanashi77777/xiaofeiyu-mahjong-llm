@@ -80,8 +80,11 @@ class PracticeSuite:
         room = login.get('room')
         wanted = {'time_fixed':fixed, 'time_add':bank}
         if room and (room['mode'].get('mode') != 2 or room['mode'].get('detail_rule') != wanted or room['players'] != 4):
-            await self.room(room['room_code'], 'leave')
-            await self.room(room['room_code'], 'confirm_leave')
+            result = await self.room(room['room_code'], 'leave')
+            if result['status'] == 'dialog_opened':
+                await self.room(room['room_code'], 'confirm_leave')
+            if (await self.status())['login_session']['room']:
+                raise RuntimeError('room_leave_not_observed')
             room = None
         if room is None:
             command = {'command_id':'suite-'+uuid.uuid4().hex, 'kind':'create_friend', 'players':4,

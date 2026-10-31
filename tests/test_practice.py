@@ -75,6 +75,42 @@ async def test_missing_room_ack_persists_uncertainty_and_duplicate_never_repress
     assert calls==[('room','start')]
 
 
+async def test_visible_room_back_can_confirm_direct_leave_without_second_press(store):
+    s,calls=service(store)
+    async def click(scene,control,ctx,*,submit=None):
+        ctx.check()
+        ctx.before_submit(submit)
+        calls.append((scene,control))
+        s.engine.lobby_session.latest['leaveRoom']={'observed_mono':time.monotonic(),'error_code':0}
+        s.engine.lobby_session.room=None
+    s.lobby_ui.click=click
+    command=RoomAction(command_id='direct-leave',room_code='12345',action='leave')
+    rooms=PracticeRooms(s)
+    assert (await rooms.run(command))['status']=='confirmed'
+    assert (await rooms.run(command))['status']=='confirmed'
+    assert calls==[('room','back')]
+
+
+@pytest.mark.parametrize('scene',['confirm_leave','room'])
+async def test_leave_dialog_requires_actual_scene_and_missing_ack_stays_uncertain(store,monkeypatch,scene):
+    s,calls=service(store)
+    async def no_ack(scene,control,ctx,*,submit=None):
+        ctx.check()
+        ctx.before_submit(submit)
+        calls.append((scene,control))
+    async def observe():
+        return scene
+    s.lobby_ui.click=no_ack
+    s.lobby_ui.observe=observe
+    monkeypatch.setattr(PracticeRooms,'ACK_TIMEOUT',0)
+    rooms=PracticeRooms(s)
+    command=RoomAction(command_id='dialog-leave',room_code='12345',action='leave')
+    result=await rooms.run(command)
+    assert result['status']==('dialog_opened' if scene=='confirm_leave' else 'uncertain')
+    assert await rooms.run(command)==result
+    assert calls==[('room','back')]
+
+
 def test_room_updates_are_bound_to_authenticated_lobby_connection():
     session=LobbySession()
     session.connection='ours'

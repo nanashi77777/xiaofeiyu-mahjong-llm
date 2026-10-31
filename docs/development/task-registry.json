@@ -2370,6 +2370,27 @@
       "completed_record": "docs/development/completed/DEV-072-real-glyph-melds.md",
       "commits": [],
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-073",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "退出房间按真实回执区分已退出和确认弹窗",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-060"
+      ],
+      "design_refs": [
+        "docs/design/lobby-automation.md"
+      ],
+      "acceptance": [
+        "可见返回按钮直接触发leaveRoom时核验回执，不再误报dialog_opened或继续点击不存在的确认页",
+        "兼容已校准确认弹窗，无回执保持uncertain；同ID不重按，创建矩阵及正式测试工具按实际结果退出"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

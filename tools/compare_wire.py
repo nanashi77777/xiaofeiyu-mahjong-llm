@@ -152,7 +152,8 @@ async def run(args):
                 rich, compact = (build_context(state, actions, compact=True, tabled=t, plan=plan, memories=memories)
                                  for t in (False,True))
             else:
-                rich, compact = (build_context(state, actions, compact=c, plan=plan, memories=memories) for c in (False, True))
+                rich, compact = (build_context(state, actions, compact=c, tabled=c and args.candidate=='final',
+                                               plan=plan, memories=memories) for c in (False, True))
             assert semantic_context(rich) == semantic_context(compact)
             for repeat in range(args.repeats):
                 contexts = (rich, compact) if repeat % 2 == 0 else (compact, rich)
@@ -207,6 +208,6 @@ if __name__ == '__main__':
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--archived', type=int, default=4)
     parser.add_argument('--case', action='append')
-    parser.add_argument('--candidate', choices=('readable','tables'), default='readable')
+    parser.add_argument('--candidate', choices=('readable','tables','final'), default='readable')
     parser.add_argument('--output', type=Path, default=Path('runtime/wire-pairs.json'))
     asyncio.run(run(parser.parse_args()))

@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import Field, StrictBool, StrictStr
 
 from .domain import Record
-from .lobby import LobbyError
+from .lobby import LobbyError, WaitingUser
 
 
 class RoomAction(Record):
@@ -64,7 +64,7 @@ class PracticeRooms:
             ctx.check()
             scene = "confirm_leave" if command.action == "confirm_leave" else "room"
             control = {"leave":"back", "confirm_leave":"confirm"}.get(command.action, command.action)
-            method = ("leaveRoom" if command.action == "confirm_leave" else "startRoom" if command.action == "start"
+            method = ("leaveRoom" if command.action in ("leave","confirm_leave") else "startRoom" if command.action == "start"
                       else "addRoomRobot" if command.action.startswith("add_robot") else None)
             before = time.monotonic()
             await service.lobby_ui.click(scene, control, ctx, submit=method)
@@ -79,10 +79,24 @@ class PracticeRooms:
                         break
                     if service.executor.mouse.stop.is_set():
                         raise LobbyError("navigation_stopped")
+                    if command.action == 'leave':
+                        try:
+                            if await service.lobby_ui.observe() == 'confirm_leave':
+                                break
+                        except WaitingUser:
+                            pass
                     await asyncio.sleep(.05)
                 if not ack or ack["observed_mono"] < before:
-                    result = {"request":request, "status":"uncertain", "method":method,
-                              "reason":"server_confirmation_not_observed"}
+                    scene = None
+                    if command.action == 'leave':
+                        try:
+                            scene = await service.lobby_ui.observe()
+                        except WaitingUser:
+                            pass
+                    result = ({"request":request, "status":"dialog_opened", "method":method}
+                              if scene == 'confirm_leave' else
+                              {"request":request, "status":"uncertain", "method":method,
+                               "reason":"server_confirmation_not_observed"})
                 else:
                     result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
                               "error_code":ack["error_code"]}
