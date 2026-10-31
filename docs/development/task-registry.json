@@ -1859,7 +1859,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "结算确认等待可见按钮并准确记录提交点",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-017"
       ],
@@ -1871,10 +1871,15 @@
         "仅可见确认按钮通过预检后记录提交；按压/场景切换结果未知不重复点击，换局/停止取消",
         "真实终场按钮和小局页面确认有证据，模拟预检未就绪与释放超时通过；既有混合场仍不计完整正式通过"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "149 pytest passed; mixed-short-v1-final真实三页面提交及返回房间"
+      ],
+      "completed_record": "docs/development/completed/DEV-056-result-button-readiness.md",
+      "commits": [
+        "8cac81994f2d0ae379523a1e150d74f1022f9a04"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-057",
@@ -1897,6 +1902,30 @@
         "147 pytest and ruff; exact prepress TargetExpired, no down/up; existing bounded semantic retry and after-press one-send regressions; original 28th live failure retained; next production restart and full VAL still pending"
       ],
       "completed_record": "docs/development/completed/DEV-057-prepress-render-timeout.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-058",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "同帧识别去重与低频操作图像证据",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "同一不可变截图在一次识别中复用解码归一化结果，新帧或归一化尺度改变重建，不放宽像素/布局/候选/期限检查",
+        "现有并行观察遇到尚未校准的合法按钮时保存一次已取帧及窗口依据，无额外截图、不自行选择动作、停止仍释放租约",
+        "真实归档截图前后识别结果相等及耗时对照、缓存失效与并行取消验证；正式5+10继续独立报告，不能用离线收益冒充端到端达标"
+      ],
+      "evidence": [
+        "149 pytest passed; vision-reuse-v1双按钮同坐标; 339.615至299.359ms离线对照"
+      ],
+      "completed_record": "docs/development/completed/DEV-058-frame-reuse-evidence.md",
       "commits": [],
       "completed_on": "2026-10-31"
     }

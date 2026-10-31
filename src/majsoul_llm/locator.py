@@ -52,6 +52,7 @@ class ScreenLocator:
         self.hand_cache = None
         self.hand_cache_hits = 0
         self.hand_cache_misses = 0
+        self.normalized_frame = None
 
     @staticmethod
     def hand_signature(state):
@@ -65,12 +66,20 @@ class ScreenLocator:
         return json.loads(self.path.read_text(encoding="utf-8"))
 
     def normalized(self,raw,profile):
+        cached = self.normalized_frame
+        size = (profile['width'],profile['height'])
+        if cached and cached[0] is raw and cached[1] == size:
+            return cached[2]
         image=decode_image(raw)
         height,width=image.shape[:2]
         expected=profile["width"]/profile["height"]
         if abs(width/height/expected-1)>.01:
             raise InputDeferred("viewport aspect ratio changed; recalibration required")
-        return cv2.resize(image,(profile["width"],profile["height"])),width/profile["width"],height/profile["height"]
+        normalized = cv2.resize(image,size)
+        normalized.setflags(write=False)
+        result = normalized,width/profile['width'],height/profile['height']
+        self.normalized_frame = (raw,size,result)
+        return result
 
     def save_crop(self, raw, label, box, *, hand_region=None):
         if not re.fullmatch(r"(?:tile_[0-9][mpsz]|button_[a-z0-9_]+|combo_[a-z0-9_]+)", label):
