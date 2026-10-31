@@ -13,3 +13,5 @@ DEV-052已实现首动作提交与延后r/p；DEV-053已实现空闲手牌预观
 前一普通响应正式场runtime/production-5plus10-v3.json在第18机会立直选8p时识别失败；故障截图离线直接相关度0.8954，同核平滑0.95648，原阈值0.91保留，另加完整亮牌面覆盖验证。后续同一混合开发场窗口8440afc42a23252dc092:op获得实际带is_liqi=true的所选弃牌确认，read_to_mouse=5563ms；离线故障图和新真实立直共同验证DEV-051并消费，不能将此条或混合场计作正式五秒/整场通过。
 
 完成记录：DEV-023-qq-readonly-integration、DEV-052-streaming-action、DEV-053-hand-preobservation。源码与文档提交后在commit-index登记实际哈希；本机牌谱、截图、响应和凭据均不入库。
+
+后续DEV-055已补充非普通弃牌目标的原识别截图、置信度、页面/屏幕坐标、窗口和状态版本到input_steps；使用已取得的帧，在按压后写本机runtime/input-evidence，不额外截图。成功、按压结果不确定、诊断文件写失败三种情况均证明只按一次；诊断I/O错误不能覆盖真实点击状态，146项全量pytest和ruff通过。此阶段仅补证据，未宣称定位根因或有限恢复已经完成。

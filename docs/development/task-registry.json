@@ -660,7 +660,8 @@
       "completed_record": "docs/development/completed/DEV-023-qq-readonly-integration.md",
       "commits": [
         "a4d0b25",
-        "94fc9601057988670bc3465852d97077ae402e8f"
+        "94fc9601057988670bc3465852d97077ae402e8f",
+        "d48837f8c214288eacb4eaa984faea6f65c02a8f"
       ],
       "status_reason": "implementation present; verification and completion records pending",
       "completed_on": "2026-10-31"
@@ -1747,7 +1748,9 @@
         "143 pytest and ruff; original 8p failure image passes unchanged .91 threshold with .95648 smoothed correlation; new live two-step riichi matches actual is_liqi event, read_to_mouse 5563ms; mixed game excluded from formal acceptance"
       ],
       "completed_record": "docs/development/completed/DEV-051-riichi-resampling.md",
-      "commits": [],
+      "commits": [
+        "d48837f8c214288eacb4eaa984faea6f65c02a8f"
+      ],
       "implementation_progress": "code_ready",
       "completed_on": "2026-10-31"
     },
@@ -1772,7 +1775,9 @@
         "143 full regression tests; 10/10 nested specified-model probes; formal 5+10 stopped at opportunity 42 after 41 ordinary confirmations and complete annotations; later mixed continuation preserves one pon mismatch"
       ],
       "completed_record": "docs/development/completed/DEV-052-streaming-action.md",
-      "commits": [],
+      "commits": [
+        "d48837f8c214288eacb4eaa984faea6f65c02a8f"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1796,7 +1801,9 @@
         "143 full regression tests including two idle-observer lifecycle tests; live cache 48 hits/54 misses; pixels/draw-slot/hand changes invalidate and cancellation holds lease until completion"
       ],
       "completed_record": "docs/development/completed/DEV-053-hand-preobservation.md",
-      "commits": [],
+      "commits": [
+        "d48837f8c214288eacb4eaa984faea6f65c02a8f"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1828,7 +1835,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "鸣牌点击未提交的可审计诊断与有限同动作恢复",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-017"
       ],

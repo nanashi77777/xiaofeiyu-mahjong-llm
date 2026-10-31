@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 from dataclasses import dataclass
 
@@ -24,6 +25,8 @@ class Target:
     evidence: str
     page_point: tuple[float,float] | None = None
     layout: dict | None = None
+    frame: bytes | None = None
+    confidence: float | None = None
 
 
 class Executor:
@@ -39,6 +42,7 @@ class Executor:
         self.observed_targets = {}
         self.idle_observation = None
         self.idle_hand_signature = None
+        self.target_evidence = []
 
     async def cancel_idle_observation(self):
         task = self.idle_observation
@@ -124,7 +128,7 @@ class Executor:
                             for key,box in boxes.items():
                                 point = (box.center[0]+canvas['x'],box.center[1]+canvas['y'])
                                 cached[key] = Target(point,(0,0,0,0),observed,
-                                                     'parallel_visible_observation',point,layout)
+                                                     'parallel_visible_observation',point,layout,raw,box.confidence)
                             self.observed_targets = {(state.match_id,state.state_version,state.operation.window_id):cached}
                     except InputDeferred:
                         pass  # Optional observation; execution still has full recognition.
@@ -208,6 +212,7 @@ class Executor:
         self._observation_current(state,deadline)
         mark('layout_and_visible_nodes')
         observed = time.monotonic()
+        raw, confidence = None, None
         aliases = BUTTONS.get(semantic, ())
         found = [n for n in nodes if n["text"].strip() in aliases or n["name"] in aliases]
         if semantic == "tile":
@@ -243,7 +248,6 @@ class Executor:
                     self._observation_current(state,deadline)
                     break
                 except InputDeferred:
-                    import hashlib
                     folder = self.locator.folder / 'failures'
                     folder.mkdir(parents=True, exist_ok=True)
                     (folder / (hashlib.sha256(raw).hexdigest()[:20]+'.png')).write_bytes(raw)
@@ -255,6 +259,7 @@ class Executor:
                     await asyncio.sleep(.06)
             node = {"x":box.center[0],"y":box.center[1]}
             evidence = "calibrated_screenshot_matching"
+            confidence = box.confidence
         if await self.browser.layout_metrics() != layout:
             raise InputDeferred('layout changed during recognition')
         self._observation_current(state,deadline)
@@ -269,7 +274,7 @@ class Executor:
         y = round((geometry["y"] + node["y"] + (canvas["y"] if canvas else 0)) * geometry["ratio"])
         page_point=(node['x']+(canvas['x'] if canvas else 0),node['y']+(canvas['y'] if canvas else 0))
         mark('geometry_recheck')
-        return Target((x, y), rect, observed, evidence,page_point,layout)
+        return Target((x, y), rect, observed, evidence,page_point,layout,raw,confidence)
 
     def _current(self, state, action):
         current = self.state_getter()
@@ -281,7 +286,29 @@ class Executor:
     async def execute(self, state: Snapshot, action: LegalAction, deadline):
         async with self.lease.hold("gameplay:"+action.window_id):
             self.metrics = []
-            return await self._execute(state, action, deadline)
+            self.target_evidence = []
+            try:
+                return await self._execute(state, action, deadline)
+            finally:
+                # Persist the frames already used to identify non-discard
+                # targets. This adds no capture to the action's critical path.
+                if self.target_evidence:
+                    await finish_input(asyncio.to_thread(self._save_target_evidence))
+
+    def _save_target_evidence(self):
+        folder = self.browser.settings.runtime / 'input-evidence'
+        try:
+            folder.mkdir(parents=True,exist_ok=True)
+            for raw,step in self.target_evidence:
+                filename = hashlib.sha256(raw).hexdigest()[:24]+'.png'
+                (folder/filename).write_bytes(raw)
+                step['screenshot'] = filename
+        except OSError as error:
+            # Diagnostics cannot turn a sent click into an unsent action or
+            # cause another press. Keep the geometry and mark missing evidence.
+            self.metrics.append({'stage':'target_evidence_unavailable','error_type':type(error).__name__})
+        finally:
+            self.target_evidence = []
 
     async def _execute(self, state: Snapshot, action: LegalAction, deadline):
         self._current(state, action)
@@ -301,6 +328,15 @@ class Executor:
             target_start = time.monotonic()
             target = await self.target(semantic, state, indices, deadline)
             self.metrics.append({'semantic':semantic,'stage':'target','elapsed_ms':(time.monotonic()-target_start)*1000})
+            if action.kind != 'discard':
+                step = {'semantic':semantic,'stage':'target_evidence',
+                        'window_id':action.window_id,'state_version':state.state_version,
+                        'page_point':target.page_point,'screen_point':target.point,
+                        'observed_mono':target.observed,'source':target.evidence,
+                        'confidence':target.confidence}
+                self.metrics.append(step)
+                if target.frame:
+                    self.target_evidence.append((target.frame,step))
             self._current(state, action)
             if self.input_mode=='browser_background':
                 if self.mouse.stop.is_set() or self.mouse.user.GetAsyncKeyState(0x1B)&0x8000:
