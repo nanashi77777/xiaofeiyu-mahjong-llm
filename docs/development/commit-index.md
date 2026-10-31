@@ -40,4 +40,6 @@
 
 | 选择相关观察交接、等待上限和完整输入耗时诊断 | xiaofeiyu-mahjong-llm · b02fb0ae67c20d1079542ded1b0dfa9b8bbbeac8 | DEV-078；307项pytest/ruff，新5＋10真实路径验证；两个远端ref已核验，完整场仍独立验收 |
 
+| 经验召回8条与生成端短文本约束 | xiaofeiyu-mahjong-llm · 5d7131f1388b74bc2c97a1996afac9aa44388a7b | DEV-079；30项相关测试/ruff，长历史不截断；部署与正式实战条件分别记录 |
+
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

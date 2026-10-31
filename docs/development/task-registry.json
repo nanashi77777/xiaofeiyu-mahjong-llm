@@ -2562,7 +2562,9 @@
         "30 targeted tests and ruff passed; eight-entry recall cap, zero, frozen scopes, shared schema/storage text limits, atomic long-output rejection, legacy read/support/disable and explicit rewrite preserved. No model request or production mutation."
       ],
       "completed_record": "docs/development/completed/DEV-079-concise-experience.md",
-      "commits": [],
+      "commits": [
+        "5d7131f1388b74bc2c97a1996afac9aa44388a7b"
+      ],
       "completed_on": "2026-11-01"
     }
   ],
