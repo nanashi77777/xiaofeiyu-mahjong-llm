@@ -2563,7 +2563,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-079-concise-experience.md",
       "commits": [
-        "5d7131f1388b74bc2c97a1996afac9aa44388a7b"
+        "5d7131f1388b74bc2c97a1996afac9aa44388a7b",
+        "e2e8c8f3c75ea3158224533afc424c8a4e94affe"
       ],
       "completed_on": "2026-11-01"
     },
@@ -2587,7 +2588,9 @@
       "evidence": [
         "324 pytest passed including 7 new privacy tests and 10 concise-memory tests; ruff passed. All 40 reachable commits audited: no key/token findings, known historical provider/model metadata retained and explicitly disclosed. Current GitHub repository verified private; local private configuration unchanged."
       ],
-      "commits": [],
+      "commits": [
+        "e2e8c8f3c75ea3158224533afc424c8a4e94affe"
+      ],
       "completed_record": "docs/development/completed/DEV-080-private-model-configuration.md",
       "completed_on": "2026-11-01"
     }

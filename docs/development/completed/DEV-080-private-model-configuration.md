@@ -1,5 +1,7 @@
 # DEV-080 · 实际模型配置仅留本机
 
+实现提交：e2e8c8f3c75ea3158224533afc424c8a4e94affe；关联方案见docs/design/private-model-configuration.md，经验兼容回归见DEV-079。
+
 2026-11-01，按用户要求把供应商与模型配置留在本机私有文件。runtime/private.json保存当前实际地址、模型与凭据，runtime/model-profiles.json保存本机命名配置和回退点；两份文件均被runtime/忽略，Git没有跟踪。源码默认值和config.example.json使用https://model-provider.invalid/v1、your-model-id及空密钥，示范仍可通过Settings解析，但不能路由到真实供应商。实际本机文件已核对字节保持不变，既有身份/格式门禁可按原值加载。
 
 当前源码、示范和文档中已移除实际供应商与模型标识；实验用基线/候选标签保留全部指标、失败和结论，本文不把脱敏标签说成真实配置名。新增提交约定和本机手册，真实日志、实验原文、配置、牌谱与浏览器仍不入库。

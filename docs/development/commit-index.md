@@ -42,4 +42,6 @@
 
 | 经验召回8条与生成端短文本约束 | xiaofeiyu-mahjong-llm · 5d7131f1388b74bc2c97a1996afac9aa44388a7b | DEV-079；最终31项相关测试/ruff，长历史不截断；部署与正式实战条件分别记录 |
 
+| 实际模型配置仅留本机、暂存/上传隐私审计与历史情况披露 | xiaofeiyu-mahjong-llm · e2e8c8f3c75ea3158224533afc424c8a4e94affe | DEV-080及DEV-079补充回归；324项pytest、ruff、当前248文件零命中；旧提交中的渠道/模型信息未改写 |
+
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。
