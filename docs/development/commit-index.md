@@ -22,5 +22,8 @@
 | 低频输入采样保护与房间未知状态持久化 | xiaofeiyu-mahjong-llm · 28356145be3b0b06b2665b2e3ae43ff6e2a2e6e4 | DEV-059/060；15Hz隔离20/20，真实开始/碰/立直/荣和后续确认 |
 | 服务端时间池校正、多赤和暗杠未知事实、规则专项 | xiaofeiyu-mahjong-llm · 6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111 | DEV-047/061/062、VAL-002；207项pytest，正式5+10第37机会失败继续保留 |
 | 经验生命周期及生产只读证据审计 | xiaofeiyu-mahjong-llm · 1baa37b9878455ae760e698ad72afd7e81de5e3a | VAL-008；6条经验7版本、500非空召回，非性能验收分母 |
+| 指定模型与役种参考真实验收消费 | xiaofeiyu-mahjong-llm · 161d7aca40c960c1af1d01ddfedfdbf705aff5b9 | VAL-004/011；沿用真实出站和Reviewer证据 |
+| 物理输入隔离、面板恢复与只读事件重放审计 | xiaofeiyu-mahjong-llm · b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0 | 物理13项、面板13项；近期13场缓存匹配，3早期差异保留，完整VAL继续 |
+| 荣和放铳/自摸归属、历史查询及复盘输入 | xiaofeiyu-mahjong-llm · b3f6a72454cefc2d1af580e82f67cfe3f5935096 | DEV-063；237项pytest、16场53条真实归属、HTTP与QQ MCP历史详情通过 |
 
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

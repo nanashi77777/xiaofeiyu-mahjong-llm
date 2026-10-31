@@ -25,3 +25,11 @@ DEV-020改为代码已落地、验证中；DEV-019的完整定位矩阵和DEV-02
 QQ真实stdio MCP于14:34 UTC再次发现并读取 mahjong_live/history/big_hands/memories 和 mahjong_navigation状态，四查询可用，选场能力目录含login/ranked/join_friend/create_friend。报告在QQ仓库runtime/mahjong-mcp-verification.json与mahjong-navigation-verification.json；零外发、零导航提交，QQ源码未改，用户原有qq-system-prompt.js修改保留。
 
 Git关联：2346949已消费VAL-004/011并核验推送开发分支和main；本批工具/面板的实际哈希在下一提交索引登记。回退本批源码与文档不删除任何运行证据或牌谱。
+
+## 终场续录与和牌归属补充
+
+15:09 UTC冻结该场混合终场报告runtime/production-5plus10-short-v4-mixed-final.json：9小局，绝对座位2本家33600、第一；最终四家点数25100/21900/33600/19400，顺位2/3/1/4。共155个已观察机会、110服务端确认、71次确认操作五秒内、1次模型失败、零mismatch，read_to_mouse P50=4328ms、P95=6703ms、max=8781ms。含暂停、重开接管与客户端自动操作，acceptance_eligible=false，原24机会失败报告不变，不能以第一名或后续完成冲销失败。
+
+DEV-063实现提交728d7f44fc2c1e41fa25c4654d2d9807c988871f增加和牌归属投影、查询和复盘输入，237项pytest通过；16场45次荣和及8次自摸归属均能核对来源。终场且无输入任务后服务重载为v16，保留Chrome并重连绑定、登录自动恢复，接管停止。真实HTTP核验9小局与2条大牌，QQ正式MCP历史详情3次读取验证本家弃3s给对家seat0、来源引用及分页一致，零外发/导航提交/额外模型请求。该功能消费为完成，完整5+10、500窗口与低频输入矩阵继续保持开放。
+
+工具/面板实际提交08a5f31ca160b585bfa02a4832b41ddbe12f40e8和模型渠道/役种验收提交23469494c3f37fc87a6a9dd76da9a9c762f7f761已补入commit-index，不再以待登记状态描述其提交。

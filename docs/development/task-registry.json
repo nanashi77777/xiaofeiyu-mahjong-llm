@@ -587,7 +587,9 @@
         "2026-10-31 runtime/physical-input-validation-v4.json：正式WindowsMouse隔离13项通过、DPI120，原v1/v2受阻保留；其他DPI及真实游戏完整矩阵仍待DEV-019/VAL-003。"
       ],
       "completed_record": null,
-      "commits": [],
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ],
       "status_reason": "基础代码已落地，补全及验证中",
       "implementation_progress": "code_ready"
     },
@@ -780,7 +782,9 @@
         "2026-10-31 修复断线旧状态标记及已有QQ导航指令恢复；tools/validate_panel.py正式HTML隔离13项通过，控制请求全部拦截、零生产控制。整体联调依赖仍开放。"
       ],
       "completed_record": null,
-      "commits": [],
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
       "implementation_progress": "code_ready"
     },
@@ -808,7 +812,9 @@
         "2026-10-31 新增只读一致性事件审计及真实物理/面板故障隔离工具；严格审计保留3场早期缺concealed_count差异，失败不隐藏。"
       ],
       "completed_record": null,
-      "commits": [],
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
       "implementation_progress": "code_ready"
     },
@@ -864,7 +870,9 @@
         "2026-10-31 runtime/archive-replay-audit-v1.json：16场10505事件、92小局，近期13场事实缓存匹配；早期3场缺concealed_count保留差异。协议/恢复专项尚未全部完成。"
       ],
       "completed_record": null,
-      "commits": []
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ]
     },
     {
       "id": "VAL-002",
@@ -934,7 +942,9 @@
         "207 pytest passed; real outbound selected model/none/schema/SSE capture; completed/repair/cancel usage evidence retained"
       ],
       "completed_record": "docs/development/completed/VAL-004-real-model-channel.md",
-      "commits": [],
+      "commits": [
+        "161d7aca40c960c1af1d01ddfedfdbf705aff5b9"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -960,7 +970,9 @@
         "2026-10-31 short-v4：24机会23确认12次五秒内；第24模型完整14.2秒预算无首包而失败，报告冻结。早期与合成Esc隔离重叠，不能用作无干扰通过样本；详见验收进展。"
       ],
       "completed_record": null,
-      "commits": []
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ]
     },
     {
       "id": "VAL-006",
@@ -1008,7 +1020,9 @@
         "2026-10-31 QQ真实MCP四查询及导航状态再次通过，外发和导航提交均0；完整隐私/经历专项仍按独立验收跟踪。"
       ],
       "completed_record": null,
-      "commits": []
+      "commits": [
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+      ]
     },
     {
       "id": "VAL-008",
@@ -1226,7 +1240,9 @@
         "45 normal/yakuman values cross-checked; real outbound realtime isolation; 3-call real channel fixture decision/reference lookup/final review with usage"
       ],
       "completed_record": "docs/development/completed/VAL-011-yaku-reference.md",
-      "commits": [],
+      "commits": [
+        "161d7aca40c960c1af1d01ddfedfdbf705aff5b9"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -2069,7 +2085,7 @@
       "kind": "development",
       "milestone": "M5",
       "title": "荣和放铳与自摸事实归属、查询和复盘输入",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-008",
         "DEV-010",
@@ -2087,9 +2103,15 @@
         "已结束小局/整场/大牌查询提供归属及本家荣和、自摸、放铳事件数和被荣和人数；分页与活动暗手保护保持有效；QQ原只读工具可直接访问",
         "复盘收到结构化归属和本家汇总，版本化去重范围且不自动批量重审；测试及真实档案只读核验，服务受控重载后验证查询，不发送QQ测试消息"
       ],
-      "evidence": [],
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "237 pytest passed; ruff; 16 matches 53 real win outcomes confirmed; production HTTP and 3 QQ MCP detail queries passed"
+      ],
+      "commits": [
+        "b3f6a72454cefc2d1af580e82f67cfe3f5935096"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_record": "docs/development/completed/DEV-063-win-outcomes.md",
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

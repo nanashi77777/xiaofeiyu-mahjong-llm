@@ -61,3 +61,4 @@
 | DEV-060 | 实现 | 人机房指令未知结果持久化 | [完成记录](docs/development/completed/DEV-060-room-uncertainty.md) |
 | DEV-061 | 实现 | 多枚赤五计番与对手暗杠颜色未知表示 | [完成记录](docs/development/completed/DEV-061-red-multiplicity.md) |
 | DEV-062 | 实现 | 新鲜服务端时间池校正与确认延时分离 | [完成记录](docs/development/completed/DEV-062-server-pool-reconciliation.md) |
+| DEV-063 | 实现 | 荣和放铳与自摸事实归属、查询和复盘输入 | [完成记录](docs/development/completed/DEV-063-win-outcomes.md) |
