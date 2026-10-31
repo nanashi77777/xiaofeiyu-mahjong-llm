@@ -68,6 +68,7 @@ class Meld(Record):
     source_event: str | None = None
     event_id: str
     upgraded_from: str | None = None
+    red_count_unknown: bool = False
 
     @field_validator('tiles','consumed_tiles')
     @classmethod

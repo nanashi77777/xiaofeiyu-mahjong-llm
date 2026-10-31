@@ -79,8 +79,6 @@ def score(state, hand, win_tile, melds=None, *, tsumo=False, riichi=False, actua
     def allocate(tile):
         index = tile_index(tile)
         choices = list(range(index * 4, index * 4 + 4))
-        if index in (4, 13, 22) and state.rules.aka_dora:
-            choices = choices[:1] if tile.startswith("0") else choices[1:]
         result = next((n for n in choices if n not in used), None)
         if result is None:
             raise ValueError("physical tile allocation inconsistent")
@@ -98,7 +96,10 @@ def score(state, hand, win_tile, melds=None, *, tsumo=False, riichi=False, actua
             kind = CalcMeld.CHI if meld.kind == "chi" else CalcMeld.PON if meld.kind == "pon" else CalcMeld.KAN
             called.append(CalcMeld(kind, group, opened=not meld.closed))
         indicators = [allocate(t) for t in state.dora]
-        options = OptionalRules(has_open_tanyao=state.rules.open_tanyao, has_aka_dora=state.rules.aka_dora,
+        # The library reserves one red ID per suit. Real room rules can have
+        # two red fives in one suit; count observed colors separately while
+        # retaining the library's shape/yaku/fu and ordinary dora calculation.
+        options = OptionalRules(has_open_tanyao=state.rules.open_tanyao, has_aka_dora=False,
                                 has_double_yakuman=state.rules.double_yakuman, kiriage=state.rules.kiriage,
                                 kazoe_limit=0 if state.rules.counted_yakuman else 1)
         established = state.players[state.self_seat].riichi == "established"
@@ -120,11 +121,17 @@ def score(state, hand, win_tile, melds=None, *, tsumo=False, riichi=False, actua
         result = HandCalculator().estimate_hand_value(ids, win_id, melds=called, dora_indicators=indicators, config=config)
         applied_han,cost = result.han,result.cost
         yakuman = [y for y in result.yaku or [] if y.is_yakuman]
+        yaku_names = [y.name for y in result.yaku or []]
+        reds = sum(t.startswith('0') for t in [*hand,win_tile,*[t for m in melds for t in m.tiles]])
+        if result.error is None and not yakuman and state.rules.aka_dora and reds:
+            applied_han += reds
+            cost = ScoresCalculator().calculate_scores(applied_han,result.fu,config)
+            yaku_names.append('Aka Dora')
         if result.error is None and yakuman and not state.rules.composite_yakuman:
             applied_han = max(y.han_closed if all(m.closed for m in melds) else y.han_open or y.han_closed for y in yakuman)
             cost = ScoresCalculator().calculate_scores(applied_han,result.fu,config,is_yakuman=True)
         return {"legal_yaku": result.error is None, "error": result.error, "han": applied_han, "fu": result.fu,
-                "cost": cost, "yaku": [y.name for y in result.yaku or []], "certainty": "known_context_only",
+                "cost": cost, "yaku": yaku_names, "certainty": "known_context_only",
                 "unknown": ["未揭示里宝牌", "责任支付需以服务端为准"] + ([] if actual else ["未来一发/岭上/海底/天和/地和等事件役未计入"])}
     except (ValueError, StopIteration):
         return {"legal_yaku": None, "certainty": "unknown", "error": "tile_or_context_inconsistency"}

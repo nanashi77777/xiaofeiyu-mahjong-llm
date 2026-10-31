@@ -28,6 +28,7 @@
 | DEV-024 | 实现 | 经验与风格的独立修订库 | [完成记录](docs/development/completed/DEV-024-memory-revisions.md) |
 | DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
+| VAL-002 | 验收 | 标准规则与全合法候选专项验收 | [完成记录](docs/development/completed/VAL-002-rule-matrix.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
@@ -42,6 +43,7 @@
 | DEV-044 | 实现 | 真实四人局制映射与建房确认持久恢复 | [完成记录](docs/development/completed/DEV-044-lobby-confirmation.md) |
 | DEV-045 | 实现 | 加入友人房后服务端核验准备及QQ契约 | [完成记录](docs/development/completed/DEV-045-friend-ready.md) |
 | DEV-046 | 实现 | 消除取图路径的视口缩放并串行稳定裁剪 | [完成记录](docs/development/completed/DEV-046-stable-capture.md) |
+| DEV-047 | 实现 | 自主人机测试房间管理与新鲜对局接管 | [完成记录](docs/development/completed/DEV-047-autonomous-practice.md) |
 | DEV-048 | 实现 | 离开提示检测、恢复与验收归因 | [完成记录](docs/development/completed/DEV-048-client-away.md) |
 | DEV-049 | 实现 | 识别期间期限撤销与执行失败归因补强 | [完成记录](docs/development/completed/DEV-049-observation-cancellation.md) |
 | DEV-050 | 实现 | 已恢复活动对局的旧复盘任务撤销 | [完成记录](docs/development/completed/DEV-050-review-resume.md) |
@@ -52,4 +54,7 @@
 | DEV-056 | 实现 | 结算确认等待可见按钮并准确记录提交点 | [完成记录](docs/development/completed/DEV-056-result-button-readiness.md) |
 | DEV-057 | 实现 | 渲染帧等待失败的按压前后分类 | [完成记录](docs/development/completed/DEV-057-prepress-render-timeout.md) |
 | DEV-058 | 实现 | 同帧识别去重与低频操作图像证据 | [完成记录](docs/development/completed/DEV-058-frame-reuse-evidence.md) |
+| DEV-059 | 实现 | 后台按压及释放后的输入采样保护 | [完成记录](docs/development/completed/DEV-059-background-input-sampling.md) |
 | DEV-060 | 实现 | 人机房指令未知结果持久化 | [完成记录](docs/development/completed/DEV-060-room-uncertainty.md) |
+| DEV-061 | 实现 | 多枚赤五计番与对手暗杠颜色未知表示 | [完成记录](docs/development/completed/DEV-061-red-multiplicity.md) |
+| DEV-062 | 实现 | 新鲜服务端时间池校正与确认延时分离 | [完成记录](docs/development/completed/DEV-062-server-pool-reconciliation.md) |

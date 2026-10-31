@@ -56,8 +56,8 @@ class Coordinator:
             state=self.pending["state"]
             self.record_receipt(receipt,state.match_id,state.round_uid)
             self.adopt_plan(self.pending)
-            remaining=self.bank.charge(window_id,elapsed,fixed_ms=state.operation.fixed_ms if self.settings.timer_verified else None)
-            self.store.record("time_bank",{"remaining":remaining,"window_id":window_id},state.match_id,state.round_uid)
+            self.bank.charge(window_id,elapsed,fixed_ms=state.operation.fixed_ms if self.settings.timer_verified else None)
+            self.store.record("time_bank",self.bank.checkpoint(window_id),state.match_id,state.round_uid)
             self.pending=None
             self.status="pass_acknowledged"
         elif stage=="rejected":
@@ -126,7 +126,7 @@ class Coordinator:
             saved = self.store.records("time_bank", state.match_id, 1000)
             prior = next((r for r in saved if r["round_uid"] == state.round_uid), None)
             if prior:
-                self.bank.remaining = min(self.bank.remaining, prior["payload"]["remaining"])
+                self.bank.restore(prior['payload'])
             plans = self.store.records("round_plan", state.match_id, 1000)
             self.plan = next((r["payload"] for r in plans if r["round_uid"] == state.round_uid), None)
         op = state.operation
@@ -326,9 +326,9 @@ class Coordinator:
         self.record_receipt(receipt,state.match_id,pending['state'].round_uid)
         if matches:
             self.adopt_plan(pending)
-        remaining = self.bank.charge(action['window_id'], max(0,event.received_mono-pending['start']),
-                                     fixed_ms=pending['state'].operation.fixed_ms if self.settings.timer_verified else None)
-        self.store.record("time_bank", {"remaining":remaining,"window_id":action["window_id"]}, state.match_id, pending["state"].round_uid)
+        self.bank.charge(action['window_id'],max(0,event.received_mono-pending['start']),
+                         fixed_ms=pending['state'].operation.fixed_ms if self.settings.timer_verified else None)
+        self.store.record("time_bank",self.bank.checkpoint(action['window_id']),state.match_id,pending['state'].round_uid)
         self.pending = None
         if not matches:
             self.enabled, self.status = False, "paused_input_mismatch"

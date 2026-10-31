@@ -862,7 +862,7 @@
       "kind": "validation",
       "milestone": "M2",
       "title": "标准规则与全合法候选专项验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-014"
       ],
@@ -874,9 +874,12 @@
         "规则选项矩阵、役种/振听/阶段向听与红牌/吃替等特例通过，无策略裁剪",
         "参考番数、门清/食下、役满替代与规则开关可核验，流局满贯待核实项不冒充确定规则"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "207 pytest passed; all server action kinds and red/phase/furiten/rule-switch fixtures; 45 normal/yakuman catalog cross-checks"
+      ],
+      "completed_record": "docs/development/completed/VAL-002-rule-matrix.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "VAL-003",
@@ -1636,7 +1639,7 @@
       "kind": "development",
       "milestone": "M9",
       "title": "自主人机测试房间管理与新鲜对局接管",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-036",
         "DEV-045"
@@ -1648,9 +1651,12 @@
         "同房号/未开局保护下通过可见UI离房、添加电脑、开始，实测真实对局认证与新小局后交接",
         "测试会话可重复建房但普通模式终场停止；机会/失败/耗时/牌谱及结算证据保留，QQ零测试外发"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "真实连续建房/三电脑/新鲜入局及旧场结算返回；失败均留档；207 pytest passed"
+      ],
+      "completed_record": "docs/development/completed/DEV-047-autonomous-practice.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-048",
@@ -1937,16 +1943,21 @@
       "depends_on": [
         "DEV-017"
       ],
-      "status": "in_progress",
+      "status": "done",
       "design_refs": [
         "docs/design/background-input.md"
       ],
       "acceptance": [
         "保留73344开局点击未提交的失败，核对可见按钮、原房间与无客户端请求；后台按压和释放后各等待有界最短间隔与渲染帧，避免仅浏览器RAF不足以覆盖游戏低频输入采样；停止、原截止、按下后不重按仍有效；隔离低频采样页面对照、取消和真实客户端开始/鸣牌确认，不能把相似故障当已证明根因或覆盖旧报告"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "15Hz隔离20/20；真实85148开始及碰/立直/荣和确认；207 pytest passed"
+      ],
+      "completed_record": "docs/development/completed/DEV-059-background-input-sampling.md",
+      "commits": [
+        "28356145be3b0b06b2665b2e3ae43ff6e2a2e6e4"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-060",
@@ -1968,6 +1979,52 @@
         "150 pytest passed; missing room ack persists uncertainty and repeated command never presses"
       ],
       "completed_record": "docs/development/completed/DEV-060-room-uncertainty.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-061",
+      "kind": "development",
+      "milestone": "M2",
+      "title": "多枚赤五计番与对手暗杠颜色未知表示",
+      "depends_on": [
+        "DEV-007",
+        "DEV-013"
+      ],
+      "status": "done",
+      "design_refs": [
+        "docs/design/rules-and-actions.md"
+      ],
+      "acceptance": [
+        "多枚同花色赤五按实际已知手牌计番，物理牌分配不限定每门只有一赤，宝牌仍不能补成役且正常/累计/役满规则不变；对手暗杠五仅给牌种时不得扩展为四枚赤牌或确定的四枚普通五，用明确未知标记保留颜色信息缺口，不猜房规赤牌分布；构造双赤普通和牌、门清/副露、役满无赤加番、无役及对手暗杠0/5编码验证；本轮仍在运行的旧构建与新源码证据区分"
+      ],
+      "evidence": [
+        "207 pytest passed; multi-red and unknown concealed-kan colors; 45 catalog values cross-checked"
+      ],
+      "completed_record": "docs/development/completed/DEV-061-red-multiplicity.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-062",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "新鲜服务端时间池校正与确认延时分离",
+      "depends_on": [
+        "DEV-017",
+        "DEV-018"
+      ],
+      "status": "done",
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "保留第37窗口服务端仍有3秒池而本机估计已负值的失败；新窗口仅以已验证且同小局不增加的服务端池报告校正估计，不把服务端确认/动画耗时当确定耗池；同窗口不重复校正，报告增加/历史/恢复/重启不补满，负估计不缩短基本5秒；持久化服务端池上界并恢复，构造延迟确认与重复/增加报告专项回归，新5+10另开报告不得把旧失败算成功"
+      ],
+      "evidence": [
+        "207 pytest passed; archived pool3 vs local-0.610; fresh nonincreasing reports, duplicate and restart guards"
+      ],
+      "completed_record": "docs/development/completed/DEV-062-server-pool-reconciliation.md",
       "commits": [],
       "completed_on": "2026-10-31"
     }

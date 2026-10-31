@@ -154,14 +154,19 @@ def apply_event(previous: Snapshot, event: Event) -> Snapshot:
         elif d.get("type") == 3:
             if state.players[actor].concealed_count is not None:
                 state.players[actor].concealed_count-=4
-            group = [t for t in state.hand if same(t)] if actor == state.self_seat else [tile] * 4
+            # Opponent concealed-kan messages give a tile TYPE, not four
+            # physical color identities. Never expand 0p into four red fives.
+            red_unknown = actor != state.self_seat and tile_index(tile) in (4,13,22) and state.rules.aka_dora
+            base_tile = '5'+tile[1] if tile.startswith('0') else tile
+            group = [t for t in state.hand if same(t)] if actor == state.self_seat else [base_tile] * 4
             if len(group) != 4:
                 raise ValueError("concealed kan requires four tiles")
             if actor == state.self_seat:
                 for t in group:
                     _remove(state.hand, t)
             state.players[actor].melds.append(Meld(id=event.id, actor=actor, kind="ankan", tiles=group,
-                                                  consumed_tiles=group if actor == state.self_seat else [], event_id=event.id))
+                                                  consumed_tiles=group if actor == state.self_seat else [],
+                                                  red_count_unknown=red_unknown,event_id=event.id))
         else:
             raise ValueError("unsupported kan event type")
         state.drawn_index = None if actor == state.self_seat else state.drawn_index
