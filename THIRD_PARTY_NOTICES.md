@@ -3,7 +3,8 @@
 项目实现为独立新代码，未复制无许可的 MahjongAI 源码，也未将 AutoMajsoul 的 CC BY-NC-SA 视觉模型或素材重新发布为 MIT。四个用户指定项目的研究结论与链接见 docs/design/references.md。
 
 - yuhao7370/AutoMajsoul：CC BY-NC-SA 4.0，仅研究界面/流程。
-- 747929791/majsoul_wrapper、747929791/MajsoulAI：MIT，研究协议与服务分层；版本协议不是通用规则保证。
+- 747929791/majsoul_wrapper：MIT。`src/majsoul_llm/assets/majsoul_wrapper`保留Yue Qin的完整许可证、源树/blob/SHA-256及转换后的牌面分类ONNX。分类权重不变，网络转换由`tools/convert_tile_classifier.py`完成；运行使用OpenCV CPU批量推理，仅作可见UI牌面识别。来源元数据见同目录source.json。
+- 747929791/MajsoulAI：MIT，研究协议与服务分层；版本协议不是通用规则保证。
 - erreurt/MahjongAI：未确认可用许可证，仅研究思路，不复制实现。
 - MahjongRepository/mahjong 1.4.0：MIT，作为依赖用于向听与成役算点事实；不使用传统AI策略打分决定动作。
 - MahjongRepository/mahjong_soul_api 当前 schema：本机调查副本，仅置于被忽略 runtime/protocol；发布前未确认其 schema 的可再分发许可，不将它纳入源码仓库。

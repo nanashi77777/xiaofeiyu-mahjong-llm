@@ -10,6 +10,7 @@ from .game_modes import FOUR_PLAYER_LENGTHS
 from .lobby_session import LobbySession, ROOM_NOTIFICATIONS
 from .state import apply_event, digest
 from .store import Store, packed, utcnow
+from .protocol import UnsupportedAction
 
 
 def room_rules(config: dict) -> Rules:
@@ -98,6 +99,10 @@ class Engine:
             if message:
                 await self.message(message)
         except Exception as error:
+            if isinstance(error,UnsupportedAction):
+                self.store.record('protocol_evidence',error.evidence,
+                                  self.state.match_id if self.state else None,
+                                  self.state.round_uid if self.state else None)
             await self.gap(type(error).__name__)
 
     async def gap(self, reason):
@@ -106,6 +111,7 @@ class Engine:
             self.state = self.state.model_copy(deep=True)
             self.state.consistent = False
             self.state.completeness = "gaps"
+            self.state.round_completeness = "gaps"
             self.state.operation = None
             self.store.save_snapshot(self.state)
             self.store.record("input_gap", {"error_type": reason}, self.state.match_id, self.state.round_uid)
@@ -164,6 +170,10 @@ class Engine:
                 ack_id=self.store.record("server_input_ack",{"window_id":window,"input":original,"accepted":not bool(data.get("error",{}).get("code"))},self.state.match_id,self.state.round_uid)
                 if self.on_input:
                     await self.on_input("accepted" if not data.get("error",{}).get("code") else "rejected",window,original,ack_id)
+                if (not data.get('error',{}).get('code') and original.get('cancel_operation')
+                        and self.state.operation and self.state.operation.window_id == window):
+                    declined = any(option.get('type') == 9 for option in self.state.operation.raw.get('operation_list',[]))
+                    await self.action('ObservedPass',{'window_id':window,'seat':self.state.self_seat,'declined_ron':declined})
                 return
             restore = data.get("game_restore")
             if restore:
@@ -201,7 +211,8 @@ class Engine:
         try:
             next_state = apply_event(self.state, event)
         except (ValueError, KeyError, TypeError) as error:
-            self.store.record("reducer_failure", {"kind": kind, "event_id": event_id, "error_type": type(error).__name__}, self.state.match_id, self.state.round_uid)
+            self.store.record("reducer_failure", {"kind": kind, "event_id": event_id, "error_type": type(error).__name__,
+                                                 'decoded_action':data}, self.state.match_id, self.state.round_uid)
             await self.gap("reducer_" + type(error).__name__)
             return self.state
         next_state.context["source_round_key"] = self.round_key
@@ -224,10 +235,10 @@ class Engine:
         if actions and actions[0].get("name") == "ActionNewRound":
             old = self.state
             self.state = Snapshot(match_id=old.match_id, self_seat=old.self_seat, rules=old.rules,
-                                  round_seq=max(0, old.round_seq - 1))
+                                  round_seq=max(0, old.round_seq - 1), completeness=old.completeness)
             for action in actions:
                 await self.action(action["name"], action["data"], action.get("step"), historical=True)
-        elif actions and self.state.completeness == "full":
+        elif actions and self.state.round_completeness == "full":
             for action in actions:
                 if not self._known_action(action):
                     await self.action(action["name"], action["data"], action.get("step"), historical=True)
@@ -242,6 +253,7 @@ class Engine:
             self.state.dora = snap.get("doras", self.state.dora)
             self.state.unknown_fields = ["snapshot_only_public_order", "snapshot_meld_semantics", "event_yaku_context"]
             self.state.completeness, self.state.consistent = "partial", False
+            self.state.round_completeness = 'partial'
         self.state.operation = None  # recovered timer age is not calibrated
         if self.state.lifecycle != "ended":
             self.state.lifecycle = "active"

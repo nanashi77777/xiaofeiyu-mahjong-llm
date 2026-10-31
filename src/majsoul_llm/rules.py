@@ -6,6 +6,7 @@ from itertools import product
 
 from mahjong.hand_calculating.hand import HandCalculator
 from mahjong.hand_calculating.hand_config import HandConfig, OptionalRules
+from mahjong.hand_calculating.scores import ScoresCalculator
 from mahjong.meld import Meld as CalcMeld
 from mahjong.shanten import Shanten
 
@@ -103,6 +104,9 @@ def score(state, hand, win_tile, melds=None, *, tsumo=False, riichi=False, actua
         established = state.players[state.self_seat].riichi == "established"
         double = established and state.context.get("double_riichi", [False] * 4)[state.self_seat]
         last_kan = state.context.get("last_kan")
+        first = actual and tsumo and not state.context.get('calls_seen',True) and not state.players[state.self_seat].river
+        initial_dealer = first and state.self_seat == state.dealer and not any(p.river for p in state.players)
+        first_non_dealer_draw = first and state.self_seat != state.dealer and state.context.get('draw_counts',[0]*4)[state.self_seat] == 1
         config = HandConfig(is_tsumo=tsumo, is_riichi=(riichi or established) and not double,
                             is_daburu_riichi=double,
                             is_ippatsu=actual and established and state.context.get("ippatsu", [False] * 4)[state.self_seat],
@@ -110,12 +114,18 @@ def score(state, hand, win_tile, melds=None, *, tsumo=False, riichi=False, actua
                             is_chankan=actual and not tsumo and bool(last_kan and last_kan.get("type") == 2),
                             is_haitei=actual and tsumo and state.remaining == 0 and not state.context.get("rinshan"),
                             is_houtei=actual and not tsumo and state.remaining == 0 and not last_kan,
+                            is_tenhou=initial_dealer,is_chiihou=first_non_dealer_draw,
                             player_wind=27 + (state.self_seat - state.dealer) % 4, round_wind=27 + state.wind,
                             tsumi_number=state.honba, kyoutaku_number=state.deposits, options=options)
         result = HandCalculator().estimate_hand_value(ids, win_id, melds=called, dora_indicators=indicators, config=config)
-        return {"legal_yaku": result.error is None, "error": result.error, "han": result.han, "fu": result.fu,
-                "cost": result.cost, "yaku": [y.name for y in result.yaku or []], "certainty": "known_context_only",
-                "unknown": ["未揭示里宝牌", "天和/地和条件未核验"] + ([] if actual else ["未来一发/岭上/海底等事件役未计入"])}
+        applied_han,cost = result.han,result.cost
+        yakuman = [y for y in result.yaku or [] if y.is_yakuman]
+        if result.error is None and yakuman and not state.rules.composite_yakuman:
+            applied_han = max(y.han_closed if all(m.closed for m in melds) else y.han_open or y.han_closed for y in yakuman)
+            cost = ScoresCalculator().calculate_scores(applied_han,result.fu,config,is_yakuman=True)
+        return {"legal_yaku": result.error is None, "error": result.error, "han": applied_han, "fu": result.fu,
+                "cost": cost, "yaku": [y.name for y in result.yaku or []], "certainty": "known_context_only",
+                "unknown": ["未揭示里宝牌", "责任支付需以服务端为准"] + ([] if actual else ["未来一发/岭上/海底/天和/地和等事件役未计入"])}
     except (ValueError, StopIteration):
         return {"legal_yaku": None, "certainty": "unknown", "error": "tile_or_context_inconsistency"}
 

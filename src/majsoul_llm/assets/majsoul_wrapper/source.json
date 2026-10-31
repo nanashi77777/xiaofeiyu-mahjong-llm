@@ -1,0 +1,13 @@
+{
+  "repository": "747929791/majsoul_wrapper",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2020 Yue Qin",
+  "source_tree": "d1667d527c3f8c44b37654deec8de46dad9d7f1f",
+  "source_path": "action/tile.model",
+  "source_blob": "3ca80faee3ba30c3bfebab7e0f011a8e08ecd2b6",
+  "source_sha256": "0c3756c9f11a8f4a86ce4e483fdf8cdc956d01269f2abb9d47a98fe1cb8d97cc",
+  "onnx_sha256": "a2c25f83bdeff81594f9bf12c44c225e8af7323199359c5909c46d2c0f3ad3e3",
+  "changes": "Unchanged learned parameters converted to an ONNX graph for OpenCV CPU inference; no game state or decision policy included.",
+  "conversion_tool": "tools/convert_tile_classifier.py",
+  "runtime_preprocessing": "32x32 RGB, channels first, float32, (pixel/255-0.5)/0.5"
+}

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import hashlib
 
 from .lobby import LobbyError, WaitingUser
 
@@ -12,6 +13,7 @@ class RoundFlow:
         self.service = service
         self.task = None
         self.round_uid = None
+        self.last_scene = None
 
     async def stop(self):
         if self.task and not self.task.done():
@@ -52,6 +54,7 @@ class RoundFlow:
                 ctx.check()
                 try:
                     scene = await service.lobby_ui.observe()
+                    self.last_scene = scene
                 except WaitingUser:
                     await asyncio.sleep(.2)
                     continue
@@ -63,7 +66,11 @@ class RoundFlow:
                 async with service.input_lease.hold('result:'+round_uid):
                     ctx.check()
                     clicked.add(scene)
-                    service.store.record('result_ui',{'scene':scene,'status':'submitted'},match_id,round_uid)
+                    folder = service.settings.runtime / 'results'
+                    folder.mkdir(parents=True,exist_ok=True)
+                    filename = hashlib.sha256((match_id+round_uid+scene).encode()).hexdigest()[:24]+'.png'
+                    (folder/filename).write_bytes(await service.browser.image_bytes())
+                    service.store.record('result_ui',{'scene':scene,'status':'submitted','screenshot':filename},match_id,round_uid)
                     try:
                         await service.lobby_ui.click(scene,'confirm',ctx)
                     except TimeoutError:

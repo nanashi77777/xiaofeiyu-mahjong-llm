@@ -20,10 +20,12 @@ class TimeBank:
         now = time.monotonic() if now is None else now
         if operation.historical:
             raise ValueError("historical operation has no fresh clock")
-        base = min(self.base, operation.fixed_ms / 1000) if operation.fixed_ms else self.base
+        # A fresh deal can include an observed animation allowance (e.g. 8s
+        # instead of 5s). It is server time, separate from the 5s speed target.
+        base = (operation.fixed_ms/1000 if verified else min(self.base,operation.fixed_ms/1000)) if operation.fixed_ms else self.base
         bank = self.remaining
         if verified and operation.add_ms is not None:
-            bank = min(bank, operation.add_ms / 1000)
+            self.remaining = bank = min(bank, operation.add_ms / 1000)
         # Until calibrated, never assume the server grants a fresh shared bank.
         if not verified:
             bank = 0
@@ -32,9 +34,10 @@ class TimeBank:
             raise TimeoutError("operation expired")
         return deadline
 
-    def charge(self, window_id, elapsed):
+    def charge(self, window_id, elapsed, *, fixed_ms=None):
         if window_id in self.spent_windows:
             return self.remaining
         self.spent_windows.add(window_id)
-        self.remaining -= max(0, elapsed - self.base)
+        base = fixed_ms/1000 if fixed_ms is not None else self.base
+        self.remaining -= max(0, elapsed - base)
         return self.remaining

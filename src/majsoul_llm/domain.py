@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def tile_index(tile: str) -> int:
-    if len(tile) != 2 or tile[1] not in "mpsz" or not tile[0].isdigit():
+    if len(tile) != 2 or tile[1] not in "mpsz" or tile[0] not in '0123456789':
         raise ValueError("invalid tile")
     n, suit = int(tile[0]), tile[1]
     if suit == "z":
@@ -87,7 +87,7 @@ class Discard(Record):
     seq: int
     tsumogiri: bool = False
     riichi: bool = False
-    called_by: int | None = None
+    called_by: int | None = Field(default=None,ge=0,le=3)
 
     @field_validator('tile')
     @classmethod
@@ -101,7 +101,7 @@ class Player(Record):
     melds: list[Meld] = Field(default_factory=list)
     riichi: Literal["none", "declared", "established"] = "none"
     riichi_event: str | None = None
-    concealed_count: int | None = None
+    concealed_count: int | None = Field(default=None,ge=0,le=14)
 
 
 class Operation(Record):
@@ -110,14 +110,14 @@ class Operation(Record):
     raw: dict[str, Any]
     received_mono: float
     received_at: str
-    fixed_ms: int | None = None
-    add_ms: int | None = None
+    fixed_ms: int | None = Field(default=None,ge=0)
+    add_ms: int | None = Field(default=None,ge=0)
     timer_verified: bool = False
     historical: bool = False
 
 
 class Snapshot(Record):
-    schema_version: str = "snapshot.v1"
+    schema_version: Literal['snapshot.v1'] = "snapshot.v1"
     match_id: str
     round_uid: str | None = None
     round_seq: int = 0
@@ -127,19 +127,20 @@ class Snapshot(Record):
     rules: Rules = Field(default_factory=Rules)
     lifecycle: Literal["active", "ended", "interrupted"] = "active"
     completeness: Literal["full", "partial", "gaps"] = "partial"
+    round_completeness: Literal["full", "partial", "gaps"] = "partial"
     phase: Phase = Phase.WAITING
     wind: int = Field(default=0, ge=0, le=3)
     hand_number: int = Field(default=1, ge=1, le=4)
     honba: int = 0
     deposits: int = 0
     dealer: int = Field(default=0, ge=0, le=3)
-    turn: int | None = None
+    turn: int | None = Field(default=None,ge=0,le=3)
     remaining: int | None = None
     scores: list[int] | None = None
     final_scores: list[int] | None = None
     final_ranks: list[int] | None = None
     hand: list[str] = Field(default_factory=list)
-    drawn_index: int | None = None
+    drawn_index: int | None = Field(default=None,ge=0,le=13)
     dora: list[str] = Field(default_factory=list)
     players: list[Player] = Field(default_factory=lambda: [Player() for _ in range(4)])
     furiten: dict[str, bool | None] = Field(default_factory=lambda: {"server": None, "temporary": None, "riichi": None})
@@ -181,7 +182,7 @@ class Snapshot(Record):
 
 
 class Event(Record):
-    schema_version: str = "event.v1"
+    schema_version: Literal['event.v1'] = "event.v1"
     id: str
     match_id: str
     kind: str
@@ -195,18 +196,27 @@ class Event(Record):
 
 
 class LegalAction(Record):
+    schema_version: Literal['action.v1'] = 'action.v1'
     id: str
     window_id: str
     state_version: int
-    kind: str
-    tile_index: int | None = None
-    consume_indices: list[int] = Field(default_factory=list)
+    kind: Literal['discard','chi','pon','ankan','daiminkan','kakan','riichi','tsumo','ron','abort9','pass']
+    tile_index: int | None = Field(default=None,ge=0,le=13)
+    consume_indices: list[int] = Field(default_factory=list,max_length=4)
     meld_id: str | None = None
     features: dict[str, Any] = Field(default_factory=dict)
     raw_type: int
 
+    @field_validator('consume_indices')
+    @classmethod
+    def valid_instances(cls, values):
+        if len(set(values)) != len(values) or any(not 0 <= i <= 13 for i in values):
+            raise ValueError('invalid hand instance indices')
+        return values
+
 
 class Decision(Record):
+    contract_version: ClassVar[str] = 'decision.v1'
     q: str
     action_id: str = Field(alias="a")
     reason: str = Field(min_length=1, max_length=240, alias="r")
@@ -226,6 +236,7 @@ class SwitchCondition(Record):
 
 
 class RoundPlanUpdate(Record):
+    contract_version: ClassVar[str] = 'round-plan.v1'
     based_on_plan_version: int = Field(ge=0,alias="v")
     basis_event_ids: list[str] = Field(min_length=1, max_length=12,alias="e")
     goal: str = Field(min_length=1, max_length=240,alias="g")
@@ -240,11 +251,59 @@ Decision.model_rebuild()
 
 
 class Receipt(Record):
+    schema_version: Literal['receipt.v1'] = 'receipt.v1'
     id: str
-    action_id: str
-    window_id: str
-    status: Literal["requested", "validated", "mouse_sent", "server_confirmed", "mismatch", "expired", "cancelled", "unknown"]
+    action: LegalAction
+    status: Literal["requested", "validated", "mouse_sent", "server_confirmed", "mismatch", "expired", "cancelled", "unknown", "execution_uncertain"]
     created_at: str
     clicked_mono: float | None = None
     actual_event_id: str | None = None
+    actual_ack_id: str | None = None
+    confirmation_source: str | None = None
+    confirmed_at: str | None = None
+    elapsed_ms: float | None = None
+    input_ms: float | None = None
+    read_to_mouse_ms: float | None = None
+    reason: str | None = None
     detail: str | None = None
+
+
+class MemoryScope(Record):
+    phases: list[Literal['awaiting_discard','response','awaiting_replacement']] = Field(default_factory=list,max_length=3)
+    ranks: list[int] = Field(default_factory=list,max_length=4)
+    menzen: bool | None = None
+    opponent_riichi: bool | None = None
+    room_type: Literal['friend','ranked','contest'] | None = None
+    yaku_ids: list[str] = Field(default_factory=list,max_length=8)
+
+    @field_validator('ranks')
+    @classmethod
+    def valid_ranks(cls,values):
+        if any(type(v) is not int or not 1 <= v <= 4 for v in values):
+            raise ValueError('invalid memory rank')
+        return values
+
+
+class StylePreference(Record):
+    axis: Literal['closed_hand','speed_value','placement_defense']
+    value: int = Field(ge=-2,le=2,strict=True)
+
+
+class ExperienceRevision(Record):
+    schema_version: Literal['mahjong.memory.v1'] = 'mahjong.memory.v1'
+    id: str
+    revision: int = Field(ge=1)
+    status: Literal['candidate','stable','inactive']
+    kind: Literal['lesson','style'] = 'lesson'
+    applies_to: MemoryScope = Field(default_factory=MemoryScope)
+    preference: StylePreference | None = None
+    claim: str = Field(min_length=1,max_length=1200)
+    conditions: list[str]
+    supports: list[str]
+    counterexamples: list[str]
+    reviewed_matches: list[str]
+    origin_match: str
+    catalog_version: str | None
+    yaku_ids: list[str]
+    reason: str
+    updated_at: str

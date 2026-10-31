@@ -8,8 +8,16 @@
 | DEV-001 | 交付 | 独立Git基线与新私有远端 | [完成记录](docs/development/completed/DEV-001-private-repository.md) |
 | DEV-002 | 实现 | 任务状态、视图生成与完成日志检查 | [完成记录](docs/development/completed/DEV-002-task-consumption.md) |
 | DEV-003 | 实现 | 本机配置、运行开关与私密日志边界 | [完成记录](docs/development/completed/DEV-003-private-runtime.md) |
+| DEV-004 | 实现 | 领域类型与契约版本 | [完成记录](docs/development/completed/DEV-004-domain-contracts.md) |
+| DEV-005 | 实现 | 专用浏览器与只读WS采集 | [完成记录](docs/development/completed/DEV-005-browser-capture.md) |
+| DEV-006 | 实现 | 当前协议版本与消息解码适配 | [完成记录](docs/development/completed/DEV-006-passive-protocol.md) |
+| DEV-007 | 实现 | 规范事件与幂等状态归并 | [完成记录](docs/development/completed/DEV-007-authoritative-reducer.md) |
+| DEV-008 | 实现 | 小局、终场、规则与模式身份 | [完成记录](docs/development/completed/DEV-008-round-match-identity.md) |
+| DEV-010 | 实现 | 增量牌谱、SQLite与中断保存 | [完成记录](docs/development/completed/DEV-010-transactional-archive.md) |
+| DEV-015 | 实现 | Responses渠道、取消与token计量 | [完成记录](docs/development/completed/DEV-015-responses-runtime.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
+| DEV-031 | 实现 | 役种表运行加载、按需检索与版本证据接入 | [完成记录](docs/development/completed/DEV-031-yaku-runtime.md) |
 | DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |
 | DOC-004 | 资料/文档 | 自动登录与选场扩展方案 | [完成记录](docs/development/completed/DOC-004-lobby-plan.md) |
 | DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |

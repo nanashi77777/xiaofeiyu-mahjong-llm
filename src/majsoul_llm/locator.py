@@ -48,6 +48,7 @@ class ScreenLocator:
     def __init__(self, runtime:Path):
         self.folder = runtime / "calibration"
         self.path = self.folder / "profile.json"
+        self.classifier = None
 
     def profile(self):
         if not self.path.exists():
@@ -235,10 +236,55 @@ class ScreenLocator:
             raise InputDeferred('riichi tile instance is not visible')
         return found[occurrence]
 
-    def combo(self, raw, kind, tiles):
+    def combo(self, raw, kind, tiles, offered=None):
         # Crops identify the complete offered combination including red tiles.
         label = "combo_"+kind+"_"+"_".join(sorted(tiles))
-        found = self.matches(raw,[label])
+        if label in self.profile()['templates']:
+            found = self.matches(raw,[label])
+            if len(found) == 1:
+                return found[0]
+        groups = self.menu_groups(raw)
+        actual = [tuple(sorted(names)) for names,_ in groups]
+        if offered is not None and (set(actual) != {tuple(sorted(t)) for t in offered}
+                                    or len(actual) != len(set(actual))):
+            raise InputDeferred('visible menu differs from complete server choices')
+        found = [box for names,box in groups if sorted(names) == sorted(tiles)]
         if len(found) != 1:
-            raise InputDeferred("selected meld combination is not uniquely visible")
+            raise InputDeferred('selected meld combination is not uniquely visible')
         return found[0]
+
+    def menu_groups(self, raw):
+        profile = self.profile()
+        if 'combo_region' not in profile:
+            raise InputDeferred('combination menu region not calibrated')
+        image,sx,sy = self.normalized(raw,profile)
+        ox,oy,w,h = profile['combo_region']
+        roi = image[oy:oy+h,ox:ox+w]
+        mask = cv2.inRange(cv2.cvtColor(roi,cv2.COLOR_BGR2HSV),(0,0,175),(180,55,255))
+        contours,_ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        boxes = sorted(cv2.boundingRect(c) for c in contours
+                       if 55 < cv2.boundingRect(c)[3] < 105
+                       and 30 < cv2.boundingRect(c)[2] < 75
+                       and cv2.contourArea(c) > np.prod(cv2.boundingRect(c)[2:])*.7)
+        if not 2 <= len(boxes) <= 16:
+            raise InputDeferred('combination tile faces not uniquely segmented')
+        if self.classifier is None:
+            from .tile_classifier import TileClassifier
+            self.classifier = TileClassifier()
+        predictions = self.classifier.predict([roi[y:y+bh,x:x+bw] for x,y,bw,bh in boxes])
+        # This threshold is classifier probability, independent of template
+        # correlation. No candidate names are supplied to the classifier.
+        if any(name == 'x' or confidence < .995 for name,confidence in predictions):
+            raise InputDeferred('combination glyph classification is uncertain')
+        rows = []
+        for (x,y,bw,bh),(name,confidence) in zip(boxes,predictions,strict=True):
+            if (not rows or x-rows[-1]['right'] > bw*.3):
+                rows.append({'names':[], 'x':x, 'y':y, 'right':x+bw, 'bottom':y+bh, 'confidence':confidence})
+            row = rows[-1]
+            if abs(y-row['y']) > 8:
+                raise InputDeferred('combination faces are not aligned')
+            row['names'].append(name)
+            row.update(right=x+bw,bottom=max(row['bottom'],y+bh),confidence=min(row['confidence'],confidence))
+        return [(row['names'],Box(round((ox+row['x'])*sx),round((oy+row['y'])*sy),
+                                  round((row['right']-row['x'])*sx),round((row['bottom']-row['y'])*sy),
+                                  row['confidence'],'combo_dynamic')) for row in rows]

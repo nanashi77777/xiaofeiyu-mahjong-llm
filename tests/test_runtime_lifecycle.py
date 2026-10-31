@@ -83,7 +83,7 @@ async def test_binding_rejects_another_game_process():
     assert executor.window.hwnd == 20
 
 
-async def test_result_flow_only_confirms_observed_results_and_cancels_on_new_round(store, state):
+async def test_result_flow_only_confirms_observed_results_and_cancels_on_new_round(store, state, tmp_path):
     state.phase = Phase.ROUND_END
     clicked = []
     stop = threading.Event()
@@ -93,7 +93,10 @@ async def test_result_flow_only_confirms_observed_results_and_cancels_on_new_rou
         ctx.check()
         clicked.append((scene, control))
         raise TimeoutError('release scene transition')
+    async def image_bytes():
+        return b'isolated-result-image'
     service = SimpleNamespace(engine=SimpleNamespace(state=state), store=store,
+                              settings=SimpleNamespace(runtime=tmp_path), browser=SimpleNamespace(image_bytes=image_bytes),
                               executor=SimpleNamespace(mouse=SimpleNamespace(stop=stop)),
                               input_lease=InputLease(), lobby_ui=SimpleNamespace(observe=observe, click=click))
     flow = RoundFlow(service)

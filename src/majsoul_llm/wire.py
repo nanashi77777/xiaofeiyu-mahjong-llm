@@ -15,28 +15,34 @@ SYSTEM = """你是小肥鱼的标准四人日麻决策者，目标优先最终�
 牌为1-9m/p/s，0m/p/s赤五，1-7z东南西北白发中。座位为服务器绝对0-3，self_seat是本家。
 未知值null不是0。公开剩余枚数不是牌山真值。宝牌不构成役；条件役路线不代表已成役，副露需考虑食下和无役。
 shanten -1和牌、0听牌。吃碰后待弃牌，杠后待补牌，阶段不同不可直接当同一牌数比较。
-所有hand索引从0开始。紧凑actions每行[id,kind,args,feature_ref]。
-discard/riichi的args明确index/tile/drawn，分别为0起手牌索引/实际牌名/是否摸牌槽。
-chi/pon/daiminkan/ankan的args为消费索引数组；kakan明确meld_id和牌索引。features为确定性特征引用，无推荐排序。
+所有hand索引从0开始。actions按稳定顺序列出，无推荐排序。
 结合完整牌河/公共时序、点差、威胁、当前plan和带可信标签的memories，选择合法动作并给简短中文解释。
 输出严格JSON对象，仅q、a、r、p：q原样回显，a是action_id，r为8至20字简短解释，p为计划更新。
 p不变为null；变化时为完整计划对象，键v/e/g/a/y/p/s/r分别是旧计划版本/依据事件ID/目标/打法/役路线/优先事项/转向条件/改动原因。
+计划v必须等于输入plan.version，plan为null时v=0；确认执行后程序负责递增。e只引用本请求提供的event_id。
 役路线每项键y/s/b/n=役ID/状态/依据数组/必要条件数组；转向条件每项w/t=何时/改做什么。
 时间紧时p=null，先按当前计划决策；有时间且需要改变思路才更新，简写具体要点，避免复述场况。
-紧凑features中的{"$":"d0"}引用facts.d0，可嵌套引用，是完全相同事实的去重表达。
-紧凑事件ID为本请求内的e序号，所有事件引用已一致替换；输出计划依据直接使用提供的event_id。
+优先在clock.soft_seconds_remaining内完整输出；共享池留给偶发延迟，不因总预算较多而展开。
+计划只列当前最相关的1至2条役路线、1条优先事项和1条转向条件，文字合计尽量不超过60汉字。
 计划具体到役种依据、点差目标和转向条件，不能泛泛复读。计划不能更改实际场况。经验是可反驳资料，不能覆盖规则。
+风格基线均衡；style偏好-2至2，正方向为门清/打点/保位防守，不能覆盖当前局面与最终顺位目标；candidate尚待复核。
 不要输出Markdown、长推理或役种教材。"""
 
 
 def prompt_for(version):
+    if version == 'mj.readable.2':
+        lines = [line for line in SYSTEM.splitlines() if not any(word in line for word in
+                 ('紧凑actions', 'discard/riichi的args', 'chi/pon/daiminkan/ankan的args', '紧凑features中的'))]
+        return '\n'.join(lines) + ('\nactions为可读对象数组，全部关键牌效/计分数值紧邻本动作。所有hand索引从0开始。'
+                                  '只有重复条件说明被提到static_facts；requires_ref引用其条件字符串，'
+                                  'unknown_ref引用其未知事项数组。0是赤五，5是普通五。')
     if version == 'mj.compact.3':
         lines = [line for line in SYSTEM.splitlines() if not any(word in line for word in
                  ('紧凑actions', 'discard/riichi的args', 'chi/pon/daiminkan/ankan的args', '紧凑features中的'))]
         return '\n'.join(lines) + ('\nactions为可读对象数组，每项明确action_id/kind/tile_index/tile/drawn/consume_indices/meld_id。'
                                   'features_ref引用features中完全相同的整块事实；逐项核对本动作牌名与对应特征，'
                                   '0是赤五，5是普通五。所有索引从0开始。')
-    return SYSTEM
+    return SYSTEM + '\nactions为可读对象数组，features是该动作的完整事实；tile_index和consume_indices引用hand。'
 
 
 @dataclass
@@ -46,6 +52,24 @@ class Context:
     actions: dict[str, LegalAction]
     fingerprint: str
     event_refs: dict[str, str] = field(default_factory=dict)
+
+    def response_schema(self):
+        schema = Decision.model_json_schema()
+        schema['properties']['q']['const'] = self.q
+        schema['properties']['a']['enum'] = list(self.actions)
+        plan = schema['$defs']['RoundPlanUpdate']['properties']
+        plan['v']['const'] = (self.data.get('plan') or {}).get('version', 0)
+        for key in ('g','a','r'):
+            plan[key]['maxLength'] = 40
+        for key in ('y','p','s'):
+            plan[key]['maxItems'] = 2
+        ids = [e['event_id'] for e in self.data['public_events']]
+        if ids:
+            plan['e']['items']['enum'] = ids
+        else:
+            # No evidence exists to cite; only null is a valid update.
+            schema['properties']['p'] = {'type':'null'}
+        return schema
 
     def validate(self, raw):
         decision = Decision.model_validate(raw)
@@ -72,7 +96,7 @@ def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, mem
     q = secrets.token_hex(4)
     data = state.model_dump(mode="json", exclude={"operation", "rules", "observed_at", "last_event_id"})
     data["q"] = q
-    data["v"] = "mj.compact.3" if compact else "mj.rich.1"
+    data["v"] = "mj.readable.2" if compact else "mj.rich.1"
     data["rules"] = state.rules.model_dump(exclude={"raw"})
     data["rules"]["room_options"] = state.rules.raw.get("mode", {}).get("detail_rule", {})
     data["ranks"] = state.ranks
@@ -94,27 +118,14 @@ def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, mem
                      "verified": state.operation.timer_verified} if state.operation else None
     mapping = {f"a{i}": action for i, action in enumerate(actions)}
     event_refs = {}
+    data["actions"] = [{"action_id":key, "kind":action.kind, "tile_index":action.tile_index,
+                        "consume_indices":action.consume_indices, "meld_id":action.meld_id,
+                        "features":action.features} for key,action in mapping.items()]
     if compact:
         long_to_short = {event["event_id"]:f"e{i}" for i,event in enumerate(state.public_events)}
         event_refs = {short:long for long,short in long_to_short.items()}
         data = replace_refs(data, long_to_short)
-        features, feature_keys, rows = {}, {}, []
-        for key, action in mapping.items():
-            canonical = json.dumps(action.features, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-            if canonical not in feature_keys:
-                feature_keys[canonical] = f"f{len(features)}"
-                features[feature_keys[canonical]] = action.features
-            rows.append({'action_id':key, 'kind':action.kind, 'tile_index':action.tile_index,
-                         'tile':state.hand[action.tile_index] if action.tile_index is not None else None,
-                         'drawn':action.tile_index == state.drawn_index if action.tile_index is not None else None,
-                         'consume_indices':action.consume_indices, 'meld_id':action.meld_id,
-                         'features_ref':feature_keys[canonical]})
-        data['features'] = features
-        data["actions"] = rows
-    else:
-        data["actions"] = [{"action_id": key, "kind": action.kind, "tile_index": action.tile_index,
-                            "consume_indices": action.consume_indices, "meld_id": action.meld_id,
-                            "features": action.features} for key, action in mapping.items()]
+        data['actions'], data['static_facts'] = share_explanations(data['actions'])
     # The model never receives input coordinates, credential material or the whole yaku catalog.
     fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return Context(q, data, mapping, fingerprint, event_refs)
@@ -132,7 +143,7 @@ def replace_refs(value, mapping):
 
 def semantic_context(context):
     data = replace_refs(context.data, context.event_refs)
-    data = {key:value for key,value in data.items() if key not in ("q", "v", "actions", "features", "facts")}
+    data = {key:value for key,value in data.items() if key not in ("q", "v", "actions", "features", "facts", "static_facts")}
     data["actions"] = semantic_actions(context)
     return data
 
@@ -140,6 +151,8 @@ def semantic_context(context):
 def semantic_actions(context: Context):
     if context.data["v"] == "mj.rich.1":
         return context.data["actions"]
+    if context.data['v'] == 'mj.readable.2':
+        return restore_explanations(context.data['actions'],context.data['static_facts'])
     rows = []
     if context.data['v'] == 'mj.compact.3':
         return [{**{key:row[key] for key in ('action_id','kind','tile_index','consume_indices','meld_id')},
@@ -152,6 +165,46 @@ def semantic_actions(context: Context):
                      "meld_id": args["meld_id"] if kind == "kakan" else None,
                      "features": features[feature]})
     return rows
+
+
+def share_explanations(value):
+    counts, pool, assigned = Counter(), {}, {}
+    def signature(v):
+        return json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(',',':'))
+    def scan(v):
+        if isinstance(v,dict):
+            for key,child in v.items():
+                if key in ('requires','unknown') and isinstance(child,(str,list)) and len(signature(child)) > 12:
+                    counts[(key,signature(child))] += 1
+                scan(child)
+        elif isinstance(v,list):
+            for child in v:
+                scan(child)
+    scan(value)
+    def encode(v):
+        if isinstance(v,dict):
+            result = {}
+            for key,child in v.items():
+                sig = (key,signature(child))
+                if key in ('requires','unknown') and counts[sig] > 1:
+                    if sig not in assigned:
+                        assigned[sig] = f's{len(pool)}'
+                        pool[assigned[sig]] = child
+                    result[key+'_ref'] = assigned[sig]
+                else:
+                    result[key] = encode(child)
+            return result
+        return [encode(child) for child in v] if isinstance(v,list) else v
+    encoded = encode(value)
+    return encoded,pool
+
+
+def restore_explanations(value, pool):
+    if isinstance(value,dict):
+        return {(key[:-4] if key in ('requires_ref','unknown_ref') else key):
+                pool[child] if key in ('requires_ref','unknown_ref') else restore_explanations(child,pool)
+                for key,child in value.items()}
+    return [restore_explanations(child,pool) for child in value] if isinstance(value,list) else value
 
 
 def intern_facts(value):

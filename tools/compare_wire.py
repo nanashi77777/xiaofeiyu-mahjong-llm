@@ -137,8 +137,12 @@ async def run(args):
             for repeat in range(args.repeats):
                 contexts = (rich, compact) if repeat % 2 == 0 else (compact, rich)
                 for context in contexts:
+                    context.data['clock']['soft_seconds_remaining'] = 5.0
+                    context.data['clock']['decision_seconds_remaining'] = 14.2
                     record = {'case':label, 'source':'constructed' if label.startswith('constructed') else 'archived_observed',
                               'repeat':repeat, 'format':context.data['v'], 'equivalent':True}
+                    before_usage = store.db.execute('SELECT COALESCE(MAX(rowid),0) FROM records').fetchone()[0]
+                    started = time.monotonic()
                     try:
                         decision, action, metrics = await client.decide(context, time.monotonic()+settings.request_timeout)
                         record.update(decision_valid=True, action={'kind':action.kind,'index':action.tile_index,
@@ -151,6 +155,12 @@ async def run(args):
                         record['consistency_flags'] = ['red_discard_claims_keep_red'] if contradiction else []
                     except Exception as error:
                         record.update(decision_valid=False, error_type=type(error).__name__)
+                    record['decision_total_ms'] = (time.monotonic()-started)*1000
+                    # Include invalid initial attempts and missing usage, not
+                    # merely the last successful repair returned by decide().
+                    record['decision_attempts'] = [json.loads(r[0]) for r in store.db.execute(
+                        "SELECT payload FROM records WHERE rowid>? AND purpose='token_usage' ORDER BY rowid",
+                        (before_usage,)) if json.loads(r[0]).get('request_q') == context.q]
                     try:
                         output, metrics = await client.request(context.data, purpose='wire_validation',
                                                                system=prompt_for(context.data['v'])+READ_SYSTEM)

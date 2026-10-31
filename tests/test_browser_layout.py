@@ -79,7 +79,7 @@ async def test_capture_is_serial_and_never_requests_render_scale_or_device_overr
     await asyncio.gather(*(browser.image_bytes() for _ in range(3)))
     assert peak == 1 and len(commands) == 3
     assert all(method == 'Page.captureScreenshot' and params == {
-        'format':'png','fromSurface':True,'captureBeyondViewport':False} for method,params in commands)
+        'format':'jpeg','quality':90,'fromSurface':True,'captureBeyondViewport':False} for method,params in commands)
 
 
 async def test_resize_during_native_capture_cannot_become_an_input_image():

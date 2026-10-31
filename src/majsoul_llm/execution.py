@@ -23,6 +23,7 @@ class Target:
     observed: float
     evidence: str
     page_point: tuple[float,float] | None = None
+    layout: dict | None = None
 
 
 class Executor:
@@ -50,6 +51,15 @@ class Executor:
         await self.bind(windows[0].hwnd)
 
     async def target(self, semantic, state, indices=None):
+        # Recognition can occasionally be delayed by the compositor/CPU. A
+        # stale result may be discarded and observed again before any press.
+        for _ in range(3):
+            target = await self._target_once(semantic, state, indices)
+            if time.monotonic()-target.observed <= 1.2:
+                return target
+        raise InputDeferred('recognized layout repeatedly expired before input')
+
+    async def _target_once(self, semantic, state, indices=None):
         if not self.window:
             raise InputDeferred("no window bound")
         if self.input_mode=='browser_background':
@@ -67,6 +77,7 @@ class Executor:
             rect=(0,0,0,0)
         else:
             rect = self.mouse.rect(self.window)
+        layout = await self.browser.layout_metrics()
         nodes = await self.browser.visible_nodes()
         observed = time.monotonic()
         aliases = BUTTONS.get(semantic, ())
@@ -90,7 +101,11 @@ class Executor:
                     elif semantic.startswith("combo:"):
                         kind = semantic.split(":",1)[1]
                         tiles = [state.hand[i] for i in indices]
-                        box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles)
+                        from .rules import legal_actions
+                        kinds = {'ankan','kakan','daiminkan'} if kind in ('ankan','kakan','daiminkan') else {kind}
+                        offered = {tuple(sorted(state.hand[i] for i in a.consume_indices))
+                                   for a in legal_actions(state) if a.kind in kinds}
+                        box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles,offered)
                     else:
                         box = await asyncio.to_thread(self.locator.button,raw,semantic)
                     break
@@ -107,6 +122,8 @@ class Executor:
                     await asyncio.sleep(.06)
             node = {"x":box.center[0],"y":box.center[1]}
             evidence = "calibrated_screenshot_matching"
+        if await self.browser.layout_metrics() != layout:
+            raise InputDeferred('layout changed during recognition')
         geometry = await self.browser.page.evaluate("""() => ({x:window.screenX+(window.outerWidth-window.innerWidth)/2,
           y:window.screenY+window.outerHeight-window.innerHeight,ratio:window.devicePixelRatio,
           canvas:document.querySelector('#unity-canvas')?.getBoundingClientRect().toJSON()})""")
@@ -114,7 +131,7 @@ class Executor:
         x = round((geometry["x"] + node["x"] + (canvas["x"] if canvas else 0)) * geometry["ratio"])
         y = round((geometry["y"] + node["y"] + (canvas["y"] if canvas else 0)) * geometry["ratio"])
         page_point=(node['x']+(canvas['x'] if canvas else 0),node['y']+(canvas['y'] if canvas else 0))
-        return Target((x, y), rect, observed, evidence,page_point)
+        return Target((x, y), rect, observed, evidence,page_point,layout)
 
     def _current(self, state, action):
         current = self.state_getter()
@@ -139,8 +156,14 @@ class Executor:
                     raise InputDeferred('input stopped')
                 if time.monotonic()-target.observed>1.2:
                     raise InputDeferred('background layout expired')
+                async def validate():
+                    self._current(state, action)
+                    if await self.browser.layout_metrics() != target.layout:
+                        raise InputDeferred('background geometry changed before press')
+                    if time.monotonic()-target.observed > 1.2:
+                        raise InputDeferred('background target expired before press')
                 return await self.browser.background_click(target.page_point,deadline,self.mouse.stop,
-                                                           validate=lambda:self._current(state,action))
+                                                           validate=validate)
             return await finish_input(asyncio.to_thread(
                 self.mouse.click, self.window, target.rect, target.point, target.observed, deadline))
 
@@ -175,7 +198,7 @@ class Executor:
             profile = self.locator.profile()
             tiles = [state.hand[i] for i in action.consume_indices]
             label = "combo_"+action.kind+"_"+"_".join(sorted(tiles))
-            if label not in profile["templates"]:
+            if label not in profile["templates"] and 'combo_region' not in profile:
                 raise InputDeferred("selected meld combination needs calibration")
             await click(action.kind)
             for _ in range(20):

@@ -29,11 +29,21 @@ def test_domain_rejects_invalid_seats_and_tiles():
     for seat in (-1,4):
         with pytest.raises(ValueError):
             Snapshot(match_id='bad',self_seat=seat)
-    for tile in ('0z','8z','10m','xx'):
+    for tile in ('0z','8z','10m','xx','５m'):
         with pytest.raises(ValueError):
             Discard(tile=tile,event_id='x',seq=1)
         with pytest.raises(ValueError):
             Meld(id='x',actor=0,kind='chi',tiles=[tile],event_id='x')
+    with pytest.raises(ValueError):
+        Discard(tile='1m',event_id='x',seq=1,called_by=4)
+    with pytest.raises(ValueError):
+        Snapshot(match_id='bad',self_seat=0,schema_version='snapshot.v9')
+    from majsoul_llm.domain import LegalAction, Receipt
+    action = LegalAction(id='x',window_id='w',state_version=1,kind='pon',consume_indices=[0,1],raw_type=3)
+    receipt = Receipt(id='r',action=action,status='execution_uncertain',created_at='test')
+    assert receipt.schema_version == 'receipt.v1' and receipt.action.schema_version == 'action.v1'
+    with pytest.raises(ValueError):
+        action.consume_indices = [0,0]
 
 
 def fixture_protocol():
@@ -78,6 +88,22 @@ def test_wire_protocol_sanitizes_auth_and_live_vs_recovery():
     prototype=protocol.message('lq.ActionPrototype')(step=17,name='ActionDiscardTile',data=xor_action(action))
     notify=b'\x01'+wrapper(name='.lq.ActionPrototype',data=prototype.SerializeToString()).SerializeToString()
     assert protocol.frame('c1',notify,False)['data']['data']=={'seat':2,'tile':'0p'}
+
+
+async def test_unknown_action_preserves_only_action_evidence_and_invalidates_state(store,state):
+    from majsoul_llm.engine import Engine
+    protocol=fixture_protocol()
+    engine=Engine(store,protocol)
+    engine.state,engine.connection=state,'ours'
+    raw=b'\x08\x01'
+    prototype=protocol.message('lq.ActionPrototype')(step=17,name='ActionFuture',data=xor_action(raw))
+    frame=b'\x01'+protocol.message('lq.Wrapper')(name='.lq.ActionPrototype',data=prototype.SerializeToString()).SerializeToString()
+    await engine.frame('ours',frame,False)
+    evidence=store.records('protocol_evidence')[0]['payload']
+    import base64
+    assert xor_action(base64.b64decode(evidence['raw_action_b64']))==raw
+    assert evidence['name']=='ActionFuture' and evidence['schema_sha256']==protocol.fingerprint
+    assert not engine.state.operation and engine.state.completeness=='gaps'
 
 
 def test_lobby_login_request_is_not_decoded_or_forwarded():

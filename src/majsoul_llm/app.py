@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import hmac
+import hashlib
+import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 
 from .browser import Browser
-from .config import Settings
+from .config import ROOT, Settings
 from .coordinator import Coordinator
 from .engine import Engine
 from .execution import Executor
@@ -30,6 +32,9 @@ from .usage import usage_summary
 class Service:
     def __init__(self, settings):
         self.settings = settings
+        sources = sorted((ROOT/'src'/'majsoul_llm').glob('*.py'))
+        self.runtime_build = {'source_digest':hashlib.sha256(b''.join(p.read_bytes() for p in sources)).hexdigest(),
+                              'git_head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}
         self.store = Store(settings.runtime / "archive.sqlite")
         self.store.mark_interrupted()
         schema = settings.runtime / "protocol/protocol.proto"
@@ -90,6 +95,9 @@ class Service:
                 "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
                 "bound_window":self.executor.window.__dict__ if self.executor.window else None,
                 "input_mode":self.executor.input_mode,
+                "runtime_build":self.runtime_build,
+                "result_flow":{"active":bool(self.round_flow.task and not self.round_flow.task.done()),
+                               "last_scene":self.round_flow.last_scene},
                 "state":state.model_dump(mode="json") if state else None, "plan":self.coordinator.plan,
                 "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,

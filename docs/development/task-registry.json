@@ -136,7 +136,7 @@
       "kind": "development",
       "milestone": "M0",
       "title": "领域类型与契约版本",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-001"
       ],
@@ -149,17 +149,20 @@
         "事件/快照/动作/执行回执/决策/计划/经验有版本化类型和未知字段",
         "座位0..3、红牌与摸牌槽、副露/阶段/身份及合法计数有正反样例"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "83 pytest passed; ruff passed; domain, receipt and experience contracts validated"
+      ],
+      "completed_record": "docs/development/completed/DEV-004-domain-contracts.md",
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "status_reason": "基础代码已落地，补全及验证中",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-005",
       "kind": "development",
       "milestone": "M1",
       "title": "专用浏览器与只读WS采集",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -172,18 +175,21 @@
         "独立profile、绑定进程/窗口/页面，捕获WS而不发送游戏操作",
         "区分连接/账号/对局，认证载荷不进模型或牌谱，关闭和失焦不伪造状态"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "Browser geometry, passive capture, dedicated process binding and real friend-room evidence; full regression in batch log."
+      ],
+      "completed_record": "docs/development/completed/DEV-005-browser-capture.md",
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-006",
       "kind": "development",
       "milestone": "M1",
       "title": "当前协议版本与消息解码适配",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-005"
       ],
@@ -195,18 +201,21 @@
         "核验固定来源许可与当前协议/编码，覆盖实时和恢复的不同解码路径",
         "脱敏消息可复现解码；不支持版本显式失败，保存最小原始证据"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "Live/recovery codec fixtures, real current protocol, credential sanitization and unknown action evidence verified."
+      ],
+      "completed_record": "docs/development/completed/DEV-006-passive-protocol.md",
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-007",
       "kind": "development",
       "milestone": "M1",
       "title": "规范事件与幂等状态归并",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-004",
         "DEV-006"
@@ -218,17 +227,20 @@
         "按源事件顺序归并手牌/牌河/副露/宝牌/立直/点数，模型不能回写",
         "重复消息和重放不会重复更新；一致性失败保留诊断和暂停条件"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "Immutable authoritative reduction, deduplication, actual meld/riichi and acknowledged ron-skip furiten verified."
+      ],
+      "completed_record": "docs/development/completed/DEV-007-authoritative-reducer.md",
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "status_reason": "基础代码已落地，补全及验证中",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-008",
       "kind": "development",
       "milestone": "M1",
       "title": "小局、终场、规则与模式身份",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-007"
       ],
@@ -240,10 +252,13 @@
         "新小局/连庄/西入/各种流局/多家和与真实终场分别处理，保存全部和牌者",
         "场/小局稳定ID、友人段位unknown、真实规则及点数顺位依据可追踪"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "West extension/abort draws/multiwin/final rank fixtures and 13-round real final scores verified; completeness scope fixed."
+      ],
+      "completed_record": "docs/development/completed/DEV-008-round-match-identity.md",
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "status_reason": "基础代码已落地，补全及验证中",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-009",
@@ -274,7 +289,7 @@
       "kind": "development",
       "milestone": "M1",
       "title": "增量牌谱、SQLite与中断保存",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-007",
         "DEV-008"
@@ -286,11 +301,14 @@
         "事件和投影事务落盘、WAL、可恢复导出和schema迁移；崩溃保留已提交事实",
         "final与last_observed分开，wins有场/局外键，中断续录可合并不重复"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "WAL reopen/migration/replay/foreign-key tests and prior real compact archive equivalence verified."
+      ],
+      "completed_record": "docs/development/completed/DEV-010-transactional-archive.md",
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-011",
@@ -391,7 +409,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "Responses渠道、取消与token计量",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -403,11 +421,14 @@
         "固定指定模型/URL/none，探测Schema/SSE/输出参数与usage，不经QQ长会话",
         "无隐式重试；取消有效，缺usage记unknown，记录decision/repair/review且秘密不入日志"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "Actual specified model none/SSE/strict schema/usage; cancellation and persistent review-attempt tests verified."
+      ],
+      "completed_record": "docs/development/completed/DEV-015-responses-runtime.md",
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-016",
@@ -1063,7 +1084,7 @@
       "kind": "development",
       "milestone": "M2",
       "title": "役种表运行加载、按需检索与版本证据接入",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-003",
         "DEV-004"
@@ -1077,11 +1098,14 @@
         "相关条目和互斥/替代可检索，支持必要全表读取但不默认每次复盘载入；引用版本进入复盘/经验",
         "实时不附全表，相关役事实保留；自主记忆不能改正式表，修订建议经核验与Git流程"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "83 pytest passed; actual ended-match review created one candidate with catalog provenance; runtime reference lookup tests passed"
+      ],
+      "completed_record": "docs/development/completed/DEV-031-yaku-runtime.md",
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "VAL-011",

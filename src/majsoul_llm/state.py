@@ -30,6 +30,12 @@ def apply_event(previous: Snapshot, event: Event) -> Snapshot:
     state.lifecycle = "active"
     if kind == "ActionMJStart":
         state.phase = Phase.WAITING
+    elif kind == 'ObservedPass':
+        # This event is emitted only after the passive adapter observes the
+        # server accepting cancel_operation, never from a model proposal.
+        if d['declined_ron']:
+            state.furiten['riichi' if state.players[state.self_seat].riichi == 'established' else 'temporary'] = True
+        state.phase = Phase.WAITING
     elif kind == "ActionNewRound":
         state.round_seq += 1
         state.round_uid = state.match_id + ":" + digest(event.id)
@@ -39,7 +45,11 @@ def apply_event(previous: Snapshot, event: Event) -> Snapshot:
         state.players = [Player() for _ in range(4)]
         for seat,player in enumerate(state.players):
             player.concealed_count=14 if seat==state.dealer else 13
-        state.completeness = "full"
+        first_observed_round = previous.round_seq == 0 and previous.round_uid is None
+        if first_observed_round:
+            state.completeness = ('full' if state.wind == 0 and state.hand_number == 1
+                                  and state.honba == 0 and state.deposits == 0 else 'partial')
+        state.round_completeness = "full"
         state.consistent = True
         state.unknown_fields = []
         state.hand = list(d.get("tiles", []))
@@ -222,6 +232,8 @@ def public_event(event: Event) -> dict:
             public[key] = d[key]
     if kind in ("ActionChiPengGang", "ActionAnGangAddGang"):
         public.update({k: d[k] for k in ("tiles", "froms") if k in d})
+    if kind == 'ObservedPass':
+        public['declined_ron'] = d['declined_ron']
     if d.get("liqi"):
         public["liqi"] = d["liqi"]
     return public

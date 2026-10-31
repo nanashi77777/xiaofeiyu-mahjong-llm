@@ -2,7 +2,7 @@
 
 ## 独立实时调用
 
-模型固定 `your-model-id`，base URL 为 `https://model-provider.invalid/v1`。依据本机既有渠道实现，首选 Responses 路径 `/responses`，请求 `reasoning: {"effort":"none"}`、`store:false`。接口能力探测须验证 SSE、结构化输出、输出长度参数与 usage；当前未调用验证，不宣称渠道已经支持 JSON Schema。
+模型固定 `your-model-id`，base URL 为 `https://model-provider.invalid/v1`。已实测 Responses 路径 `/responses`、`reasoning: {"effort":"none"}`、`store:false`、SSE及严格JSON Schema，真实usage中推理token为0。动态Schema约束请求/动作归属和旧计划版本，本地仍完整验证；输出长度参数的全部组合和取消计费语义不作额外保证，缺失usage继续记unknown。
 
 密钥由本机私密配置注入，示例只留占位。麻将进程直接调用，不经 QQ/DSH 的长会话与工具目录。请求不携带 QQ 聊天、私信或其他活动原文。固定规则前缀保持稳定以利可能的缓存，但不依赖渠道必然缓存。
 
@@ -86,3 +86,5 @@
 风格是有界结构化偏好：例如门清倾向、速度/打点偏好、保位倾向，初始均衡，以最终顺位和避免第四为主要成绩目标。风格不能覆盖合法性、真实场况或强迫在明显不合适时冒险。QQ 的表达风格沿用小肥鱼，不用故意打差或编造大牌塑造人格。
 
 运行时按当前规则、手牌阶段、点差和候选条件检索少量适用经验；保留被召回 ID/revision 以便追溯。召回是信息选择，不是传统策略给动作打分。
+
+当前实现冻结最多50条候选/稳定经验作为本场资格集合，每个窗口按结构化applies_to匹配阶段、本家顺位、门清、对手立直、场类和当前役路线，至多召回4条；同一风格轴只保留一条。模型只收到ID/版本/可信标签/主张/条件/有界偏好及证据数量，完整事件引用留本机。停用或更改主张/条件/风格会阻止旧修订在本场继续召回，新修订下一场冻结生效。风格axis为closed_hand/speed_value/placement_defense，value是-2至2整数，正方向分别是门清、打点、保位防守；基线均衡，不由执行器转换成选牌策略。

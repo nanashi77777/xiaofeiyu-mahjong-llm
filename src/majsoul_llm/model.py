@@ -18,6 +18,19 @@ class ModelFailure(RuntimeError):
     pass
 
 
+def strict_schema(schema):
+    """Strict output schemas express optional values as nullable required keys."""
+    if isinstance(schema,list):
+        return [strict_schema(item) for item in schema]
+    if not isinstance(schema,dict):
+        return schema
+    result = {key:strict_schema(value) for key,value in schema.items() if key not in ('default','title')}
+    if result.get('type') == 'object' and 'properties' in result:
+        result['required'] = list(result['properties'])
+        result['additionalProperties'] = False
+    return result
+
+
 class ModelClient:
     def __init__(self, settings: Settings, store: Store | None = None, transport=None):
         self.settings, self.store = settings, store
@@ -28,19 +41,20 @@ class ModelClient:
     def credential_id(self):
         return hashlib.sha256(self.settings.api_key.get_secret_value().encode()).hexdigest()[:16]
 
-    async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=None):
+    async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=None, output_schema=None):
         start = time.monotonic()
         credential = self.settings.api_key.get_secret_value()
         metrics = {"purpose": purpose, "model": self.settings.model, "usage": None, "ttft_ms": None,
                    "elapsed_ms": None, "status": "failed", "billing_scope":"mahjong",
-                   "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16]}
+                   "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16],
+                   "request_q":payload.get('q')}
         body = {"model": self.settings.model, "reasoning": {"effort": "none"}, "store": False,
                 "stream": True, "instructions": system if system is not None else prompt_for(payload.get('v')),
                 "input": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}]}
         body["text"] = {"verbosity":"low"}
-        if self.settings.json_schema and purpose == "decision":
-            body["text"]["format"] = {"type": "json_schema", "name": "mahjong_decision", "strict": True,
-                            "schema": Decision.model_json_schema()}
+        if self.settings.json_schema and (purpose in ("decision", "repair") or output_schema is not None):
+            body["text"]["format"] = {"type": "json_schema", "name": "mahjong_"+purpose, "strict": True,
+                            "schema": strict_schema(output_schema or Decision.model_json_schema())}
         text_parts, completed = [], False
         try:
             request_limit = max(self.settings.request_timeout, 90) if purpose == "review" else self.settings.request_timeout
@@ -97,7 +111,8 @@ class ModelClient:
         for attempt in range(2):
             raw = None
             try:
-                raw, metrics = await self.request(payload, purpose="decision" if attempt == 0 else "repair", deadline=deadline)
+                raw, metrics = await self.request(payload, purpose="decision" if attempt == 0 else "repair", deadline=deadline,
+                                                  output_schema=context.response_schema())
                 decision, action = context.validate(raw)
                 return decision, action, metrics
             except (ModelFailure, ValueError) as error:

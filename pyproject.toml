@@ -24,7 +24,7 @@ majsoul-llm = "majsoul_llm.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-majsoul_llm = ["*.html", "*.js"]
+majsoul_llm = ["*.html", "*.js", "assets/majsoul_wrapper/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

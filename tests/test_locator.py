@@ -41,3 +41,30 @@ def test_visual_instances_red_draw_slot_and_ambiguity(tmp_path,state):
     state.hand=['0m','5m','4m']
     with pytest.raises(InputDeferred):
         locator.hand(raw,state)
+
+
+def test_dynamic_menu_reads_all_choices_and_rejects_red_or_candidate_mismatch(tmp_path):
+    import json
+    screen = np.zeros((723,1284,3),dtype=np.uint8)
+    for x in (510,564,644,698):
+        screen[477:553,x:x+51] = 220
+    locator = ScreenLocator(tmp_path)
+    locator.folder.mkdir(parents=True)
+    locator.path.write_text(json.dumps({'width':1284,'height':723,'templates':{},
+                                        'combo_region':[450,460,390,110]}))
+    class Classifier:
+        predictions = [('1s',1.),('3s',1.),('3s',1.),('4s',1.)]
+        def predict(self, images):
+            assert len(images) == 4
+            return self.predictions
+    locator.classifier = Classifier()
+    raw = png(screen)
+    chosen = locator.combo(raw,'chi',['3s','4s'],[['1s','3s'],['3s','4s']])
+    assert chosen.center[0] > 640 and chosen.label == 'combo_dynamic'
+    with pytest.raises(InputDeferred,match='complete server choices'):
+        locator.combo(raw,'chi',['3s','4s'],[['3s','4s']])
+    with pytest.raises(InputDeferred,match='not uniquely'):
+        locator.combo(raw,'chi',['3s','0s'])
+    locator.classifier.predictions[0] = ('1s',.98)
+    with pytest.raises(InputDeferred,match='uncertain'):
+        locator.combo(raw,'chi',['3s','4s'])

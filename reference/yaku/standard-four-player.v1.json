@@ -3,7 +3,7 @@
   "catalog_version": "standard-four-player.v1",
   "updated_on": "2026-10-30",
   "timezone": "Asia/Shanghai",
-  "status": "reference-data-cross-checked-runtime-not-integrated",
+  "status": "runtime-integrated-content-validation-in-progress",
   "scope": "标准四人日麻参考；雀魂实际房间规则和服务器判定优先",
   "realtime_policy": "不在实时决策附整表；只提供当前相关役种与必要无役风险事实",
   "sources": [

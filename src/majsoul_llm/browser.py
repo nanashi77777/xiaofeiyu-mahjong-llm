@@ -192,7 +192,7 @@ class Browser:
                 session = await page.context.new_cdp_session(page)
             try:
                 result = await session.send("Page.captureScreenshot", {
-                    "format":"png", "fromSurface":True, "captureBeyondViewport":False})
+                    "format":"jpeg", "quality":90, "fromSurface":True, "captureBeyondViewport":False})
             finally:
                 if temporary:
                     await session.detach()
@@ -253,14 +253,24 @@ class Browser:
             # can fit between two frames in a background/low-FPS lobby. Two
             # callbacks guarantee a Unity tick between press and release even
             # when our callback runs before Unity's callback in the first frame.
-            await asyncio.wait_for(self.page.evaluate('''() => new Promise(resolve=>
-              requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))'''), .4)
+            try:
+                await asyncio.wait_for(self.page.evaluate('''() => new Promise(resolve=>
+                  requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))'''), .4)
+            except TimeoutError:
+                self.errors.append('pressed_frame_not_observed')
         finally:
             await self.page.mouse.up()
-        # Keep the target under the pointer until the release is sampled too.
-        await asyncio.wait_for(self.page.evaluate(
-            '() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))'), .4)
         clicked=time.monotonic()
+        # Keep the target under the pointer until the release is sampled too.
+        try:
+            await asyncio.wait_for(self.page.evaluate(
+                '() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))'), .4)
+        except TimeoutError:
+            # A successful game action can replace the scene and suspend its
+            # frame callback. Mouse press/release were sent: report mouse_sent
+            # and let the authoritative RPC/event confirm, without a blind retry.
+            self.errors.append('released_frame_not_observed')
+        self.errors[:] = self.errors[-20:]
         if original and not self.page.is_closed():
             current=await self.page.evaluate('() => window.__mjLocalPointer')
             if current and abs(current['x']-point[0])<2 and abs(current['y']-point[1])<2:

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from google.protobuf import descriptor_pool, json_format, message_factory
+from google.protobuf.message import DecodeError
 
 from .lobby_session import LOBBY_METHODS, ROOM_NOTIFICATIONS, sanitize_lobby, sanitize_room_notification
 
@@ -19,6 +20,15 @@ def xor_action(data: bytes) -> bytes:
     keys = (0x84, 0x5E, 0x4E, 0x42, 0x39, 0xA2, 0x1F, 0x60, 0x1C)
     base = 23 ^ len(data)
     return bytes(b ^ ((base + 5 * i + keys[i % 9]) & 255) for i, b in enumerate(data))
+
+
+class UnsupportedAction(ValueError):
+    def __init__(self,name,raw,historical,fingerprint):
+        super().__init__('unsupported or undecodable game action')
+        self.evidence={'name':name[:120], 'schema_sha256':fingerprint, 'historical':historical,
+                       'action_sha256':hashlib.sha256(raw).hexdigest(),
+                       'raw_action_b64':base64.b64encode(raw[:65536]).decode(),
+                       'truncated':len(raw)>65536}
 
 
 class Protocol:
@@ -49,7 +59,10 @@ class Protocol:
     def action(self, name: str, raw: bytes, *, historical: bool = False):
         if not name.startswith("Action"):
             raise ValueError("unsupported action")
-        return self.decode("lq." + name, raw if historical else xor_action(raw))
+        try:
+            return self.decode("lq." + name, raw if historical else xor_action(raw))
+        except (KeyError, ValueError, DecodeError):
+            raise UnsupportedAction(name,raw,historical,self.fingerprint) from None
 
     def frame(self, connection: str, raw: bytes, from_client: bool):
         if not raw or raw[0] not in (1, 2, 3):

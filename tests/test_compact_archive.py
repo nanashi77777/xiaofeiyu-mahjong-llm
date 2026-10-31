@@ -34,7 +34,7 @@ async def test_compact_archive_replays_rounds_red_calls_riichi_multiwin_and_end(
         ("ActionChiPengGang", {"seat":0, "type":1, "tiles":["0m","5m","5m"], "froms":[0,0,1]}, 4),
         ("ActionDiscardTile", {"seat":0, "tile":"1m"}, 5),
         ("ActionHule", {"scores":[37000,21000,21000,21000], "hules":[{"seat":0,"count":6,"fu":30,"point_sum":12000}]}, 6),
-        ("ActionNewRound", {"tiles":hand, "scores":[37000,21000,21000,21000], "md5":"round2", "ju":1, "ben":2}, 0),
+        ("ActionNewRound", {"tiles":hand, "scores":[37000,21000,21000,21000], "md5":"round2", "ju":0, "ben":2}, 0),
         ("ActionDiscardTile", {"seat":0,"tile":"1z","is_liqi":True}, 1),
         ("ActionDealTile", {"seat":1,"liqi":{"seat":0,"score":36000,"liqibang":1}}, 2),
         ("ActionDealTile", {"seat":0,"tile":"0p"}, 3),

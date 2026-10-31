@@ -91,6 +91,12 @@ def test_wire_information_equivalence_and_evidence(state):
     rich.validate({"q":rich.q, "action_id":"a0", "reason":"合法操作", "plan_update":None})
     with pytest.raises(ValueError):
         rich.validate({"q":"wrong", "action_id":"a0", "reason":"错", "plan_update":None})
+    schema = compact.response_schema()
+    assert schema['properties']['q']['const'] == compact.q
+    assert schema['properties']['a']['enum'] == list(compact.actions)
+    assert schema['$defs']['RoundPlanUpdate']['properties']['v']['const'] == 0
+    assert schema['$defs']['RoundPlanUpdate']['properties']['e']['items']['enum'] == [
+        e['event_id'] for e in compact.data['public_events']]
 
 
 def test_time_bank_round_scoped_and_no_reconnect_refill(state):
@@ -107,6 +113,21 @@ def test_time_bank_round_scoped_and_no_reconnect_refill(state):
         bank.deadline(state.operation, now=start)
     bank.enter_round("r2")
     assert bank.remaining == 10
+
+
+def test_verified_server_bank_clamps_and_deal_animation_does_not_spend_pool(state):
+    bank = TimeBank(base=5,bank=20,margin=.8)
+    bank.enter_round('actual-round')
+    op = state.operation
+    op.fixed_ms,op.add_ms = 8000,10000
+    assert bank.deadline(op,now=op.received_mono,verified=True) == op.received_mono+17.2
+    assert bank.remaining == 10
+    assert bank.charge(op.window_id,7,fixed_ms=8000) == 10
+    op = op.model_copy(update={'window_id':'next','fixed_ms':5000,'add_ms':0})
+    assert bank.deadline(op,now=op.received_mono,verified=True) == op.received_mono+4.2
+    assert bank.remaining == 0
+    bank.enter_round('actual-round')
+    assert bank.remaining == 0
 
 
 async def test_event_idempotency_recovery_multiwin_and_end(store):
@@ -138,3 +159,30 @@ def test_yaku_reference_selected_only():
     assert len(yaku.read(all_entries=True)["entries"]) == 50
     with pytest.raises(ValueError):
         yaku.read(ids=["invented"])
+
+
+async def test_new_complete_round_does_not_hide_missing_match_history(store):
+    engine = Engine(store)
+    engine.state = Snapshot(match_id='joined-midmatch',self_seat=0)
+    await engine.action('ActionNewRound',{'chang':1,'ju':0,'tiles':HAND,'scores':[25000]*4},0)
+    assert engine.state.round_completeness == 'full' and engine.state.completeness == 'partial'
+    await engine.action('ActionHule',{'hules':[]},1)
+    await engine.action('ActionNewRound',{'chang':1,'ju':0,'ben':1,'tiles':HAND,'scores':[25000]*4},0)
+    assert engine.state.round_completeness == 'full' and engine.state.completeness == 'partial'
+    await engine.gap('injected')
+    await engine.action('ActionNewRound',{'chang':1,'ju':0,'ben':2,'tiles':HAND,'scores':[25000]*4},0)
+    assert engine.state.consistent and engine.state.round_completeness == 'full'
+    assert store.latest(engine.state.match_id).completeness == 'gaps'
+
+
+@pytest.mark.parametrize('kind,data',[
+    ('ActionNoTile',{'scores':[{'old_scores':[25000]*4,'delta_scores':[3000,-1000,-1000,-1000]}]}),
+    *[('ActionLiuJu',{'type':reason}) for reason in range(1,6)],
+])
+def test_standard_round_result_and_west_extension_are_not_match_end(state,kind,data):
+    ended=apply_event(state,event(kind,data,2))
+    assert ended.phase == Phase.ROUND_END and ended.lifecycle == 'active'
+    assert ended.final_scores is None and ended.final_ranks is None
+    west=apply_event(ended,event('ActionNewRound',{'chang':2,'ju':0,'ben':1,'tiles':HAND,'scores':[28000,24000,24000,24000]},3))
+    assert west.wind == 2 and west.honba == 1 and west.round_seq == 2
+    assert west.round_uid != ended.round_uid and west.dealer == 0 and west.lifecycle == 'active'

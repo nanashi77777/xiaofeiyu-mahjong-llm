@@ -122,7 +122,11 @@ class Store:
                      received_mono=0, historical=True)
 
     def _snapshot(self, raw) -> Snapshot:
-        state = Snapshot.model_validate_json(raw)
+        data = json.loads(raw)
+        # Archives written before separate round completeness used this field
+        # for both scopes. Preserve that round interpretation on load.
+        data.setdefault('round_completeness',data.get('completeness','partial'))
+        state = Snapshot.model_validate(data)
         query, args = "SELECT * FROM events WHERE match_id=?", [state.match_id]
         if state.round_uid:
             query += " AND round_uid=?"
