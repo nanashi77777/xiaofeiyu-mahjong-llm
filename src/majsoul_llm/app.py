@@ -112,6 +112,7 @@ class Service:
                 "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
                 'recovery_timer_verified':self.settings.recovery_timer_verified,
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
+                'table_wire_enabled':self.settings.compact_validated and self.settings.table_wire_validated,
                 'stream_actions':self.settings.stream_actions,
                 'stream_action_format':self.settings.stream_action_format,
                 "navigation":self.navigator.status(), "login_session":self.engine.lobby_session.public(),
@@ -306,6 +307,8 @@ def create_app(settings=None, service=None):
             if not s.executor.window:
                 raise ValueError("bind a game window first")
             await s.coordinator.start(shadow=False)
+        elif action == 'confirm-results':
+            await s.round_flow.resume()
         elif action=='input-mode':
             mode=data.get('mode')
             if mode not in ('physical_foreground','browser_background'):

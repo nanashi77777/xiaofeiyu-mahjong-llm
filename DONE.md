@@ -33,8 +33,10 @@
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
 | DEV-027 | 实现 | 本机控制面板与可观测状态 | [完成记录](docs/development/completed/DEV-027-control-panel.md) |
 | DEV-028 | 实现 | 回放、计时样本与隔离输入验收工具 | [完成记录](docs/development/completed/DEV-028-validation-tools.md) |
+| DEV-029 | 交付 | 运行恢复、依赖来源与交付文档 | [完成记录](docs/development/completed/DEV-029-runbook.md) |
 | VAL-002 | 验收 | 标准规则与全合法候选专项验收 | [完成记录](docs/development/completed/VAL-002-rule-matrix.md) |
 | VAL-004 | 验收 | 指定模型实际渠道兼容性验收 | [完成记录](docs/development/completed/VAL-004-real-model-channel.md) |
+| VAL-007 | 验收 | QQ按需查询、权限和真实经历验收 | [完成记录](docs/development/completed/VAL-007-query-privacy.md) |
 | VAL-008 | 验收 | 自主经验修订与后续受益机制验收 | [完成记录](docs/development/completed/VAL-008-memory-lifecycle.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |

@@ -27,5 +27,6 @@
 | 荣和放铳/自摸归属、历史查询及复盘输入 | xiaofeiyu-mahjong-llm · b3f6a72454cefc2d1af580e82f67cfe3f5935096 | DEV-063；237项pytest、16场53条真实归属、HTTP与QQ MCP历史详情通过 |
 | 低频按钮校准、全菜单核对与面板慢请求期限 | xiaofeiyu-mahjong-llm · 2cf6c7aa05cef59f82b02489ac729bc86697df74 | DEV-064/065；240项pytest、真实双吃核验、面板20项；两远端ref已读回核验 |
 | 三吃与更多赤牌组合跨层验证 | xiaofeiyu-mahjong-llm · 5ee227541e79cc9683e88c1becf3b0c5dbce302c | DEV-066；246项pytest，真实三吃及布局范围仍由独立输入验收跟踪 |
+| 多组合观察范围、面板模式、具名列候选及实现任务消费 | xiaofeiyu-mahjong-llm · 9054eaac25afb603ea1eefbde219d4472b53d875 | DEV-019/020/021/027/028/032/068/069；251项pytest，具名列DEV-067仍有独立门禁；两个远端ref已读回核验 |
 
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

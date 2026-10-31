@@ -48,7 +48,7 @@ SQLite runtime/archive.sqlite 使用 WAL，逐事件保存投影，保留 interr
 
 2026-10-31 当前入口为 Unity WebGL。定位从可见游戏画布截图读取，采用本机校准的牌面/按钮/组合模板，核对全部本家手牌的牌数和多重集合，单独核验赤牌与摸牌槽。已校准并核验的理牌行可根据至少三种已知牌面锚点学习新牌面，任一已知位置不符时停止，不凭坐标猜牌。模板保存在 runtime/calibration，不上传。
 
-`POST /control/calibration` 仅控制令牌可用，参数 label、box=[x,y,w,h]、可选 hand_region；从当前画布截取，不接受任意文件路径。label 如 tile_0m、button_pass、combo_chi_3m_4m。组合模板包含完整所选消费组合；缺模板时不先点开菜单。界面缩放会按画布比例换算，比例或规则无法确认时暂停。真实鸣牌多组合、立直两步与所有皮肤仍需专项验收。
+`POST /control/calibration` 仅控制令牌可用，参数 label、box=[x,y,w,h]、可选 hand_region；从当前画布截取，不接受任意文件路径。label 如 tile_0m、button_pass、combo_chi_3m_4m。鸣牌按钮需要可见模板；组合菜单可以用当前全部牌面分类与服务器全部候选核对，已有完整组合模板也不能绕过核对。手牌区域存在时旧菜单行扩展至全宽并排除手牌，支持更多组合；裁边/缺项/额外/重复/错赤均拒绝。界面缩放按画布比例换算，比例或规则无法确认时暂停。真实立直和双吃已有证据，更多皮肤/低频操作仍需VAL-003。
 
 真实鼠标在目标处立即按下，跨一个显示帧释放并归位；人工移动后不覆盖其新位置。mouse_sent 与 server_confirmed 独立。跳过通过服务端 cancel_operation RPC 接受回执确认，不能一直等不存在的“跳过牌谱事件”；弃牌通过实际弃牌事件确认。
 
@@ -114,3 +114,16 @@ DEV-067新增mj.tables.1具名列候选，完整保留public_events和四家rive
 benchmark 是真实渠道调用加构造场况，明确不包含物理点击，不能冒充500窗口或完整实战验收。integration_once 默认只记录；--execute 才使用实际鼠标，并且仅接受本次已授权的300+0模式。--hover-frame 仅用于诊断一帧悬停与立即点击的差异。
 
 停止服务可 Ctrl+C，保留浏览器 profile、数据库及任务证据；先停止接管再手动操作。回退源码使用具体提交 git revert，QQ集成在其独立仓库回退；不回滚/删除运行牌谱来覆盖真实经历。
+
+## 中断与恢复步骤
+
+1. 能访问面板时先按暂停或急停，确认enabled=false、输入租约空闲；服务失联时保留专用Chrome及profile，不清理浏览器数据，也不创建重复房间。服务重新启动会把尚未终场的记录标为interrupted，保存已录事件；不伪造终场点数。
+
+   已停止接管但仍停在真实小局/终场结算页时，可按“继续结算”（控制接口confirm-results）。它只启动有权威结果支持的可见结算确认，不启用打牌；新局或停止使其撤销。不能以补齐结算页面把此前失败场改为合格整场。
+2. 原Chrome仍在时，`打开专用浏览器`发现9223端口被占用会拒绝另开。控制接口`POST /control/reattach-browser`接受`{"pid":原专用Chrome进程号}`；它会核验独立profile及页面身份，绑定监听后重载页面获取真实恢复信息。请求必须带本机control_token，不能使用read/navigation令牌；不要把令牌写进终端命令、截屏或URL。可在本机Python脚本中通过Settings.load()和httpx设置Authorization。
+3. 重新从面板查找并绑定同一专用进程窗口，核对authenticated、牌局身份、completeness、consistent及timer_verified；服务默认保持停止。只有恢复时序完整且当前操作期限可信时才重新接管，旧窗口不会补发动作。无法恢复完整旧局时继续记录，下一完整小局建立新状态，不覆盖已有事件。
+4. 大厅指令使用原command_id查询；uncertain提交只能重验实际结果，不重新匹配/建房。准备与实际开始分开确认；恢复后没有当前房间证据的历史成功不能说成仍在房间。新凭据、验证码、匹配取消和自动交接的未完范围以TODO为准。
+
+数据库v2回退到旧程序前必须停止全部写入并成套恢复迁移前备份；普通功能回退仅git revert源码，不回滚事实。需要备份正在运行的SQLite时用SQLite backup接口取得一致副本，不能仅复制WAL主文件；浏览器profile备份应先关闭其进程。保留所有原始失败报告，重测使用新文件名。
+
+新机器安装源码还需要当前兼容的本机proto、用户自行登录的专用profile及本机界面校准；仓库不附带这些运行资产。`python -m playwright install chromium`供隔离浏览器验证使用，生产使用已配置的系统Chrome。当前环境`pip check`通过；独立全新机器/账号的最终交付演练仍由VAL-009验收，不能以当前机器运行成功代替。

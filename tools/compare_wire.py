@@ -160,6 +160,7 @@ async def run(args):
                     context.data['clock']['soft_seconds_remaining'] = 5.0
                     context.data['clock']['decision_seconds_remaining'] = 14.2
                     record = {'case':label, 'source':'constructed' if label.startswith('constructed') else 'archived_observed',
+                              'variant':'baseline' if context is rich else 'candidate',
                               'repeat':repeat, 'format':context.data['v'], 'equivalent':True}
                     before_usage = store.db.execute('SELECT COALESCE(MAX(rowid),0) FROM records').fetchone()[0]
                     started = time.monotonic()

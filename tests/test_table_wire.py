@@ -20,6 +20,15 @@ def test_named_rows_preserve_absent_null_order_and_duplicates():
             unpack_rows(broken)
 
 
+def test_short_context_uses_exact_readable_contract_without_extra_explanations(state):
+    actions = legal_actions(state)
+    readable = build_context(state,actions,compact=True)
+    gated = build_context(state,actions,compact=True,tabled=True)
+    assert gated.data['v'] == readable.data['v'] == 'mj.readable.2'
+    assert isinstance(gated.data['public_events'],list)
+    assert semantic_context(readable) == semantic_context(gated)
+
+
 def test_table_context_preserves_complete_rivers_facts_and_plan_reference(state):
     operation = state.operation.model_copy(deep=True)
     for i in range(1,25):

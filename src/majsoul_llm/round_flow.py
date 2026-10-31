@@ -23,6 +23,17 @@ class RoundFlow:
             except asyncio.CancelledError:
                 pass
 
+    async def resume(self):
+        service = self.service
+        state = service.engine.state
+        if (service.navigator.busy() or service.coordinator.enabled or service.coordinator.active()
+                or service.input_lease.owner or self.task and not self.task.done()):
+            raise LobbyError('result_flow_input_busy')
+        if not state or state.phase.value not in ('round_end','ended'):
+            raise LobbyError('authoritative_result_required')
+        service.executor.mouse.stop.clear()
+        await self.changed(state,True)
+
     async def changed(self, state, allowed):
         if self.task and not self.task.done():
             if state and state.round_uid == self.round_uid and state.phase.value in ('round_end','ended'):

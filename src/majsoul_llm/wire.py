@@ -33,7 +33,7 @@ p不变为null；变化时为完整计划对象，键v/e/g/a/y/p/s/r分别是旧
 def prompt_for(version):
     if version == 'mj.tables.1':
         return prompt_for('mj.readable.2') + (
-            '\npublic_events和每家river采用具名列对象{columns,rows}。columns每项是一组完整列名；'
+            '\npublic_events和每家river可以是原对象数组，或具名列对象{columns,rows}。columns每项是一组完整列名；'
             'rows每行的第一个整数是columns的从0开始索引，之后的值依次对应所选列名。'
             '每行仍是一条完整事件/弃牌，顺序不变；请按列名读取全部行，不把首整数当座位。'
             '不同列组区分缺失字段与显式null；牌河仍保留赤牌、摸切、立直及被鸣走信息。')
@@ -154,11 +154,12 @@ def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, mem
         event_refs = {short:long for long,short in long_to_short.items()}
         data = replace_refs(data, long_to_short)
         data['actions'], data['static_facts'] = share_explanations(data['actions'])
-    if tabled:
+    if tabled and len(data['public_events']) >= 16:
         data['v'] = 'mj.tables.1'
         data['public_events'] = pack_rows(data['public_events'])
         for player in data['players']:
-            player['river'] = pack_rows(player['river'])
+            if len(player['river']) >= 8:
+                player['river'] = pack_rows(player['river'])
     # The model never receives input coordinates, credential material or the whole yaku catalog.
     fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return Context(q, data, mapping, fingerprint, event_refs)
@@ -179,7 +180,8 @@ def semantic_context(context):
     if data['v'] == 'mj.tables.1':
         data['public_events'] = unpack_rows(data['public_events'])
         for player in data['players']:
-            player['river'] = unpack_rows(player['river'])
+            if isinstance(player['river'],dict):
+                player['river'] = unpack_rows(player['river'])
     data = {key:value for key,value in data.items() if key not in ("q", "v", "actions", "features", "facts", "static_facts")}
     data["actions"] = semantic_actions(context)
     return data

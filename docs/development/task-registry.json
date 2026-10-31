@@ -565,7 +565,9 @@
         "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
       "completed_record": "docs/development/completed/DEV-019-visible-targets.md",
-      "commits": [],
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -591,7 +593,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-020-physical-input.md",
       "commits": [
-        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0",
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
       ],
       "completed_on": "2026-11-01"
     },
@@ -616,7 +619,9 @@
         "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
       "completed_record": "docs/development/completed/DEV-021-action-transactions.md",
-      "commits": [],
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -788,7 +793,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-027-control-panel.md",
       "commits": [
-        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0",
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
       ],
       "completed_on": "2026-11-01"
     },
@@ -818,7 +824,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-028-validation-tools.md",
       "commits": [
-        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
+        "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0",
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
       ],
       "completed_on": "2026-11-01"
     },
@@ -827,7 +834,7 @@
       "kind": "delivery",
       "milestone": "M8",
       "title": "运行恢复、依赖来源与交付文档",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-023",
         "DEV-025",
@@ -844,11 +851,12 @@
         "锁定依赖、启动/配置/停止/恢复/回退手册、逐项来源许可与本机数据边界",
         "任务视图/日志/提交关联齐全，未验收点明确，秘密和运行档案不上传"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "2026-11-01 actual QQ MCP four read tools available, zero external messages/navigation submissions; temporary privacy and role-token boundary tests pass; current runbook/dependency/license checks documented."
+      ],
+      "completed_record": "docs/development/completed/DEV-029-runbook.md",
       "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "VAL-001",
@@ -1008,7 +1016,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "QQ按需查询、权限和真实经历验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-023",
         "DEV-026",
@@ -1022,12 +1030,14 @@
         "活动小局reason/计划依据/引用自由文本不会间接泄露本家暗手或计划"
       ],
       "evidence": [
-        "2026-10-31 QQ真实MCP四查询及导航状态再次通过，外发和导航提交均0；完整隐私/经历专项仍按独立验收跟踪。"
+        "2026-10-31 QQ真实MCP四查询及导航状态再次通过，外发和导航提交均0；完整隐私/经历专项仍按独立验收跟踪。",
+        "2026-11-01 actual QQ MCP four read tools available, zero external messages/navigation submissions; temporary privacy and role-token boundary tests pass; current runbook/dependency/license checks documented."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/VAL-007-query-privacy.md",
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
-      ]
+      ],
+      "completed_on": "2026-11-01"
     },
     {
       "id": "VAL-008",
@@ -1274,7 +1284,10 @@
         "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
       "completed_record": "docs/development/completed/DEV-032-background-mode.md",
-      "completed_on": "2026-11-01"
+      "completed_on": "2026-11-01",
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
+      ]
     },
     {
       "id": "DEV-033",
@@ -2246,7 +2259,9 @@
         "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
       "completed_record": "docs/development/completed/DEV-068-menu-band.md",
-      "commits": [],
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -2269,8 +2284,31 @@
         "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
       "completed_record": "docs/development/completed/DEV-069-panel-mode.md",
-      "commits": [],
+      "commits": [
+        "9054eaac25afb603ea1eefbde219d4472b53d875"
+      ],
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-070",
+      "kind": "development",
+      "milestone": "M7",
+      "title": "停止接管后显式继续真实结算页",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-027",
+        "DEV-056"
+      ],
+      "design_refs": [
+        "docs/design/api-and-qq.md"
+      ],
+      "acceptance": [
+        "仅控制令牌、无活动输入且真实阶段为小局/终场结果时允许继续可见结算，不能自动恢复打牌",
+        "新局/停止/状态变化撤销，页面实际提交留证；已有结算任务不重复启动，隔离事务验证"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
