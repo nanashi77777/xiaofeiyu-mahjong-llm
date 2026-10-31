@@ -2539,6 +2539,31 @@
       ],
       "implementation_progress": "code_ready",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-079",
+      "kind": "development",
+      "milestone": "M6",
+      "title": "提高经验召回条数并在复盘生成端压缩",
+      "status": "done",
+      "depends_on": [
+        "DEV-024",
+        "DEV-025",
+        "DEV-026"
+      ],
+      "design_refs": [
+        "docs/design/concise-experience-generation.md"
+      ],
+      "acceptance": [
+        "召回上限4到8且内部硬上限不绕过，既有范围/冻结/风格去重保留，输入投影格式不变",
+        "生成Schema与保存入口同时限制新文本，保留适用条件/例外/真实证据，不截断或自动改旧经验；长历史可读可停用，批次验证与回滚通过"
+      ],
+      "evidence": [
+        "30 targeted tests and ruff passed; eight-entry recall cap, zero, frozen scopes, shared schema/storage text limits, atomic long-output rejection, legacy read/support/disable and explicit rewrite preserved. No model request or production mutation."
+      ],
+      "completed_record": "docs/development/completed/DEV-079-concise-experience.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

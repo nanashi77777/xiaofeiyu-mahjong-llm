@@ -88,7 +88,7 @@ mj.tables.1只在public_events达到16条时使用具名列，river少于8行仍
 
 小局思路按round_uid保存和演变，东一0本场与东一1本场属于两个独立小局，进入新小局清空旧思路。断线恢复同一round_uid时可恢复已保存计划；过期尾段不能回写下一小局。复盘形成的长期经验另行召回，不把旧手牌的具体计划直接沿用到新局。
 
-经验复用在本地筛选：开场冻结最多50条候选池，按阶段、顺位、门清、对手立直、场类和役路线匹配，稳定经验优先，每次最多4条。模型只收到主张/条件/适用范围/风格/候选状态及支持反例数量，不携带完整证据事件列表、版本历史或所有复盘。每次独立请求仍重复计入这部分输入，条数上限不等于总token硬上限。当前没有对经验文本设置token上限，整请求用量由供应商usage记录；字段级token没有供应商计量，不用字符数伪称精确token。
+经验复用在本地筛选：开场冻结最多50条候选池，按阶段、顺位、门清、对手立直、场类和役路线匹配，稳定经验优先，每次最多8条。模型只收到主张/条件/适用范围/风格/候选状态及支持反例数量，不携带完整证据事件列表、版本历史或所有复盘。每次独立请求仍重复计入这部分输入，条数上限不等于总token硬上限。新经验在生成及保存端限制claim≤120字符（目标30～60汉字）、conditions最多3条且每条≤64字符、reason≤160字符；保留必要限制/例外及完整证据引用，超长拒绝而不截断。旧档案不自动改写；只补证/停用可省略旧文本，主动改主张/条件重新按candidate复核。这是字符上限，不是token上限；整请求用量仍由供应商usage记录，字段级没有供应商计量，不用字符数伪称精确token。
 
 2026-11-01本轮实测当前场最近20次召回为2～3条，完整JSON569～976字符；最新9条经验全部candidate，尚无stable。这是当时的事实快照，不代表学习有效已证明。稳定经验需原场之后至少三场独立复核及反例检查；修改主张/条件重回candidate，错误经验inactive并保留历史。复盘读取整场及相关资料，开销另按review统计，实时决策优先且可抢占复盘。
 
@@ -96,7 +96,7 @@ mj.tables.1只在public_events达到16条时使用具名列，river少于8行仍
 
 和牌归属无需迁移或复制旧牌谱。`GET /api/v1/mahjong/rounds/{id}`的wins和`matches/{id}`的小局索引给出荣和/自摸、winner_seat、from_seat、tile与原事件引用；绝对座位以self_seat对照本家。整场win_summary的deal_in_events按一次多家和去重，deal_in_winners分别计和牌者，自摸支付不计放铳。来源缺失/冲突保留unknown/conflict与issues，不能把未知补成猜测。big-hands的outcome补充相同归属，旧字段继续可用。QQ现有mahjong_history工具按需读取即可，不增加对话自动查询。
 
-`python tools/audit_win_outcomes.py --output runtime/win-outcome-audit-<批次>.json`以只读一致性事务核验已有档案；passed仅表示无核对错误，fully_attributed另行表示没有未知/冲突。该工具不请求模型、不写生产库。复盘输入版本为review-input.v2-win-outcomes，新增win_outcomes及win_summary；已有完成复盘任务不会因版本升级自动重新排队。
+`python tools/audit_win_outcomes.py --output runtime/win-outcome-audit-<批次>.json`以只读一致性事务核验已有档案；passed仅表示无核对错误，fully_attributed另行表示没有未知/冲突。该工具不请求模型、不写生产库。复盘输入版本为review-input.v3-concise-experience，保留win_outcomes及win_summary并要求生成短经验；已有完成复盘任务不会因版本升级自动重新排队。
 
 <qq-project>\runtime\mahjong-readonly.json 只保存 loopback 地址与 readToken；四类 MCP 工具按需查询。不会每次对话访问，不提供控制或经验写接口。活动小局隐藏暗手、完整计划及解释自由文本；已结束小局可以读取记录。最近二十场范围由 scope_cursor 固定，包含中断记录；大牌只统计同一集合中的本家6番以上或役满。
 

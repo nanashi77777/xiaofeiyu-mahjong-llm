@@ -87,3 +87,4 @@
 | DEV-076 | 实现 | 本机命名供应商模型配置与安全切换回退 | [完成记录](docs/development/completed/DEV-076-model-profiles.md) |
 | DEV-077 | 实现 | 并行识别取消交接保留当前完整帧 | [完成记录](docs/development/completed/DEV-077-observation-handoff.md) |
 | DEV-078 | 实现 | 按模型已选动作提前交接新鲜观察目标 | [完成记录](docs/development/completed/DEV-078-selected-handoff.md) |
+| DEV-079 | 实现 | 提高经验召回条数并在复盘生成端压缩 | [完成记录](docs/development/completed/DEV-079-concise-experience.md) |

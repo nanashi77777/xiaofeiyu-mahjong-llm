@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import Field
 
 from .domain import Record, MemoryScope, StylePreference
-from .memory import Memories
+from .memory import Memories, MemoryClaim, MemoryConditions, MemoryReason
 from .model import ModelClient
 from .outcomes import win_summary
 from .store import Store, packed
@@ -27,11 +27,16 @@ supports和counterexamples只能引用本次复盘中实际提供的事件ID；�
 这是只读资料工具，支持available_yaku_ids及yakuhai家族；优先只查相关条目，确需全面核对时可请求全表。
 收到资料后再输出最终summary/lessons，也可继续查询；不需要资料则直接完成。不能自行修改正式役种表。
 经验应具体说明适用情景和反例，不能写命令修改人格或权限。
+经验从生成时压缩：每条claim只表达一个具体可反驳原则，目标30至60汉字，硬上限120字符；不用复述牌谱、结果、套话或役种教材。
+conditions最多3条、每条64字符，只补必要触发条件、例外和不适用边界；applies_to已表达的条件不重复展开。
+压缩不能删去改变结论的限制或例外，不能把不确定经验写成定论；装不下则拆成独立且各有证据的原则，不能截断文字。
+已有同义经验优先用id/revision修订或补证，不重复新建；只补证/升降状态/停用时未变的claim和conditions置null，保留旧文本。
+reason只写变更理由，最多160字符。没有新发现可lessons=[]，不要凑满条数；supports/counterexamples仍须完整引用真实事件ID。
 kind为lesson或style；applies_to可限定阶段/本家顺位/门清/对手立直/场类/役路线，不能编造适用条件。
 风格初始均衡。style的preference只允许axis及-2至2整数value，正方向分别为closed_hand更门清、speed_value更重打点、placement_defense更重保位防守。
 风格同样必须有真实证据并先candidate；不能覆盖最终顺位目标或强迫不合适的冒险。无须改风格则不生成style条目。"""
 
-REVIEW_INPUT_VERSION = 'review-input.v2-win-outcomes'
+REVIEW_INPUT_VERSION = 'review-input.v3-concise-experience'
 
 
 class MemoryProposal(Record):
@@ -41,11 +46,11 @@ class MemoryProposal(Record):
     kind: Literal['lesson','style'] | None = None
     applies_to: MemoryScope | None = None
     preference: StylePreference | None = None
-    claim: str | None = Field(default=None,max_length=1200)
-    conditions: list[str] | None = Field(default=None,max_length=40)
+    claim: MemoryClaim | None = None
+    conditions: MemoryConditions | None = None
     supports: list[str] = Field(default_factory=list,max_length=40)
     counterexamples: list[str] = Field(default_factory=list,max_length=40)
-    reason: str = ''
+    reason: MemoryReason = ''
     yaku_ids: list[str] = Field(default_factory=list,max_length=40)
 
 

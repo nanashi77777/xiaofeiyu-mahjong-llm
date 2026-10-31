@@ -4,9 +4,25 @@ from __future__ import annotations
 import json
 import uuid
 from contextlib import nullcontext
+from typing import Annotated
+
+from pydantic import Field
 
 from .store import Store, packed, utcnow
-from .domain import ExperienceRevision, MemoryScope, StylePreference
+from .domain import ExperienceRevision, MemoryScope, Record, StylePreference
+
+MEMORY_RECALL_LIMIT = 8
+MemoryClaim = Annotated[str, Field(min_length=1, max_length=120)]
+MemoryCondition = Annotated[str, Field(min_length=1, max_length=64)]
+MemoryConditions = Annotated[list[MemoryCondition], Field(max_length=3)]
+MemoryReason = Annotated[str, Field(max_length=160)]
+
+
+class ConciseMemoryText(Record):
+    """New/rewritten text limits; archived v1 memories remain readable intact."""
+    claim: MemoryClaim
+    conditions: MemoryConditions = Field(default_factory=list)
+    reason: MemoryReason = ''
 
 
 class Memories:
@@ -58,6 +74,16 @@ class Memories:
         claim = proposal.get("claim", previous.get("claim", "") if previous else "")
         if not isinstance(claim, str) or not claim or len(claim) > 1200:
             raise ValueError("invalid memory claim")
+        conditions = proposal.get('conditions', (previous or {}).get('conditions', []))
+        reason = proposal.get('reason', '')
+        if not isinstance(reason, str) or len(reason) > 160:
+            raise ValueError('memory revision reason must fit 160 characters')
+        changed_text = not previous or claim != previous['claim'] or conditions != previous['conditions']
+        if status != 'inactive' and changed_text:
+            # Reject rather than truncate: a suffix may contain the exception
+            # that makes a Mahjong lesson applicable. Historical text is only
+            # rewritten by an explicit, evidenced model proposal.
+            ConciseMemoryText(claim=claim, conditions=conditions, reason=reason)
         supports = list(dict.fromkeys((previous or {}).get("supports", []) + proposal.get("supports", [])))
         for event_id in proposal.get("supports", []) + proposal.get("counterexamples", []):
             row = self.store.db.execute("SELECT match_id FROM events WHERE id=?", (event_id,)).fetchone()
@@ -86,14 +112,14 @@ class Memories:
             if not origin or any(not timestamp or timestamp <= origin for timestamp in subsequent):
                 raise ValueError('stable memory review matches must actually follow its source match')
         memory = {"schema_version":"mahjong.memory.v1","id": id, "revision": (previous or {}).get("revision", 0) + 1, "status": status, "claim": claim,
-                  "conditions": proposal.get("conditions", (previous or {}).get('conditions',[])), "supports": supports,
+                  "conditions": conditions, "supports": supports,
                   'kind':kind, 'applies_to':scope, 'preference':preference,
                   "counterexamples": list(dict.fromkeys((previous or {}).get('counterexamples',[])+proposal.get("counterexamples", []))),
                   "reviewed_matches": sorted(reviewed),
                   "origin_match": match_id if changed_claim else (previous or {}).get("origin_match", match_id),
                   "catalog_version": catalog_version or (previous or {}).get('catalog_version'),
                   "yaku_ids": proposal.get("yaku_ids", (previous or {}).get('yaku_ids',[])),
-                  "reason": proposal.get("reason", ""), "updated_at": utcnow()}
+                  "reason": reason, "updated_at": utcnow()}
         memory = ExperienceRevision.model_validate(memory).model_dump(mode='json')
         with self.store.db if commit else nullcontext():
             self.store.db.execute("INSERT INTO memories VALUES(?,?,?,?,?)", (id, memory["revision"], status, utcnow(), packed(memory)))
@@ -104,7 +130,12 @@ class Memories:
         # selects a small relevant subset, without choosing or ranking actions.
         return self.query(limit=50)
 
-    def recall(self, frozen, state, yaku_ids=(), limit=4):
+    def recall(self, frozen, state, yaku_ids=(), limit=MEMORY_RECALL_LIMIT):
+        if type(limit) is not int or limit < 0:
+            raise ValueError('memory recall limit must be a nonnegative integer')
+        limit = min(limit, MEMORY_RECALL_LIMIT)
+        if limit == 0:
+            return []
         matched = []
         menzen = all(m.closed for m in state.players[state.self_seat].melds)
         threat = any(p.riichi != 'none' for seat,p in enumerate(state.players) if seat != state.self_seat)
