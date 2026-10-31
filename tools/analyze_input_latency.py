@@ -54,6 +54,8 @@ def analyze(database, matches):
                       'input_ms':receipt.get('input_ms'), 'read_to_mouse_ms':receipt.get('read_to_mouse_ms'),
                       'preobserved':any(s.get('stage')=='preobserved_target' for s in receipt.get('input_steps', []))}
             metrics = decision['metrics'] if decision else {}
+            sample['handoff_ms'] = metrics.get('observation_handoff_ms')
+            sample['handoff_mode'] = metrics.get('observation_handoff_mode')
             commit = metrics.get('action_committed_mono')
             if commit is not None and receipt.get('clicked_mono') is not None:
                 sample['post_model_ms'] = (receipt['clicked_mono']-commit)*1000
@@ -71,7 +73,8 @@ def analyze(database, matches):
                    'confirmed':len(samples), 'preobserved':sum(s['preobserved'] for s in samples),
                    'five_second_confirmed':sum(s['read_to_mouse_ms']<=5000 for s in samples if s['read_to_mouse_ms'] is not None),
                    'distributions':{key:distribution([s[key] for s in samples if s[key] is not None])
-                                    for key in ('input_ms','read_to_mouse_ms','post_model_ms')},
+                                    for key in ('input_ms','read_to_mouse_ms','post_model_ms','handoff_ms')},
+                   'handoff_modes':dict(Counter(s['handoff_mode'] for s in samples)),
                    'timing_sources':dict(Counter(s['timing_source'] for s in samples)), 'samples':samples}
         report['matches'].append(summary)
     return report

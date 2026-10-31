@@ -2519,7 +2519,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "按模型已选动作提前交接新鲜观察目标",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-077"
       ],
@@ -2530,10 +2530,15 @@
         "仅所需全部目标足够新鲜且尚处只读捕获时取消多余帧，分类中仍排空，不放宽原安全门槛",
         "显式记录交接耗时并比较模型提交到点击；隔离竞态与独立真实5＋10验证，旧报告不覆盖"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "307 pytest/ruff; real 5+10 first nine confirmed actions exercise fresh selected cancellation and bounded capture wait, all legal and no mismatch; full-game validation remains separate."
+      ],
+      "completed_record": "docs/development/completed/DEV-078-selected-handoff.md",
+      "commits": [
+        "b02fb0ae67c20d1079542ded1b0dfa9b8bbbeac8"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
