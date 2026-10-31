@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timezone
 
 from .memory import Memories
+from .outcomes import win_summary
 from .store import Store, packed, utcnow
 
 
@@ -81,9 +82,12 @@ class Queries:
         state = self.store.latest(match_id)
         if not state:
             raise KeyError("match not found")
-        rounds = [{"id":r["id"], "sequence":r["seq"], "status":r["status"], "has_result":bool(r["result_event_id"])}
+        outcomes = self.store.win_outcomes(match_id)
+        rounds = [{"id":r["id"], "sequence":r["seq"], "status":r["status"], "has_result":bool(r["result_event_id"]),
+                   "wins":[w for w in outcomes if w['round_id'] == r['id'] and r['result_event_id']]}
                   for r in self.store.db.execute("SELECT id,seq,status,result_event_id FROM rounds WHERE match_id=? ORDER BY seq", (match_id,))]
-        return self.envelope({**self.summary(state), "rounds":rounds}, state=state)
+        return self.envelope({**self.summary(state), "rounds":rounds,
+                              "win_summary":win_summary(outcomes, state.self_seat)}, state=state)
 
     def round(self, round_id, offset=0, limit=50):
         row = self.store.db.execute("SELECT * FROM rounds WHERE id=?", (round_id,)).fetchone()
@@ -115,13 +119,15 @@ class Queries:
                                         if r["round_uid"] == round_id]
         result = self.store.event(row["result_event_id"]) if not current and row["result_event_id"] else None
         return self.envelope({"round_id":round_id, "match_id":state.match_id, "events":events, "decisions":decisions,
-                              "active_private_fields_hidden":current, "result":result.data if result else None},
+                              "active_private_fields_hidden":current, "result":result.data if result else None,
+                              "wins":[] if current else self.store.win_outcomes(state.match_id, round_id)},
                              state=state, next_cursor=str(offset+limit) if len(events) == limit else None)
 
     def big_hands(self, scope_cursor=None, offset=0, limit=10):
         ids, scope_cursor = self.scope(scope_cursor)
         states = {id:self.store.latest(id) for id in ids}
         wins = []
+        outcomes = {w['id']:w for id in ids for w in self.store.win_outcomes(id)}
         for row in self.store.db.execute("SELECT * FROM wins ORDER BY rowid DESC"):
             state = states.get(row["match_id"])
             if not state or state.self_seat != row["seat"]:
@@ -133,8 +139,9 @@ class Queries:
             win = event.data["hules"][row["win_index"]]
             wins.append({"id":row["id"], "match_id":row["match_id"], "round_id":row["round_uid"], "room_type":state.rules.room_type,
                          "level":"yakuman" if row["yakuman"] else "sanbaiman" if han >= 11 else "baiman" if han >= 8 else "haneman",
-                         "han":han, "fu":row["fu"], "tsumo":win.get("zimo"), "fans":win.get("fans", []),
-                         "points":win.get("point_sum"), "source":"server_hule"})
+                         "han":han, "fu":row["fu"], "tsumo":win.get("zimo", False), "fans":win.get("fans", []),
+                         "points":win.get("point_sum"), "source":"server_hule",
+                         "outcome":outcomes.get(row['id'])})
         return self.envelope(wins[offset:offset+limit], scope_cursor=scope_cursor,
                              next_cursor=str(offset+limit) if offset+limit < len(wins) else None, total=len(wins))
 

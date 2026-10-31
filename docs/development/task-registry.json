@@ -2063,6 +2063,33 @@
         "6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111"
       ],
       "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-063",
+      "kind": "development",
+      "milestone": "M5",
+      "title": "荣和放铳与自摸事实归属、查询和复盘输入",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-008",
+        "DEV-010",
+        "DEV-022",
+        "DEV-024"
+      ],
+      "design_refs": [
+        "docs/design/state-and-events.md",
+        "docs/design/api-and-qq.md",
+        "docs/design/model-and-memory.md"
+      ],
+      "acceptance": [
+        "从原始和牌及同小局紧邻行动构建每位和牌者的结构化事实：荣和/自摸、和牌者、放铳者、和牌张、来源事件；复用原事件不重复持久化，旧档案及服务重开可重建",
+        "覆盖一炮多响、抢加杠/暗杠、赤牌、重复同张、跨局、缺失或冲突和不完整记录；不以自摸支付、包牌或负点数猜放铳，未知明确标注",
+        "已结束小局/整场/大牌查询提供归属及本家荣和、自摸、放铳事件数和被荣和人数；分页与活动暗手保护保持有效；QQ原只读工具可直接访问",
+        "复盘收到结构化归属和本家汇总，版本化去重范围且不自动批量重审；测试及真实档案只读核验，服务受控重载后验证查询，不发送QQ测试消息"
+      ],
+      "evidence": [],
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

@@ -54,6 +54,8 @@
 
 ## 持久化与完整度
 
+2026-10-31追加DEV-063：和牌归属由原始ActionHule和同小局紧邻的弃牌/摸牌/杠事件投影，不增加重复事实存储。每个和牌者保留稳定的event_id:index、ron/tsumo、绝对座位winner_seat、和牌tile、荣和from_seat及source_event_id。来源存在缺口或冲突时返回明确未知原因，不能倒找更早的同张弃牌或从负点数/包牌猜放铳者。一炮多响逐位保留，但本家放铳事件数按同一和牌事件去重；自摸支付不算放铳。新局、流局和终场隔断来源。抢杠保留kakan/ankan来源，暗杠牌种不能被误认成已知赤牌颜色。派生投影可从旧归档重建。
+
 SQLite WAL 负责查询和事务。已实现v2最小归档，见[最小持久化牌谱](compact-archive.md)：events仅存一份实际数据，rounds及wins引用原事件；matches仅一份最新恢复缓存，不重复保存public_events。决策、执行、token和复盘归独立records，经验归memories，不能混入权威牌谱。wins外键关联match_id、round_uid与来源事件。原先拟议的多张快照/结果表不再重复实现。
 
 每条记录增量落盘；停止、崩溃或断线也保留已经提交的事实。append-only 事件不被复盘覆盖；投影可重建，格式迁移版本化并备份本机库。

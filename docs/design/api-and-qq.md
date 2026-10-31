@@ -34,6 +34,10 @@
 
 ## 拟定 QQ 工具
 
+DEV-063扩展现有响应，不增加QQ入口：已结束小局的wins及整场小局索引提供结构化和牌归属；整场win_summary提供本家荣和、自摸、放铳事件数、被荣和人数及来源未知数量。big-hands沿用原有字段并补充和牌张/来源引用。座位均为服务器绝对0..3，以self_seat识别本家，不能把自摸付款或包牌当放铳。活动小局保持原有暗手保护，未知来源不虚构为确定座位。
+
+归属项的稳定id为原和牌event_id加冒号及和牌者索引。kind取ron/tsumo；source_kind取discard/draw/initial_deal/kakan/ankan；source_status取confirmed/unknown/conflict。只有confirmed的荣和from_seat可计放铳。source_status非confirmed时source_event_id如存在仅为待核对来源，issues解释缺失/冲突，不可当确定证据。tile保留实际0赤牌，未观察到则null；暗杠牌种相同但赤色未知时不猜具体五。win_summary.unattributed_ron统计全场归属未确认的荣和人数，不能假定其都由本家放铳。查询分页只影响events，wins是该小局完整结果，不依赖当前页是否含和牌事件。
+
 初始提供四个业务入口，避免工具目录膨胀：
 
 - `mahjong_live()`：当前战况。

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .domain import Event, Snapshot
+from .outcomes import win_outcomes
 from .state import public_event
 
 
@@ -178,6 +179,15 @@ class Store:
         args += [min(limit, 200), offset]
         return [self._event(row).model_dump(mode="json", exclude={"received_mono"})
                 for row in self.db.execute(query + " ORDER BY seq LIMIT ? OFFSET ?", args)]
+
+    def win_outcomes(self, match_id, round_uid=None):
+        query, args = 'SELECT id,match_id,round_uid,seq,kind,payload FROM events WHERE match_id=?', [match_id]
+        if round_uid is not None:
+            query += ' AND round_uid=?'
+            args.append(round_uid)
+        rows = self.db.execute(query + ' ORDER BY seq', args)
+        return win_outcomes({**{k:row[k] for k in ('id','match_id','round_uid','seq','kind')},
+                             'data':json.loads(row['payload'])} for row in rows)
 
     def record(self, purpose: str, payload: dict[str, Any], match_id=None, round_uid=None, id=None):
         id = id or uuid.uuid4().hex

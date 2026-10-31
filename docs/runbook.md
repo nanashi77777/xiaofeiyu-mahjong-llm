@@ -84,6 +84,10 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 ## QQ查询
 
+和牌归属无需迁移或复制旧牌谱。`GET /api/v1/mahjong/rounds/{id}`的wins和`matches/{id}`的小局索引给出荣和/自摸、winner_seat、from_seat、tile与原事件引用；绝对座位以self_seat对照本家。整场win_summary的deal_in_events按一次多家和去重，deal_in_winners分别计和牌者，自摸支付不计放铳。来源缺失/冲突保留unknown/conflict与issues，不能把未知补成猜测。big-hands的outcome补充相同归属，旧字段继续可用。QQ现有mahjong_history工具按需读取即可，不增加对话自动查询。
+
+`python tools/audit_win_outcomes.py --output runtime/win-outcome-audit-<批次>.json`以只读一致性事务核验已有档案；passed仅表示无核对错误，fully_attributed另行表示没有未知/冲突。该工具不请求模型、不写生产库。复盘输入版本为review-input.v2-win-outcomes，新增win_outcomes及win_summary；已有完成复盘任务不会因版本升级自动重新排队。
+
 <qq-project>\runtime\mahjong-readonly.json 只保存 loopback 地址与 readToken；四类 MCP 工具按需查询。不会每次对话访问，不提供控制或经验写接口。活动小局隐藏暗手、完整计划及解释自由文本；已结束小局可以读取记录。最近二十场范围由 scope_cursor 固定，包含中断记录；大牌只统计同一集合中的本家6番以上或役满。
 
 ## 验证工具
