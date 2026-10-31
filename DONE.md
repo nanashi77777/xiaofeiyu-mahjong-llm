@@ -29,6 +29,7 @@
 | DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
 | VAL-002 | 验收 | 标准规则与全合法候选专项验收 | [完成记录](docs/development/completed/VAL-002-rule-matrix.md) |
+| VAL-008 | 验收 | 自主经验修订与后续受益机制验收 | [完成记录](docs/development/completed/VAL-008-memory-lifecycle.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
