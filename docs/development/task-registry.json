@@ -9,11 +9,11 @@
     "reason": "用户明确指示：开始开发",
     "confirmed_on": "2026-10-30"
   },
-  "target_directory": "<project-root>",
+  "target_directory": ".",
   "planned_repository": {
     "owner": "nanashi77777",
     "name": "xiaofeiyu-mahjong-llm",
-    "visibility": "private",
+    "visibility": "public",
     "created": true,
     "url": "https://github.com/nanashi77777/xiaofeiyu-mahjong-llm"
   },
@@ -1072,7 +1072,7 @@
       "id": "VAL-009",
       "kind": "validation",
       "milestone": "M8",
-      "title": "独立私有GitHub与最终交付验收",
+      "title": "独立安全GitHub与最终交付验收",
       "status": "planned",
       "depends_on": [
         "DEV-001",
@@ -1094,7 +1094,7 @@
         "DEVELOPMENT.md"
       ],
       "acceptance": [
-        "新仓库owner/private/origin和推送核验、无秘密、来源许可、任务日志及跨库提交一致，所有首版验收真实完成"
+        "新仓库owner/visibility/origin和推送核验、无秘密、来源许可、任务日志及跨库提交一致，所有首版验收真实完成"
       ],
       "evidence": [],
       "completed_record": null,
@@ -2599,7 +2599,7 @@
       "kind": "delivery",
       "milestone": "M0",
       "title": "完整历史脱敏并公开只读仓库",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-080"
       ],
@@ -2610,8 +2610,14 @@
         "当前和完整历史无个人信息/真实配置/真实局面标识，历史作者匿名化且原始对象不进入公开仓库",
         "只有所有者可写，公开匿名读取验证、分支SHA与任务一致性通过；原仓库始终私有归档"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "330 pytest passed; 43 anonymized commits and 1036 reachable objects audited clean; 172 old sensitive objects inaccessible in new GitHub repository. Anonymous public metadata/README read and archive 404 verified; owner-only collaborator, zero invites/deploy keys/hooks, Actions disabled and workflow read. Original repo remains private archived; local actual model config unchanged."
+      ],
+      "commits": [
+        "e90dca14df54e8df1afd67c9074350a32a7e9072"
+      ],
+      "completed_record": "docs/development/completed/DEV-081-public-repository-release.md",
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

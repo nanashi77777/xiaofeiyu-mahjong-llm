@@ -2,12 +2,6 @@
 
 本视图由 tools/tasks.py 从[任务注册表](docs/development/task-registry.json)生成。已确认方案正在实施；实现与真实验收分别记录。
 
-## M0 · 基线与契约
-
-| ID | 类别/状态 | 工作 | 依赖 | 验收摘要 |
-| --- | --- | --- | --- | --- |
-| DEV-081 | 交付·进行中 | [完整历史脱敏并公开只读仓库](docs/design/public-repository-release.md) | DEV-080 | 当前和完整历史无个人信息/真实配置/真实局面标识，历史作者匿名化且原始对象不进入公开仓库；只有所有者可写，公开匿名读取验证、分支SHA与任务一致性通过；原仓库始终私有归档 |
-
 ## M1 · 权威状态与归档
 
 | ID | 类别/状态 | 工作 | 依赖 | 验收摘要 |
@@ -27,7 +21,7 @@
 | --- | --- | --- | --- | --- |
 | VAL-005 | 验收·进行中 | [500窗口5+10不耗尽计时验收](docs/design/acceptance.md) | DEV-028、VAL-004、VAL-003、VAL-010 | 正常样本至少500真实模型窗口按小局扣池，零耗尽；报告5秒成功率/分位/失败/确认时间 |
 | VAL-006 | 验收·进行中 | [三场完整友人四南与中断恢复验收](docs/design/acceptance.md) | VAL-001、VAL-002、VAL-003、VAL-004、VAL-005、DEV-027 | 三场真实完整AI友人四南，以及另行中断/恢复，终场分数顺位、牌谱与去重一致 |
-| VAL-009 | 验收·未开始 | [独立私有GitHub与最终交付验收](docs/design/acceptance.md) | DEV-001、DEV-002、DEV-029、VAL-001、VAL-002、VAL-003、VAL-004、VAL-005、VAL-006、VAL-007、VAL-008、VAL-010、VAL-011 | 新仓库owner/private/origin和推送核验、无秘密、来源许可、任务日志及跨库提交一致，所有首版验收真实完成 |
+| VAL-009 | 验收·未开始 | [独立安全GitHub与最终交付验收](docs/design/acceptance.md) | DEV-001、DEV-002、DEV-029、VAL-001、VAL-002、VAL-003、VAL-004、VAL-005、VAL-006、VAL-007、VAL-008、VAL-010、VAL-011 | 新仓库owner/visibility/origin和推送核验、无秘密、来源许可、任务日志及跨库提交一致，所有首版验收真实完成 |
 
 ## M9 · 自动登录与指令选场
 

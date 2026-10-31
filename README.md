@@ -2,6 +2,8 @@
 
 项目仓库：[xiaofeiyu-mahjong-llm](https://github.com/nanashi77777/xiaofeiyu-mahjong-llm)。源码、测试和脱敏文档纳入版本控制；实际配置、账号、牌谱、记忆及运行资料只在本机保存。
 
+仓库已公开，公众可以克隆、拉取和fork，源仓库仅所有者可写。公开版本使用完整脱敏历史；示例房号、牌局标识、模型配置和通用提交身份不代表真实运行资料，见[隐私发布说明](SECURITY.md)。
+
 GitHub默认`main`已同步本批已验证开发提交；“had recent pushes”是开发分支更新提示。Git HTTPS当前网络不可达时可使用保留原提交哈希的API后备上传，命令与验证见[开发流程](DEVELOPMENT.md)及[DEV-043完成记录](docs/development/completed/DEV-043-github-sync.md)。
 
 当前阶段为 **方案已确认，正在开发**（2026-10-30用户指示开始）。运行能力以DONE和实际验收记录为准，设计示例不代表功能已经可用。
