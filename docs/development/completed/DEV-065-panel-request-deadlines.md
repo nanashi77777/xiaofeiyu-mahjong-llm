@@ -23,3 +23,5 @@ tools/validate_panel.py加载正式HTML，独立headless、全部路由拦截；
 实际实现哈希由后续commit-index和任务commits登记；回退可revert本实现，重新打开本机面板即可，不需要修改牌谱数据库。
 
 最终同批全量核验：240项pytest通过，ruff与任务一致性检查通过。
+
+已存在实现提交：2cf6c7aa05cef59f82b02489ac729bc86697df74。

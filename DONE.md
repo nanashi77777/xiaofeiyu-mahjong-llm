@@ -64,3 +64,4 @@
 | DEV-063 | 实现 | 荣和放铳与自摸事实归属、查询和复盘输入 | [完成记录](docs/development/completed/DEV-063-win-outcomes.md) |
 | DEV-064 | 实现 | 低频按钮校准、多字形匹配与鸣牌菜单完整性核对 | [完成记录](docs/development/completed/DEV-064-button-calibration.md) |
 | DEV-065 | 实现 | 面板慢请求超时、重连隔离和停止按钮可恢复 | [完成记录](docs/development/completed/DEV-065-panel-request-deadlines.md) |
+| DEV-066 | 实现 | 三吃及多组合、赤牌与多行菜单执行核验 | [完成记录](docs/development/completed/DEV-066-multi-choice-melds.md) |

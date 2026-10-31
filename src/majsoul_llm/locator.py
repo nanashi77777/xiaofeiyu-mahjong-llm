@@ -340,11 +340,21 @@ class ScreenLocator:
                        if 55 < cv2.boundingRect(c)[3] < 105
                        and 30 < cv2.boundingRect(c)[2] < 75
                        and cv2.contourArea(c) > np.prod(cv2.boundingRect(c)[2:])*.7)
-        if not 2 <= len(boxes) <= 16:
+        if not 2 <= len(boxes) <= 64:
             raise InputDeferred('combination tile faces not uniquely segmented')
         if self.classifier is None:
             from .tile_classifier import TileClassifier
             self.classifier = TileClassifier()
+        # Menus may wrap. Sort each visible row before grouping adjacent faces;
+        # global x-order would interleave the top and bottom choices.
+        lines = []
+        for box in sorted(boxes,key=lambda b:(b[1],b[0])):
+            line = next((line for line in lines if abs(line[0][1]-box[1]) <= 8), None)
+            if line is None:
+                lines.append([box])
+            else:
+                line.append(box)
+        boxes = [box for line in lines for box in sorted(line,key=lambda b:b[0])]
         predictions = self.classifier.predict([roi[y:y+bh,x:x+bw] for x,y,bw,bh in boxes])
         # This threshold is classifier probability, independent of template
         # correlation. No candidate names are supplied to the classifier.
@@ -352,7 +362,7 @@ class ScreenLocator:
             raise InputDeferred('combination glyph classification is uncertain')
         rows = []
         for (x,y,bw,bh),(name,confidence) in zip(boxes,predictions,strict=True):
-            if (not rows or x-rows[-1]['right'] > bw*.3):
+            if (not rows or abs(y-rows[-1]['y']) > 8 or x-rows[-1]['right'] > bw*.3):
                 rows.append({'names':[], 'x':x, 'y':y, 'right':x+bw, 'bottom':y+bh, 'confidence':confidence})
             row = rows[-1]
             if abs(y-row['y']) > 8:

@@ -25,5 +25,6 @@
 | 指定模型与役种参考真实验收消费 | xiaofeiyu-mahjong-llm · 161d7aca40c960c1af1d01ddfedfdbf705aff5b9 | VAL-004/011；沿用真实出站和Reviewer证据 |
 | 物理输入隔离、面板恢复与只读事件重放审计 | xiaofeiyu-mahjong-llm · b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0 | 物理13项、面板13项；近期13场缓存匹配，3早期差异保留，完整VAL继续 |
 | 荣和放铳/自摸归属、历史查询及复盘输入 | xiaofeiyu-mahjong-llm · b3f6a72454cefc2d1af580e82f67cfe3f5935096 | DEV-063；237项pytest、16场53条真实归属、HTTP与QQ MCP历史详情通过 |
+| 低频按钮校准、全菜单核对与面板慢请求期限 | xiaofeiyu-mahjong-llm · 2cf6c7aa05cef59f82b02489ac729bc86697df74 | DEV-064/065；240项pytest、真实双吃核验、面板20项；两远端ref已读回核验 |
 
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

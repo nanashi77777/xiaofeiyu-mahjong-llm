@@ -26,3 +26,5 @@ ScreenLocator允许同语义多个字形；同一位置命中去重，多个位�
 提交实际哈希在后续commit-index与任务commits关联。回退源码可revert本实现；回退本机校准可在输入停止时恢复profile.before-buttons备份，原始截图/事件不删除。
 
 最终同批全量核验：240项pytest通过，ruff与任务一致性检查通过。
+
+已存在实现提交：2cf6c7aa05cef59f82b02489ac729bc86697df74。

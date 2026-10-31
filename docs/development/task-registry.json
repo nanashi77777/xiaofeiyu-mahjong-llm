@@ -2135,7 +2135,9 @@
         "239 pytest and ruff; real dual-chi completeness; independent kan glyph .978 and no-button negative; idle calibration installed with backup",
         "Final full suite 240 pytest passed; ruff and 82-task registry checks passed"
       ],
-      "commits": [],
+      "commits": [
+        "2cf6c7aa05cef59f82b02489ac729bc86697df74"
+      ],
       "completed_record": "docs/development/completed/DEV-064-button-calibration.md",
       "completed_on": "2026-10-31"
     },
@@ -2159,8 +2161,35 @@
         "production HTML isolated browser 20 checks passed; hung headers/body, reconnect races, unknown POST and independent stop; zero production controls",
         "Final full suite 240 pytest passed; ruff and 82-task registry checks passed"
       ],
-      "commits": [],
+      "commits": [
+        "2cf6c7aa05cef59f82b02489ac729bc86697df74"
+      ],
       "completed_record": "docs/development/completed/DEV-065-panel-request-deadlines.md",
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-066",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "三吃及多组合、赤牌与多行菜单执行核验",
+      "status": "done",
+      "depends_on": [
+        "DEV-064",
+        "DEV-013"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "规则及模型输入保留全部三吃/更多赤牌组合，不按两个组合截断；模型选任一组合后点击同一消费牌，不依赖菜单顺序",
+        "三组及更多组合和多行菜单可逐组分类，缺项/额外项/重复/低置信/赤牌不符拒绝；完整模板不绕过核对",
+        "构造图像与正式规则→模型动作绑定→执行器完整链路验证，并区分真实双吃旧图及尚待实战三吃；任务日志消费和私库提交完整"
+      ],
+      "evidence": [
+        "11 focused tests passed; all 3 chi selections through real rules/context/prefix/executor; 5 red variants single/wrapped rows; real dual-chi glyph audit remains separate"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-066-multi-choice-melds.md",
       "completed_on": "2026-10-31"
     }
   ],
