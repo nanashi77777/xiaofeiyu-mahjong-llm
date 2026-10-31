@@ -16,7 +16,7 @@ from majsoul_llm.model import ModelClient
 from majsoul_llm.rules import legal_actions
 from majsoul_llm.state import apply_event
 from majsoul_llm.store import Store,utcnow
-from majsoul_llm.wire import build_context
+from majsoul_llm.wire import build_context, semantic_context
 
 
 async def run(args):
@@ -39,24 +39,31 @@ async def run(args):
     report={'kind':'archived_context_stream_probe','started_at':utcnow(),
             'match_id':state.match_id,'window_id':args.window,'format':args.format,'ui_inputs':0,'samples':[]}
     try:
-        for _ in range(args.samples):
-            context=build_context(state,actions,compact=settings.compact_validated)
-            context.data['clock'].update(soft_seconds_remaining=5,decision_seconds_remaining=15)
-            sample={'q':context.q,'started_at':utcnow()}
-            try:
-                choice=await model.begin_decision(context,time.monotonic()+15)
-                sample.update(action_id=choice.action.id,action_ready_ms=choice.metrics['action_ready_ms'],
-                              ttft_ms=choice.metrics['ttft_ms'])
-                decision,_,metrics=await choice.completion
-                sample.update(status='complete',full_ms=metrics['elapsed_ms'],usage=metrics['usage'],
-                              reason=decision.reason,plan_updated=decision.plan_update is not None)
-            except Exception as error:
-                sample.update(status='failed',error_type=type(error).__name__)
-            report['samples'].append(sample)
-            args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
-            brief={k:v for k,v in sample.items() if k not in ('action_id','reason','usage')}
-            brief['tokens']={k:sample.get('usage',{}).get(k) for k in ('input_tokens','output_tokens','total_tokens')}
-            print(json.dumps(brief,ensure_ascii=False),flush=True)
+        for repeat in range(args.samples):
+            if args.compare_tables:
+                contexts = [build_context(state,actions,compact=True,tabled=t) for t in (False,True)]
+                assert semantic_context(contexts[0]) == semantic_context(contexts[1])
+                if repeat%2:
+                    contexts.reverse()
+            else:
+                contexts = [build_context(state,actions,compact=settings.compact_validated)]
+            for context in contexts:
+                context.data['clock'].update(soft_seconds_remaining=5,decision_seconds_remaining=15)
+                sample={'q':context.q,'wire':context.data['v'],'pair':repeat, 'started_at':utcnow()}
+                try:
+                    choice=await model.begin_decision(context,time.monotonic()+15)
+                    sample.update(action_id=choice.action.id,action_ready_ms=choice.metrics['action_ready_ms'],
+                                  ttft_ms=choice.metrics['ttft_ms'])
+                    decision,_,metrics=await choice.completion
+                    sample.update(status='complete',full_ms=metrics['elapsed_ms'],usage=metrics['usage'],
+                                  reason=decision.reason,plan_updated=decision.plan_update is not None)
+                except Exception as error:
+                    sample.update(status='failed',error_type=type(error).__name__)
+                report['samples'].append(sample)
+                args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
+                brief={k:v for k,v in sample.items() if k not in ('action_id','reason','usage')}
+                brief['tokens']={k:(sample.get('usage') or {}).get(k) for k in ('input_tokens','output_tokens','total_tokens')}
+                print(json.dumps(brief,ensure_ascii=False),flush=True)
     finally:
         await model.close()
         report['finished_at']=utcnow()
@@ -70,5 +77,6 @@ if __name__=='__main__':
     parser.add_argument('--window',required=True)
     parser.add_argument('--samples',type=int,default=5)
     parser.add_argument('--format',choices=('nested','short'),default='nested')
+    parser.add_argument('--compare-tables',action='store_true')
     parser.add_argument('--output',type=Path,required=True)
     asyncio.run(run(parser.parse_args()))

@@ -333,6 +333,19 @@ class ScreenLocator:
             raise InputDeferred('combination menu region not calibrated')
         image,sx,sy = self.normalized(raw,profile)
         ox,oy,w,h = profile['combo_region']
+        if not (0 <= ox < ox+w <= image.shape[1] and 0 <= oy < oy+h <= image.shape[0]):
+            raise InputDeferred('combination menu region outside calibrated canvas')
+        # A two-choice calibration is an anchor for the menu band, not its
+        # maximum width. Longer menus extend sideways and may wrap upward.
+        # Never include the concealed hand in this search band.
+        hand = profile.get('hand_region')
+        if hand:
+            hand_top = hand[1]
+            bottom = min(oy+h, hand_top)
+            top = max(0, oy-h)
+            if bottom-oy < 55:
+                raise InputDeferred('combination menu overlaps the concealed hand')
+            ox,oy,w,h = 0,top,image.shape[1],bottom-top
         roi = image[oy:oy+h,ox:ox+w]
         mask = cv2.inRange(cv2.cvtColor(roi,cv2.COLOR_BGR2HSV),(0,0,175),(180,55,255))
         contours,_ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
@@ -340,6 +353,8 @@ class ScreenLocator:
                        if 55 < cv2.boundingRect(c)[3] < 105
                        and 30 < cv2.boundingRect(c)[2] < 75
                        and cv2.contourArea(c) > np.prod(cv2.boundingRect(c)[2:])*.7)
+        if any(x <= 0 or y <= 0 or x+bw >= w or y+bh >= h for x,y,bw,bh in boxes):
+            raise InputDeferred('combination tile face touches the observation boundary')
         if not 2 <= len(boxes) <= 64:
             raise InputDeferred('combination tile faces not uniquely segmented')
         if self.classifier is None:

@@ -1,6 +1,6 @@
 # 参考项目、现有接口与许可
 
-调查为静态只读，不代表旧协议已能运行在当前客户端，不代表已验证本机完整对局。
+最初调查为静态只读；下文区分参考来源与已实施的复用。当前已有真实协议、模型及点击记录，完整计时/三场验收状态以任务登记为准。
 
 | 来源 | 已核验用途 | 复用限制 |
 | --- | --- | --- |
@@ -9,7 +9,7 @@
 | [MajsoulAI](https://github.com/747929791/MajsoulAI) | 事件桥接、座位/牌编码与流程参考；默认分支最近提交2022-03-04 | MIT；传统JianYangAI不能用来做最终动作；其submodule实际指向747929791/MahjongAI fork |
 | [erreurt/MahjongAI](https://github.com/erreurt/MahjongAI) | 手牌/役种/向听与传统策略架构参考；默认分支最近提交2019-02-15 | 仓库未发现许可证，不能按默认可复制处理；首版只参考思路，不复制未授权源码 |
 
-首版优先自主实现领域与协调层，并用明确许可的计算库；外来代码使用前建立逐项来源/版本/许可/修改记录。当前只有方案文档，没有复制四项目源码或模型，不给未来所有派生内容笼统套MIT许可。
+首版自主实现领域与协调层，采用明确许可的mahjong计算库。已复用majsoul_wrapper的MIT牌面分类权重并转换为ONNX，来源、原版本、转换说明及许可证见src/majsoul_llm/assets/majsoul_wrapper/source.json和LICENSE.txt，转换工具为tools/convert_tile_classifier.py。AutoMajsoul的受限视觉内容和无许可证的MahjongAI源码未复制。不得为其他派生内容笼统套MIT许可；详见THIRD_PARTY_NOTICES.md。
 
 ## 本地项目
 
@@ -27,6 +27,6 @@
 
 ## 模型渠道事实
 
-本机现用DSH适配器使用Responses、`reasoning.effort=none`、流式响应和usage解析；没有证据证明当前渠道强制JSON Schema可用。`https://model-provider.invalid/monitor` 的页面壳可访问，但真正状态接口需网页登录。监控只作人工辅助，不当实时动作依赖；TTFT不等于完整操作耗时。
+本项目已使用指定your-model-id、Responses、`reasoning.effort=none`，真实验证JSON Schema、SSE首动作、尾段、usage和取消；证据见VAL-004完成记录。`https://model-provider.invalid/monitor`的页面壳可访问，但真正状态接口需网页登录。监控只作人工辅助，不当实时动作依赖；TTFT不等于完整操作耗时。
 
-本项目当前未调用提供的新密钥，未登录监控或检查私有模型数据。
+麻将专用密钥已用于本机决策与复盘，所有用量按mahjong及凭据指纹登记。凭据与实际usage、模型结果保存在被忽略的runtime，代码和文档不包含密钥；未将监控登录设为运行依赖。

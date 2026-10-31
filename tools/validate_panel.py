@@ -63,6 +63,25 @@ async def run(output):
             await page.get_by_role('button', name='取消所选指令', exact=True).click()
             check('cancel_uses_existing_command_id', report['posts']==[{
                 'path':'api/v1/mahjong/navigation/commands/fixture-qq-command/cancel', 'body':{}}])
+            check('initial_mode_matches_actual_background_mode', await page.locator('#mode').input_value()=='browser_background')
+            await page.select_option('#mode','physical_foreground')
+            await page.evaluate('refresh()')
+            check('poll_preserves_unsubmitted_mode_choice', await page.locator('#mode').input_value()=='physical_foreground')
+            status['input_mode'] = 'physical_foreground'
+            await page.get_by_role('button', name='应用输入模式', exact=True).click()
+            check('mode_application_posts_exact_selected_mode', report['posts'][-1]=={
+                'path':'control/input-mode','body':{'mode':'physical_foreground'}})
+            status['input_mode'] = 'browser_background'
+            await page.evaluate('refresh()')
+            check('clean_mode_tracks_actual_external_change', await page.locator('#mode').input_value()=='browser_background')
+            await page.select_option('#mode','physical_foreground')
+            await page.evaluate('connect()')
+            await page.evaluate('clearInterval(timer)')
+            check('reconnection_resets_draft_to_actual_mode', await page.locator('#mode').input_value()=='browser_background')
+            for name, action in [('打开专用浏览器','browser'),('恢复完整窗口','fit-window'),
+                                 ('仅记录模型选择','shadow'),('开始接管','start'),('暂停','pause'),('急停','emergency')]:
+                await page.get_by_role('button', name=name, exact=True).click()
+                check('control_form_'+action,report['posts'][-1]=={'path':'control/'+action,'body':{}})
             failure = True
             await page.evaluate('refresh()')
             check('disconnect_badge_reports_unknown', '当前状态未知' in await page.locator('#badge').inner_text())

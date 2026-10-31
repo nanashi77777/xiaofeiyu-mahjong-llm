@@ -22,25 +22,48 @@ from majsoul_llm.streaming import ActionPrefix
 from majsoul_llm.wire import build_context
 
 
-def menu(tmp_path, choices, *, wrapped=False):
+def menu(tmp_path, choices, *, wrapped=False, anchor_calibration=False):
     image = np.zeros((723,1284,3), dtype=np.uint8)
     codes = {name:i+30 for i,name in enumerate(sorted({t for group in choices for t in group}))}
     names = {code:name for name,code in codes.items()}
     for i,group in enumerate(choices):
         row,col = divmod(i,3) if wrapped else (0,i)
         for j,tile in enumerate(group):
-            x,y = 220+col*150+j*45, 340+row*100
+            x,y = 220+col*150+j*45, 470-row*100 if anchor_calibration else 340+row*100
             image[y:y+70,x:x+40] = 230
             image[y+34:y+37,x+19:x+22] = (0,0,codes[tile])
     locator = ScreenLocator(tmp_path)
     locator.folder.mkdir(parents=True, exist_ok=True)
-    locator.path.write_text(json.dumps({'width':1284,'height':723,'templates':{},
-                                       'combo_region':[170,300,950,270]}))
+    profile = {'width':1284,'height':723,'templates':{},'combo_region':[170,300,950,270]}
+    if anchor_calibration:
+        profile.update(combo_region=[450,460,390,110],hand_region=[100,600,1100,120])
+        # Visible concealed-hand faces must never become menu choices.
+        image[610:680,300:340] = 230
+    locator.path.write_text(json.dumps(profile))
     class MarkerClassifier:
         def predict(self, images):
             return [(names[int(im[im.shape[0]//2,im.shape[1]//2,2])], 1.) for im in images]
     locator.classifier = MarkerClassifier()
     return locator, cv2.imencode('.png',image)[1].tobytes()
+
+
+@pytest.mark.parametrize('wrapped',[False,True])
+def test_existing_two_choice_anchor_covers_all_five_choices_and_excludes_hand(tmp_path,wrapped):
+    choices = [['0m','6m'],['2m','3m'],['3m','5m'],['5m','6m'],['3m','0m']]
+    locator,raw = menu(tmp_path,choices,wrapped=wrapped,anchor_calibration=True)
+    groups = locator.menu_groups(raw)
+    assert len(groups) == 5
+    assert {tuple(sorted(t)) for t,_ in groups} == {tuple(sorted(t)) for t in choices}
+    for tiles in choices:
+        locator.combo(raw,'chi',tiles,choices)
+
+
+def test_menu_clipped_at_observation_band_is_rejected(tmp_path):
+    locator,raw = menu(tmp_path,[['2m','3m'],['3m','5m']],anchor_calibration=True)
+    image = cv2.imdecode(np.frombuffer(raw,dtype=np.uint8),cv2.IMREAD_COLOR)
+    image[510:580,1000:1040] = 230
+    with pytest.raises(InputDeferred,match='boundary'):
+        locator.menu_groups(cv2.imencode('.png',image)[1].tobytes())
 
 
 @pytest.mark.parametrize('wrapped',[False,True])

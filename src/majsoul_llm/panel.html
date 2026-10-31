@@ -18,7 +18,8 @@ body{margin:0;background:#0b1b24;color:#dfecec;font:15px/1.6 system-ui}main{max-
 <div id="observations" class="grid"><section><h2>当前牌局</h2><pre id="state">尚无观察记录</pre></section><section><h2>本局思路与执行</h2><pre id="plan"></pre><pre id="receipts"></pre></section><section><h2>时间与模型消耗</h2><pre id="metrics"></pre></section><section><h2>查询与经验</h2><div class="row"><button onclick="read('matches')">最近二十场</button><button onclick="read('big-hands')">本家大牌</button><button onclick="read('memories')">打法经验</button></div><pre id="history"></pre></section></div></main>
 <script>
 let token='',timer;const $=id=>document.getElementById(id);const show=(id,data)=>$(id).textContent=JSON.stringify(data,null,2);
-let navigationId=null,refreshing=false,connectionVersion=0,lastUpdate=null,refreshRequest=null;const requests=new Set();
+let navigationId=null,refreshing=false,connectionVersion=0,lastUpdate=null,refreshRequest=null,modeDirty=false;const requests=new Set();
+$('mode').addEventListener('change',()=>{modeDirty=true});
 if(location.hash){$('token').value=decodeURIComponent(location.hash.slice(1));history.replaceState(null,'',location.pathname)}
 function reportError(e){if(e.name!=='StaleConnection')$('message').textContent=e.message}
 async function api(path,data,{signal,timeoutMs=data?15000:5000}={}){
@@ -34,7 +35,7 @@ async function api(path,data,{signal,timeoutMs=data?15000:5000}={}){
     if(!result.r.ok)throw Error(result.value.detail||result.value.error||result.r.status);return result.value;
   }finally{clearTimeout(deadline);requests.delete(controller);signal?.removeEventListener('abort',abort)}
 }
-async function connect(){connectionVersion++;const version=connectionVersion;for(const controller of requests)controller.abort();refreshRequest=null;refreshing=false;token=$('token').value;clearInterval(timer);await refresh();if(version===connectionVersion)timer=setInterval(refresh,1500)}
+async function connect(){connectionVersion++;const version=connectionVersion;for(const controller of requests)controller.abort();refreshRequest=null;refreshing=false;modeDirty=false;token=$('token').value;clearInterval(timer);await refresh();if(version===connectionVersion)timer=setInterval(refresh,1500)}
 function navigationCommands(n){
   const recent=n?.recent||[],ids=recent.map(c=>c.command_id);
   if(!ids.includes(navigationId))navigationId=n?.active_command||recent.find(c=>['waiting_user','uncertain'].includes(c.status))?.command_id||ids[0]||null;
@@ -50,6 +51,7 @@ async function refresh(){
     $('observations').removeAttribute('data-stale');$('observations').style.opacity='';
     $('badge').textContent=s.status;show('state',s.state);show('plan',s.plan);show('receipts',s.receipts);show('navigation',s.navigation);navigationCommands(s.navigation);
     show('metrics',{model:s.model,input_mode:s.input_mode,bank:s.time_bank,timer_verified:s.timer_verified,usage_summary:s.usage_summary,recent_usage:s.token_usage,diagnostics:s.diagnostics,input_error:s.input_error});
+    if(!modeDirty&&['physical_foreground','browser_background'].includes(s.input_mode))$('mode').value=s.input_mode;
     $('message').textContent=!s.enabled?'已停止接管':s.shadow?'当前为观察与模型记录模式':s.input_mode==='browser_background'?'后台模拟点击已启用，系统鼠标不移动':'前台物理点击已启用，失焦暂停输入';
   }catch(e){
     if(version!==connectionVersion)return;
@@ -63,6 +65,6 @@ async function navigationAction(action){try{if(!navigationId)throw Error('请先
 async function control(action,data={}){try{await api('/control/'+action,data);await refresh()}catch(e){reportError(e)}}
 async function windows(){try{let data=await api('/control/windows');$('window').replaceChildren(...data.map(w=>{let o=document.createElement('option');o.value=w.hwnd;o.textContent=w.title+' / '+w.pid;return o}))}catch(e){reportError(e)}}
 async function bind(){await control('bind',{hwnd:Number($('window').value)})}
-async function mode(){await control('input-mode',{mode:$('mode').value})}
+async function mode(){const selected=$('mode').value;try{await api('/control/input-mode',{mode:selected});if($('mode').value===selected)modeDirty=false;await refresh()}catch(e){reportError(e)}}
 async function read(kind){try{show('history',await api('/api/v1/mahjong/'+kind+(kind==='matches'?'?limit=20':'')))}catch(e){reportError(e)}}
 </script></html>

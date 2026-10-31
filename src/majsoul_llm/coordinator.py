@@ -165,7 +165,8 @@ class Coordinator:
             self.store.record('memory_recall',{'window_id':op.window_id,
                               'revisions':[{'id':m['id'],'revision':m['revision']} for m in recalled]},state.match_id,state.round_uid)
             context = build_context(state, actions, plan=self.plan, memories=memory_store.projection(recalled),
-                                    compact=self.settings.compact_validated)
+                                    compact=self.settings.compact_validated,
+                                    tabled=self.settings.compact_validated and self.settings.table_wire_validated)
             context.data["clock"]["local_bank_remaining"] = self.bank.remaining
             context.data["clock"]["verified"] = self.settings.timer_verified
             context.data["clock"]["decision_seconds_remaining"] = max(0, deadline-time.monotonic())

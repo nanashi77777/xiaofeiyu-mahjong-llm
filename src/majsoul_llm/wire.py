@@ -31,6 +31,12 @@ p不变为null；变化时为完整计划对象，键v/e/g/a/y/p/s/r分别是旧
 
 
 def prompt_for(version):
+    if version == 'mj.tables.1':
+        return prompt_for('mj.readable.2') + (
+            '\npublic_events和每家river采用具名列对象{columns,rows}。columns每项是一组完整列名；'
+            'rows每行的第一个整数是columns的从0开始索引，之后的值依次对应所选列名。'
+            '每行仍是一条完整事件/弃牌，顺序不变；请按列名读取全部行，不把首整数当座位。'
+            '不同列组区分缺失字段与显式null；牌河仍保留赤牌、摸切、立直及被鸣走信息。')
     if version == 'mj.readable.2':
         lines = [line for line in SYSTEM.splitlines() if not any(word in line for word in
                  ('紧凑actions', 'discard/riichi的args', 'chi/pon/daiminkan/ankan的args', '紧凑features中的'))]
@@ -54,6 +60,11 @@ class Context:
     fingerprint: str
     event_refs: dict[str, str] = field(default_factory=dict)
 
+    @property
+    def events(self):
+        value = self.data['public_events']
+        return unpack_rows(value) if isinstance(value,dict) else value
+
     def response_schema(self):
         schema = Decision.model_json_schema()
         schema['properties']['q']['const'] = self.q
@@ -64,7 +75,7 @@ class Context:
             plan[key]['maxLength'] = 40
         for key in ('y','p','s'):
             plan[key]['maxItems'] = 2
-        ids = [e['event_id'] for e in self.data['public_events']]
+        ids = [e['event_id'] for e in self.events]
         if ids:
             plan['e']['items']['enum'] = ids
         else:
@@ -84,7 +95,7 @@ class Context:
             version = (self.data.get("plan") or {}).get("version", 0)
             if plan["based_on_plan_version"] != version:
                 raise ValueError("stale round plan")
-            ids = {e["event_id"] for e in self.data["public_events"]}
+            ids = {e["event_id"] for e in self.events}
             if not isinstance(plan["basis_event_ids"], list) or any(e not in ids for e in plan["basis_event_ids"]):
                 raise ValueError("plan cites unknown evidence")
             decision.plan_update.basis_event_ids = [self.event_refs.get(e,e) for e in plan["basis_event_ids"]]
@@ -105,9 +116,11 @@ class Context:
         return schema
 
 
-def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, memories=None, compact=False):
+def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, memories=None, compact=False, tabled=False):
     if not actions:
         raise ValueError("no action window")
+    if tabled and not compact:
+        raise ValueError('named tables require the validated readable projection')
     q = secrets.token_hex(4)
     data = state.model_dump(mode="json", exclude={"operation", "rules", "observed_at", "last_event_id"})
     data["q"] = q
@@ -141,6 +154,11 @@ def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, mem
         event_refs = {short:long for long,short in long_to_short.items()}
         data = replace_refs(data, long_to_short)
         data['actions'], data['static_facts'] = share_explanations(data['actions'])
+    if tabled:
+        data['v'] = 'mj.tables.1'
+        data['public_events'] = pack_rows(data['public_events'])
+        for player in data['players']:
+            player['river'] = pack_rows(player['river'])
     # The model never receives input coordinates, credential material or the whole yaku catalog.
     fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return Context(q, data, mapping, fingerprint, event_refs)
@@ -158,6 +176,10 @@ def replace_refs(value, mapping):
 
 def semantic_context(context):
     data = replace_refs(context.data, context.event_refs)
+    if data['v'] == 'mj.tables.1':
+        data['public_events'] = unpack_rows(data['public_events'])
+        for player in data['players']:
+            player['river'] = unpack_rows(player['river'])
     data = {key:value for key,value in data.items() if key not in ("q", "v", "actions", "features", "facts", "static_facts")}
     data["actions"] = semantic_actions(context)
     return data
@@ -166,7 +188,7 @@ def semantic_context(context):
 def semantic_actions(context: Context):
     if context.data["v"] == "mj.rich.1":
         return context.data["actions"]
-    if context.data['v'] == 'mj.readable.2':
+    if context.data['v'] in ('mj.readable.2','mj.tables.1'):
         return restore_explanations(context.data['actions'],context.data['static_facts'])
     rows = []
     if context.data['v'] == 'mj.compact.3':
@@ -180,6 +202,36 @@ def semantic_actions(context: Context):
                      "meld_id": args["meld_id"] if kind == "kakan" else None,
                      "features": features[feature]})
     return rows
+
+
+def pack_rows(rows):
+    """Keep every field/value and row order, including absent versus null."""
+    columns, indices, packed = [], {}, []
+    for row in rows:
+        keys = tuple(row)
+        if keys not in indices:
+            indices[keys] = len(columns)
+            columns.append(list(keys))
+        packed.append([indices[keys],*[row[key] for key in keys]])
+    return {'columns':columns,'rows':packed}
+
+
+def unpack_rows(table):
+    if not isinstance(table,dict) or set(table) != {'columns','rows'}:
+        raise ValueError('invalid named table')
+    columns, rows = table['columns'], table['rows']
+    if not isinstance(columns,list) or not isinstance(rows,list):
+        raise ValueError('invalid named table arrays')
+    if any(not isinstance(keys,list) or any(not isinstance(k,str) for k in keys)
+           or len(set(keys)) != len(keys) for keys in columns):
+        raise ValueError('invalid named table columns')
+    result = []
+    for row in rows:
+        if (not isinstance(row,list) or not row or type(row[0]) is not int
+                or not 0 <= row[0] < len(columns) or len(row) != len(columns[row[0]])+1):
+            raise ValueError('invalid named table row')
+        result.append(dict(zip(columns[row[0]],row[1:],strict=True)))
+    return result
 
 
 def share_explanations(value):

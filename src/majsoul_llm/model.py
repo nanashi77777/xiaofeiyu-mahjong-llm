@@ -48,6 +48,7 @@ class ModelClient:
         start = time.monotonic()
         credential = self.settings.api_key.get_secret_value()
         metrics = {"purpose": purpose, "model": self.settings.model, "usage": None, "ttft_ms": None,
+                   "text_delta_count":0, "text_characters":0, "last_delta_ms":None,
                    "elapsed_ms": None, "status": "failed", "billing_scope":"mahjong",
                    "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16],
                    "request_q":payload.get('q')}
@@ -83,7 +84,10 @@ class ModelClient:
                             if metrics["ttft_ms"] is None:
                                 metrics["ttft_ms"] = (time.monotonic() - start) * 1000
                             text_parts.append(event.get("delta", ""))
+                            metrics['text_delta_count'] += 1
+                            metrics['text_characters'] += len(event.get('delta',''))
                             metrics['elapsed_ms'] = (time.monotonic()-start)*1000
+                            metrics['last_delta_ms'] = metrics['elapsed_ms']
                             if on_text and on_text(''.join(text_parts),metrics):
                                 # The game input uses its original deadline.
                                 # Only annotation reception gets the bounded

@@ -27,6 +27,7 @@ riichi_seats（立直状态非none的绝对座位，升序）、
 rivers（四家完整牌河的tile数组，保留顺序）、
 first_event_id（public_events第一个event_id，没有则null）、
 discard_instances（全部discard及riichi候选的[action_id,hand索引,实际牌名]数组，按actions顺序）。
+meld_consumptions（全部chi/pon/daiminkan/ankan/kakan候选的[action_id,kind,consume_indices,对应hand牌名数组]，按actions顺序）。
 原样提取事实；紧凑actions/事实引用先按契约理解，不把未知改成false或0。
 """
 
@@ -67,6 +68,18 @@ def fixtures():
     kan.hand = '5m 5m 5m 0m 1p 2p 3p 6s 7s 8s 1z 1z 2z 2z'.split()
     kan.operation.raw['operation_list'].append({'type':4,'combination':['5m']})
     yield 'constructed-kan-phase', kan
+    triple = sample(0)
+    triple.hand = '3m 4m 6m 7m 2p 3p 5s 6s 7s 1z 1z 2z 3z'.split()
+    triple.drawn_index = None
+    triple.phase = Phase.RESPONSE
+    triple.context['last_discard'] = {'seat':3,'tile':'5m','event_id':'constructed-three-chi-offer'}
+    triple.operation.raw['operation_list'] = [{'type':2,'combination':['3m|4m','4m|6m','6m|7m']}]
+    yield 'constructed-three-chi', triple
+    variants = triple.model_copy(deep=True)
+    variants.hand = '2m 3m 5m 0m 6m 1p 2p 3p 5s 6s 7s 1z 1z'.split()
+    variants.context['last_discard']['tile'] = '4m'
+    variants.operation.raw['operation_list'] = [{'type':2,'combination':['2m|3m','3m|5m','3m|0m','5m|6m','0m|6m']}]
+    yield 'constructed-five-red-chi', variants
 
 
 def cases(store, limit):
@@ -107,7 +120,10 @@ def expected(state, context):
             'rivers':[[r.tile for r in p.river] for p in state.players],
             'discard_instances':[[key,a.tile_index,state.hand[a.tile_index]] for key,a in context.actions.items()
                                  if a.kind in ('discard','riichi')],
-            'first_event_id':context.data['public_events'][0]['event_id'] if state.public_events else None}
+            'meld_consumptions':[[key,a.kind,a.consume_indices,[state.hand[i] for i in a.consume_indices]]
+                                 for key,a in context.actions.items()
+                                 if a.kind in ('chi','pon','daiminkan','ankan','kakan')],
+            'first_event_id':context.events[0]['event_id'] if state.public_events else None}
 
 
 async def run(args):
@@ -132,7 +148,11 @@ async def run(args):
                 memories = [{'id':'constructed-memory', 'revision':1, 'status':'candidate',
                              'claim':'低价值手追打前核对点差和威胁', 'conditions':['南场领先'],
                              'supports':['constructed-prior-event']}]
-            rich, compact = (build_context(state, actions, compact=c, plan=plan, memories=memories) for c in (False, True))
+            if args.candidate == 'tables':
+                rich, compact = (build_context(state, actions, compact=True, tabled=t, plan=plan, memories=memories)
+                                 for t in (False,True))
+            else:
+                rich, compact = (build_context(state, actions, compact=c, plan=plan, memories=memories) for c in (False, True))
             assert semantic_context(rich) == semantic_context(compact)
             for repeat in range(args.repeats):
                 contexts = (rich, compact) if repeat % 2 == 0 else (compact, rich)
@@ -186,5 +206,6 @@ if __name__ == '__main__':
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--archived', type=int, default=4)
     parser.add_argument('--case', action='append')
+    parser.add_argument('--candidate', choices=('readable','tables'), default='readable')
     parser.add_argument('--output', type=Path, default=Path('runtime/wire-pairs.json'))
     asyncio.run(run(parser.parse_args()))

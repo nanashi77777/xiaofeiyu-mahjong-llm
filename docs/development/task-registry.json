@@ -1,7 +1,7 @@
 {
   "schema_version": "development-tasks.v1",
   "design_version": "design-draft-003",
-  "as_of": "2026-10-31",
+  "as_of": "2026-11-01",
   "timezone": "Asia/Shanghai",
   "plan_status": "approved-in-development",
   "implementation_gate": {
@@ -549,7 +549,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "手牌、按钮与鸣牌组合定位",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-005",
         "DEV-004"
@@ -561,17 +561,19 @@
         "验证只读可见几何，必要时局部CV，DPI/缩放/移动映射和最新布局",
         "红五/同牌/摸牌槽/重排/立直选牌/多组合准确；不得调用内部游戏动作函数"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
+      ],
+      "completed_record": "docs/development/completed/DEV-019-visible-targets.md",
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-020",
       "kind": "development",
       "milestone": "M4",
       "title": "真实鼠标输入与前台/急停保护",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-019",
         "DEV-003"
@@ -584,21 +586,21 @@
         "失焦暂停、人工接管撤销、Esc可中止未发送输入；隔离窗口真实验证"
       ],
       "evidence": [
-        "2026-10-31 runtime/physical-input-validation-v4.json：正式WindowsMouse隔离13项通过、DPI120，原v1/v2受阻保留；其他DPI及真实游戏完整矩阵仍待DEV-019/VAL-003。"
+        "2026-10-31 runtime/physical-input-validation-v4.json：正式WindowsMouse隔离13项通过、DPI120，原v1/v2受阻保留；其他DPI及真实游戏完整矩阵仍待DEV-019/VAL-003。",
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/DEV-020-physical-input.md",
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
       ],
-      "status_reason": "基础代码已落地，补全及验证中",
-      "implementation_progress": "code_ready"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-021",
       "kind": "development",
       "milestone": "M4",
       "title": "复合点击事务与实际事件确认",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-017",
         "DEV-020"
@@ -610,10 +612,12 @@
         "立直两步/鸣牌组合保持模型原动作，pass/杠待补牌按实际阶段",
         "mouse_sent与server_confirmed分开；意图偏差和有限同动作补点有证据，不重复盲点"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
+      ],
+      "completed_record": "docs/development/completed/DEV-021-action-transactions.md",
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-022",
@@ -765,7 +769,7 @@
       "kind": "development",
       "milestone": "M7",
       "title": "本机控制面板与可观测状态",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-021",
         "DEV-022",
@@ -779,21 +783,21 @@
         "loopback+控制鉴权/Origin防护，QQ只读令牌不能控局，陈旧/异常不冒充正常"
       ],
       "evidence": [
-        "2026-10-31 修复断线旧状态标记及已有QQ导航指令恢复；tools/validate_panel.py正式HTML隔离13项通过，控制请求全部拦截、零生产控制。整体联调依赖仍开放。"
+        "2026-10-31 修复断线旧状态标记及已有QQ导航指令恢复；tools/validate_panel.py正式HTML隔离13项通过，控制请求全部拦截、零生产控制。整体联调依赖仍开放。",
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/DEV-027-control-panel.md",
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
       ],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-028",
       "kind": "development",
       "milestone": "M8",
       "title": "回放、计时样本与隔离输入验收工具",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-021",
         "DEV-018"
@@ -809,14 +813,14 @@
         "提供同局面丰富/紧凑格式配对样本与报告，固定说明也计token，不用字符数冒充usage"
       ],
       "evidence": [
-        "2026-10-31 新增只读一致性事件审计及真实物理/面板故障隔离工具；严格审计保留3场早期缺concealed_count差异，失败不隐藏。"
+        "2026-10-31 新增只读一致性事件审计及真实物理/面板故障隔离工具；严格审计保留3场早期缺concealed_count差异，失败不隐藏。",
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/DEV-028-validation-tools.md",
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
       ],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-029",
@@ -967,7 +971,8 @@
         "正常样本至少500真实模型窗口按小局扣池，零耗尽；报告5秒成功率/分位/失败/确认时间"
       ],
       "evidence": [
-        "2026-10-31 short-v4：24机会23确认12次五秒内；第24模型完整14.2秒预算无首包而失败，报告冻结。早期与合成Esc隔离重叠，不能用作无干扰通过样本；详见验收进展。"
+        "2026-10-31 short-v4：24机会23确认12次五秒内；第24模型完整14.2秒预算无首包而失败，报告冻结。早期与合成Esc隔离重叠，不能用作无干扰通过样本；详见验收进展。",
+        "2026-11-01 short-v5: isolated production 5+10, 17 opportunities/16 server confirmations/10 within five seconds, one model prefix deadline failure at 8484ms, zero mismatch; frozen runtime/production-5plus10-short-v5.json, NOT passed."
       ],
       "completed_record": null,
       "commits": [
@@ -1158,7 +1163,9 @@
         "合法多解不强求动作一致，多次核对分歧与理由；关键理解回退或净token无收益则回退，不能宣称少样本已证明长期成绩不变",
         "检查实时输入不夹带全役表或大量无关定义，仍保留当前相关役种条件"
       ],
-      "evidence": [],
+      "evidence": [
+        "Historical wire-readable-v2 has 80 rows, 40 per format. Final-request input means 7609.8/6517.1 (~14.36%), but rich/readable final repair counts are 1/13. No per-attempt association in that old artifact; net retry-inclusive benefit remains unverified. New tool captures all attempts; keep validation open."
+      ],
       "completed_record": null,
       "commits": []
     },
@@ -1250,7 +1257,7 @@
       "kind": "implementation",
       "milestone": "M4",
       "title": "用户新增后台浏览器模拟点击模式",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-005",
         "DEV-019",
@@ -1263,9 +1270,11 @@
         "独立选择physical_foreground/browser_background；后台画布截图定位及完整状态/期限/急停校验",
         "隔离最小化窗口点击及真实Unity服务端确认，系统光标与前台不变；不调用内部动作或协议发包"
       ],
-      "evidence": [],
-      "implementation_progress": "code_ready",
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md."
+      "evidence": [
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
+      ],
+      "completed_record": "docs/development/completed/DEV-032-background-mode.md",
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-033",
@@ -2188,9 +2197,80 @@
       "evidence": [
         "11 focused tests passed; all 3 chi selections through real rules/context/prefix/executor; 5 red variants single/wrapped rows; real dual-chi glyph audit remains separate"
       ],
-      "commits": [],
+      "commits": [
+        "5ee227541e79cc9683e88c1becf3b0c5dbce302c"
+      ],
       "completed_record": "docs/development/completed/DEV-066-multi-choice-melds.md",
       "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-067",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "保留完整场况的具名列传输及独立模型理解门禁",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-030",
+        "DEV-054"
+      ],
+      "design_refs": [
+        "docs/design/table-wire.md"
+      ],
+      "acceptance": [
+        "完整时序与四家牌河可逆还原，不削减候选、赤牌、摸切、未知或阶段信息",
+        "真实同模型none配对比较usage、理解与流式首动作耗时，单独门禁，失败保留且可回退"
+      ],
+      "evidence": [
+        "251 pytest passed and named-row roundtrip/whole-context equivalence tests; actual paired channel validation running, production gate remains false."
+      ],
+      "completed_record": null,
+      "commits": []
+    },
+    {
+      "id": "DEV-068",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "多组合菜单观察区域覆盖与边界拒绝",
+      "status": "done",
+      "depends_on": [
+        "DEV-066"
+      ],
+      "design_refs": [
+        "docs/design/multi-choice-coverage.md"
+      ],
+      "acceptance": [
+        "从已校准菜单区域扩展只读搜索，三吃及更多组合不因双吃宽度截断",
+        "真实旧菜单全区域核验与构造三吃/多行/边界缺项验证，不能混入手牌或把不完整菜单当完整"
+      ],
+      "evidence": [
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
+      ],
+      "completed_record": "docs/development/completed/DEV-068-menu-band.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-069",
+      "kind": "development",
+      "milestone": "M7",
+      "title": "面板同步实际输入模式并保留未提交选择",
+      "status": "done",
+      "depends_on": [
+        "DEV-065"
+      ],
+      "design_refs": [
+        "docs/design/api-and-qq.md"
+      ],
+      "acceptance": [
+        "初次及重连呈现实际模式，轮询不覆盖用户未提交的选择",
+        "应用请求结果未知时不自动重试，后续按真实状态收敛，全部控制表单隔离验证"
+      ],
+      "evidence": [
+        "251 pytest passed; ruff passed; implementation-specific evidence and limits in completed_record. Full VAL items remain independent."
+      ],
+      "completed_record": "docs/development/completed/DEV-069-panel-mode.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

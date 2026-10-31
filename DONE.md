@@ -23,11 +23,16 @@
 | DEV-016 | 实现 | 结构化决策与具体小局打法计划 | [完成记录](docs/development/completed/DEV-016-structured-decision-plan.md) |
 | DEV-017 | 实现 | 决策协调、期限内纠错与失效取消 | [完成记录](docs/development/completed/DEV-017-coordinator.md) |
 | DEV-018 | 实现 | 5+20/5+10共享池与真实计时校准 | [完成记录](docs/development/completed/DEV-018-time-bank.md) |
+| DEV-019 | 实现 | 手牌、按钮与鸣牌组合定位 | [完成记录](docs/development/completed/DEV-019-visible-targets.md) |
+| DEV-020 | 实现 | 真实鼠标输入与前台/急停保护 | [完成记录](docs/development/completed/DEV-020-physical-input.md) |
+| DEV-021 | 实现 | 复合点击事务与实际事件确认 | [完成记录](docs/development/completed/DEV-021-action-transactions.md) |
 | DEV-022 | 实现 | 战况、二十场与大牌查询投影 | [完成记录](docs/development/completed/DEV-022-query-projections.md) |
 | DEV-023 | 实现 | 小肥鱼按需只读MCP集成 | [完成记录](docs/development/completed/DEV-023-qq-readonly-integration.md) |
 | DEV-024 | 实现 | 经验与风格的独立修订库 | [完成记录](docs/development/completed/DEV-024-memory-revisions.md) |
 | DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
+| DEV-027 | 实现 | 本机控制面板与可观测状态 | [完成记录](docs/development/completed/DEV-027-control-panel.md) |
+| DEV-028 | 实现 | 回放、计时样本与隔离输入验收工具 | [完成记录](docs/development/completed/DEV-028-validation-tools.md) |
 | VAL-002 | 验收 | 标准规则与全合法候选专项验收 | [完成记录](docs/development/completed/VAL-002-rule-matrix.md) |
 | VAL-004 | 验收 | 指定模型实际渠道兼容性验收 | [完成记录](docs/development/completed/VAL-004-real-model-channel.md) |
 | VAL-008 | 验收 | 自主经验修订与后续受益机制验收 | [完成记录](docs/development/completed/VAL-008-memory-lifecycle.md) |
@@ -36,6 +41,7 @@
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
 | DEV-031 | 实现 | 役种表运行加载、按需检索与版本证据接入 | [完成记录](docs/development/completed/DEV-031-yaku-runtime.md) |
 | VAL-011 | 验收 | 役种参考准确性、实时隔离与复盘引用验收 | [完成记录](docs/development/completed/VAL-011-yaku-reference.md) |
+| DEV-032 | 实现 | 用户新增后台浏览器模拟点击模式 | [完成记录](docs/development/completed/DEV-032-background-mode.md) |
 | DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |
 | DOC-004 | 资料/文档 | 自动登录与选场扩展方案 | [完成记录](docs/development/completed/DOC-004-lobby-plan.md) |
 | DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |
@@ -65,3 +71,5 @@
 | DEV-064 | 实现 | 低频按钮校准、多字形匹配与鸣牌菜单完整性核对 | [完成记录](docs/development/completed/DEV-064-button-calibration.md) |
 | DEV-065 | 实现 | 面板慢请求超时、重连隔离和停止按钮可恢复 | [完成记录](docs/development/completed/DEV-065-panel-request-deadlines.md) |
 | DEV-066 | 实现 | 三吃及多组合、赤牌与多行菜单执行核验 | [完成记录](docs/development/completed/DEV-066-multi-choice-melds.md) |
+| DEV-068 | 实现 | 多组合菜单观察区域覆盖与边界拒绝 | [完成记录](docs/development/completed/DEV-068-menu-band.md) |
+| DEV-069 | 实现 | 面板同步实际输入模式并保留未提交选择 | [完成记录](docs/development/completed/DEV-069-panel-mode.md) |

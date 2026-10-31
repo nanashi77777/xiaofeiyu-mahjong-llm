@@ -32,6 +32,7 @@ class Settings(Record):
     timer_verified: bool = False
     recovery_timer_verified: bool = False
     compact_validated: bool = False
+    table_wire_validated: bool = False
     request_timeout: float = 25
     json_schema: bool = False
     stream_actions: bool = False
