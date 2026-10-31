@@ -72,5 +72,7 @@ def match_report(store, match_id):
         'windows':windows,
         'result_evidence':[{'record_id':r['id'], **r['payload']}
                            for r in store.records('result_ui', match_id, 100)],
+        'client_interventions':[{'record_id':r['id'], **r['payload']}
+                                for r in store.records('client_away', match_id, 10000)],
         'all_failures_retained':True,
     }

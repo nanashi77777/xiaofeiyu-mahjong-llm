@@ -39,7 +39,7 @@ def room_rules(config: dict) -> Rules:
 
 
 class Engine:
-    def __init__(self, store: Store, protocol=None, on_state=None):
+    def __init__(self, store: Store, protocol=None, on_state=None, *, recovery_timer_verified=False):
         self.store, self.protocol, self.on_state = store, protocol, on_state
         self.state: Snapshot | None = None
         self.auth: dict[str, dict] = {}  # ephemeral account→seat mapping, never serialized
@@ -52,6 +52,7 @@ class Engine:
         self.lobby_session = LobbySession()
         self.authenticated_mono = 0
         self.last_frame_mono = 0
+        self.recovery_timer_verified = recovery_timer_verified
 
     def capture_health(self):
         age = max(0, time.monotonic()-self.last_frame_mono) if self.last_frame_mono else None
@@ -231,6 +232,7 @@ class Engine:
         return next_state
 
     async def restore(self, restore):
+        received_mono = time.monotonic()
         actions = restore.get("actions", [])
         if actions and actions[0].get("name") == "ActionNewRound":
             old = self.state
@@ -254,13 +256,30 @@ class Engine:
             self.state.unknown_fields = ["snapshot_only_public_order", "snapshot_meld_semantics", "event_yaku_context"]
             self.state.completeness, self.state.consistent = "partial", False
             self.state.round_completeness = 'partial'
-        self.state.operation = None  # recovered timer age is not calibrated
+        candidate,self.state.operation = self.state.operation,None
+        elapsed = restore.get('passed_waiting_time')
+        clock_reason = 'recovery_timer_not_verified'
+        if (self.recovery_timer_verified and candidate and self.state.consistent
+                and self.state.round_completeness == 'full' and type(elapsed) is int and elapsed >= 0
+                and candidate.fixed_ms is not None and candidate.add_ms is not None):
+            # Current-client calibration: passed_waiting_time is rounded seconds.
+            # Subtract one additional second for rounding/transit uncertainty;
+            # this never grants the original full bank again.
+            elapsed_bound = elapsed+1
+            available = (candidate.fixed_ms+candidate.add_ms)/1000-elapsed_bound
+            clock_reason = 'expired_or_insufficient_margin'
+            if available > .8:
+                self.state.operation = candidate.model_copy(update={
+                    'received_mono':received_mono-elapsed_bound, 'historical':False, 'timer_verified':True})
+                clock_reason = 'calibrated_current_operation'
         if self.state.lifecycle != "ended":
             self.state.lifecycle = "active"
         self.state.observed_at = utcnow()
         self.store.save_snapshot(self.state)
         self.store.record("recovery", {"actions": len(actions), "snapshot_only": not bool(actions),
-                                       "passed_waiting_time_raw": restore.get("passed_waiting_time"), "opened_operation": False}, self.state.match_id, self.state.round_uid)
+                                       "passed_waiting_time_raw": elapsed, 'clock_reason':clock_reason,
+                                       'passed_waiting_time_unit':'seconds' if self.recovery_timer_verified else None,
+                                       "opened_operation": self.state.operation is not None}, self.state.match_id, self.state.round_uid)
         await self.changed(None)
 
     def _known_action(self, action):

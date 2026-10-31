@@ -4,6 +4,7 @@ import time
 from types import SimpleNamespace
 
 import pytest
+from pydantic import SecretStr
 
 from majsoul_llm.config import Settings
 from majsoul_llm.coordinator import Coordinator
@@ -14,6 +15,136 @@ from majsoul_llm.input_lease import InputLease
 from majsoul_llm.native import Window
 from majsoul_llm.round_flow import RoundFlow
 from majsoul_llm.queries import Queries
+
+
+async def test_recovered_current_clock_subtracts_calibrated_age_and_never_refills_saved_bank(store,state):
+    from majsoul_llm.timing import TimeBank
+    from majsoul_llm.domain import Snapshot
+    from conftest import HAND
+    engine = Engine(store,recovery_timer_verified=True)
+    engine.state = Snapshot(match_id='test',self_seat=0)
+    data = {'tiles':HAND,'scores':[25000]*4,'operation':{'seat':0,'time_fixed':5000,'time_add':10000,
+             'operation_list':[{'type':1}]}}
+    actions = [{'name':'ActionNewRound','step':0,'data':data}]
+    await engine.restore({'actions':actions,'passed_waiting_time':6})
+    op = engine.state.operation
+    assert op and not op.historical and op.timer_verified
+    assert 7 <= time.monotonic()-op.received_mono < 8
+    bank = TimeBank(bank=10)
+    bank.enter_round(engine.state.round_uid)
+    assert 6 < bank.deadline(op,verified=True)-time.monotonic() < 8
+    bank.remaining = 2
+    with pytest.raises(TimeoutError):
+        bank.deadline(op,verified=True)
+    assert bank.remaining == 2
+    await engine.restore({'actions':actions,'passed_waiting_time':20})
+    assert engine.state.operation is None
+    assert len(store.events('test')) == 1
+
+
+async def test_recorded_window_is_not_redecided_after_coordinator_restart(store,state):
+    claimed = asyncio.Event()
+    class Model:
+        async def decide(self,*args):
+            claimed.set()
+            await asyncio.Event().wait()
+    settings = Settings(api_key=SecretStr('fixture-credential'))
+    engine = SimpleNamespace(store=store,state=state)
+    first = Coordinator(settings,engine,Model())
+    await first.start()
+    await asyncio.wait_for(claimed.wait(),1)
+    await first.stop()
+    assert store.records('decision_window',state.match_id,1)
+    second = Coordinator(settings,engine,Model())
+    await second.start()
+    assert not second.active() and second.task is None
+
+
+async def test_only_prepress_expiry_can_reobserve_same_semantic_target(state):
+    from majsoul_llm.execution import Target
+    from majsoul_llm.native import InputDeferred, TargetExpired
+    from majsoul_llm.rules import legal_actions
+    action = legal_actions(state)[0]
+    executor = object.__new__(Executor)
+    executor.state_getter = lambda:state
+    executor.input_mode,executor.metrics = 'browser_background',[]
+    executor.mouse = SimpleNamespace(stop=threading.Event(),user=SimpleNamespace(GetAsyncKeyState=lambda key:0))
+    targets,presses = [],[]
+    async def target(semantic,s,indices):
+        targets.append((semantic,indices))
+        return Target((10,10),(0,0,100,100),time.monotonic(),'test',(10,10),{'test':True})
+    async def layout():
+        return {'test':True}
+    async def click(point,deadline,stop,validate):
+        if len(targets) == 1:
+            raise TargetExpired('nothing pressed')
+        await validate()
+        presses.append(point)
+        return time.monotonic()
+    executor.target = target
+    executor.browser = SimpleNamespace(layout_metrics=layout,background_click=click)
+    await executor._execute(state,action,time.monotonic()+3)
+    assert targets == [('tile',[action.tile_index])]*2 and presses == [(10,10)]
+    async def uncertain(*args,**kwargs):
+        raise InputDeferred('possibly pressed')
+    executor.browser.background_click = uncertain
+    targets.clear()
+    with pytest.raises(InputDeferred,match='possibly pressed'):
+        await executor._execute(state,action,time.monotonic()+3)
+    assert len(targets)==1
+
+
+async def test_preobserved_targets_require_same_window_version_and_freshness(state):
+    from majsoul_llm.execution import Target
+    executor=object.__new__(Executor)
+    executor.metrics=[]
+    cached=Target((1,2),(0,0,0,0),time.monotonic(),'parallel_visible_observation',(1,2),{})
+    key=(state.match_id,state.state_version,state.operation.window_id)
+    executor.observed_targets={key:{('tile',(3,)):cached}}
+    calls=[]
+    async def fresh(*args):
+        calls.append(args)
+        return Target((4,5),(0,0,0,0),time.monotonic(),'fresh')
+    executor._target_once=fresh
+    assert await executor.target('tile',state,[3]) is cached
+    assert not calls
+    changed=state.model_copy(deep=True)
+    changed.operation.window_id='new-window'
+    assert (await executor.target('tile',changed,[3])).evidence=='fresh'
+    cached.observed=time.monotonic()-1
+    assert (await executor.target('tile',state,[3])).evidence=='fresh'
+    assert len(calls)==2
+
+
+@pytest.mark.parametrize('model_fails',[False,True])
+async def test_observation_releases_input_owner_before_model_selected_click(store,state,model_fails):
+    from majsoul_llm.model import ModelFailure
+    observed=asyncio.Event()
+    lease=InputLease()
+    pressed=[]
+    class Model:
+        async def decide(self,context,deadline):
+            await observed.wait()
+            if model_fails:
+                raise ModelFailure('fixture channel failure')
+            decision,action=context.validate({'q':context.q,'a':'a0','r':'保留进张','p':None})
+            return decision,action,{}
+    class FakeExecutor:
+        mouse=SimpleNamespace(stop=threading.Event())
+        async def observe(self,s,actions,deadline):
+            async with lease.hold('observer'):
+                observed.set()
+                await asyncio.Event().wait()
+        async def execute(self,s,action,deadline):
+            assert lease.owner is None
+            pressed.append(action)
+            return time.monotonic()
+    coordinator=Coordinator(Settings(integration_test=True),SimpleNamespace(store=store,state=state),Model(),FakeExecutor())
+    coordinator.shadow=False
+    await coordinator.decide(state)
+    assert lease.owner is None
+    assert len(pressed)==(0 if model_fails else 1)
+    assert len(store.records('decision_failure'))==(1 if model_fails else 0)
 
 
 async def test_disconnect_invalidates_operation_before_async_notification(store, state):

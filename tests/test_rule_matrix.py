@@ -100,3 +100,53 @@ def test_all_red_pon_instances_and_discard_furiten(state):
     state.hand=HAND[:-1]
     state.players[0].river=[Discard(tile='1z',event_id='r',seq=1)]
     assert hand_features(state,state.hand)['discard_furiten']
+
+
+def test_chi_projection_marks_suji_kuikae_and_open_route_constraints(state):
+    state.hand='2m 3m 4m 1p 2p 3p 6s 7s 8s 1z 1z 2z 3z'.split()
+    state.context['last_discard']={'tile':'1m','seat':3,'event_id':'offer'}
+    state.phase=Phase.RESPONSE
+    state.operation.raw['operation_list']=[{'type':2,'combination':['2m|3m']}]
+    action=next(a for a in legal_actions(state) if a.kind=='chi')
+    assert not next(item for item in action.features['followup'] if item['tile']=='4m')['standard_kuikae_allowed']
+    tanyao=next(r for r in action.features['routes'] if r['id']=='tanyao')
+    assert not tanyao['possible_with_fixed_melds']
+    assert not any(r['id']=='riichi' for r in action.features['routes'])
+    assert action.features['followup_legality']=='local_projection_requires_next_server_window'
+
+
+@pytest.mark.parametrize('raw_type,combo,consume,kind',[
+    (2,'2m|3m',2,'chi'), (3,'5m|5m',2,'pon'),
+    (5,'5m|5m|0m',3,'daiminkan'), (4,'5m',4,'ankan'),
+])
+def test_server_meld_candidates_preserve_all_physical_instances_and_phase(state,raw_type,combo,consume,kind):
+    fives='5m 5m 5m 0m' if kind=='ankan' else '5m 5m 0m' if kind=='daiminkan' else '5m 5m 5m'
+    state.hand=('2m 3m '+fives+' 1p 2p 3p 6s 7s 8s 1z 1z').split()
+    state.phase=Phase.DISCARD if kind=='ankan' else Phase.RESPONSE
+    state.context['last_discard']={'tile':'1m' if kind in ('chi','ankan') else '5m','seat':3,'event_id':'offer'}
+    state.operation.raw['operation_list']=[{'type':raw_type,'combination':[combo]}]
+    actions=legal_actions(state)
+    selected=[a for a in actions if a.kind==kind]
+    expected=3 if kind=='pon' else 1
+    assert len(selected)==expected
+    assert all(len(a.consume_indices)==consume for a in selected)
+    if kind in ('ankan','daiminkan'):
+        assert all(a.features['after_phase']=='awaiting_replacement' and a.features['shanten'] is None for a in selected)
+    else:
+        assert all(a.features['after_phase']=='awaiting_discard' and a.features['followup'] for a in selected)
+    assert (actions[-1].kind=='pass') == (state.phase==Phase.RESPONSE)
+
+
+def test_added_kan_and_terminal_actions_keep_server_options_despite_unknown_local_value(state):
+    state.hand='0m 1p 2p 3p 6s 7s 8s 1z 1z 2z 2z'.split()
+    state.players[0].melds=[Meld(id='triplet',actor=0,kind='pon',tiles=['5m']*3,event_id='pon')]
+    state.operation.raw['operation_list']=[{'type':6,'combination':['0m']}]
+    added=legal_actions(state)
+    assert len(added)==1 and added[0].kind=='kakan' and added[0].consume_indices==[0]
+    assert added[0].meld_id=='triplet' and added[0].features['shanten'] is None
+    state.phase=Phase.RESPONSE
+    state.context={}
+    state.operation.raw['operation_list']=[{'type':9},{'type':10}]
+    actions=legal_actions(state)
+    assert [a.kind for a in actions]==['ron','abort9','pass']
+    assert actions[0].features['value']=={'certainty':'unknown'}

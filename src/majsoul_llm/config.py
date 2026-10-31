@@ -30,6 +30,7 @@ class Settings(Record):
     bank_seconds: float = 20
     execution_margin: float = 0.8
     timer_verified: bool = False
+    recovery_timer_verified: bool = False
     compact_validated: bool = False
     request_timeout: float = 25
     json_schema: bool = False

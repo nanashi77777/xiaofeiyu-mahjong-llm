@@ -264,6 +264,7 @@ class Receipt(Record):
     elapsed_ms: float | None = None
     input_ms: float | None = None
     read_to_mouse_ms: float | None = None
+    input_steps: list[dict[str, Any]] = Field(default_factory=list)
     reason: str | None = None
     detail: str | None = None
 

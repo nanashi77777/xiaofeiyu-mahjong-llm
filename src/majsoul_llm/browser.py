@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import inspect
+import json
+import subprocess
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -21,6 +23,7 @@ class Browser:
         self.errors = []
         self.input_cdp = None
         self.capture_lock = asyncio.Lock()
+        self.attached_browser = None
 
     async def prepare_background(self):
         if self.input_cdp:
@@ -58,16 +61,93 @@ class Browser:
     async def start(self):
         if self.context:
             return
-        self.playwright = await async_playwright().start()
-        self.context = await self.playwright.chromium.launch_persistent_context(
-            str(self.settings.runtime / "browser-profile"), executable_path=self.settings.chrome_path,
-            headless=False, no_viewport=True, args=["--start-maximized", "--disable-background-timer-throttling",
-                                                "--disable-renderer-backgrounding","--disable-backgrounding-occluded-windows",
-                                                "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling",
-                                                f"--remote-debugging-port={self.settings.debug_port}","--remote-debugging-address=127.0.0.1"])
-        self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
-        self.cdp = await self.context.new_cdp_session(self.page)
+        import httpx
+        async with httpx.AsyncClient(trust_env=False, timeout=1) as client:
+            endpoint = f'http://127.0.0.1:{self.settings.debug_port}/json/version'
+            try:
+                await client.get(endpoint)
+            except httpx.TransportError:
+                pass
+            else:
+                raise InputDeferred('debug port already occupied; reattach the verified dedicated process')
+            # Chrome owns its lifetime, independently of the Playwright driver.
+            # A service crash must not close the in-progress game window.
+            process = subprocess.Popen([self.settings.chrome_path,
+                '--user-data-dir='+str(self.settings.runtime/'browser-profile'),
+                '--remote-debugging-port='+str(self.settings.debug_port), '--remote-debugging-address=127.0.0.1',
+                '--start-maximized', '--no-first-run', '--no-default-browser-check',
+                '--disable-background-timer-throttling','--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling', self.settings.game_url],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+            for _ in range(100):
+                try:
+                    response = await client.get(endpoint)
+                    response.raise_for_status()
+                    break
+                except (httpx.TransportError,httpx.HTTPStatusError):
+                    await asyncio.sleep(.1)
+            else:
+                raise InputDeferred('dedicated browser debugging endpoint did not become available')
+        await self.attach_existing(process.pid)
         await self.fit_window()
+
+    async def attach_existing(self, expected_pid):
+        """Rebind only this runtime's dedicated Chrome; reload recovers facts."""
+        from urllib.parse import urlsplit
+        if self.context:
+            raise InputDeferred('browser is already bound')
+        self.playwright = await async_playwright().start()
+        chrome = None
+        try:
+            chrome = await self.playwright.chromium.connect_over_cdp(
+                f'http://127.0.0.1:{self.settings.debug_port}')
+            pages = [p for c in chrome.contexts for p in c.pages
+                     if urlsplit(p.url).netloc == urlsplit(self.settings.game_url).netloc]
+            if len(pages) != 1:
+                raise InputDeferred('dedicated game page is not unique')
+            self.page = pages[0]
+            pid = await self.process_id()
+            if pid != int(expected_pid):
+                raise InputDeferred('dedicated browser process changed')
+            await asyncio.to_thread(self._verify_profile_process, pid)
+            self.context = self.page.context
+            self.cdp = await self.context.new_cdp_session(self.page)
+            self.attached_browser = chrome
+            await self._listen()
+            await self.page.reload(wait_until='domcontentloaded', timeout=60000)
+        except BaseException as error:
+            if self.consumer:
+                self.consumer.cancel()
+                await asyncio.gather(self.consumer, return_exceptions=True)
+                self.consumer = None
+            if self.cdp:
+                await self.cdp.detach()
+            if chrome:
+                await chrome.close()  # CDP disconnect, not Browser.close.
+            await self.playwright.stop()
+            self.playwright = self.context = self.page = self.cdp = self.attached_browser = None
+            if isinstance(error,(asyncio.CancelledError,InputDeferred)):
+                raise
+            raise InputDeferred('dedicated browser reattachment failed: '+type(error).__name__) from None
+
+    def _verify_profile_process(self, pid):
+        result = subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',
+            f'Get-CimInstance Win32_Process -Filter "ProcessId={int(pid)}" | '
+            'Select-Object ExecutablePath,CommandLine | ConvertTo-Json -Compress'],
+            capture_output=True, text=True, check=True, timeout=15,
+            creationflags=subprocess.CREATE_NO_WINDOW)
+        process = json.loads(result.stdout)
+        if Path(process.get('ExecutablePath') or '').resolve() != Path(self.settings.chrome_path).resolve():
+            raise InputDeferred('dedicated browser executable differs')
+        from .native import windows_command_args
+        args = windows_command_args(process.get('CommandLine') or '')
+        profiles = [a.split('=',1)[1] for a in args if a.startswith('--user-data-dir=')]
+        if len(profiles) != 1 or Path(profiles[0]).resolve() != (self.settings.runtime/'browser-profile').resolve():
+            raise InputDeferred('dedicated browser profile differs')
+
+    async def _listen(self):
         await self.cdp.send("Network.enable")
         await self.page.add_init_script("""(() => { window.__mjLocalPointer=null;
           addEventListener('pointermove',e=>{window.__mjLocalPointer={x:e.clientX,y:e.clientY}},true); })()""")
@@ -78,7 +158,6 @@ class Browser:
             self.page.on("framenavigated", lambda frame: owner.browser_reset() if frame == self.page.main_frame else None)
             self.cdp.on("Network.webSocketClosed", lambda msg: owner.socket_closed(msg["requestId"]))
         self.consumer = asyncio.create_task(self._consume())
-        await self.page.goto(self.settings.game_url, wait_until="domcontentloaded", timeout=60000)
 
     async def fit_window(self):
         """Maximize the page's own native window using its real client viewport."""
@@ -284,7 +363,11 @@ class Browser:
         if self.consumer:
             self.consumer.cancel()
         await self.release_background()
-        if self.context:
+        if self.attached_browser:
+            await self.cdp.detach()
+            await self.attached_browser.close()
+            self.attached_browser = None
+        elif self.context:
             await self.context.close()
         if self.playwright:
             await self.playwright.stop()

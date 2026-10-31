@@ -153,8 +153,9 @@
         "83 pytest passed; ruff passed; domain, receipt and experience contracts validated"
       ],
       "completed_record": "docs/development/completed/DEV-004-domain-contracts.md",
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -179,9 +180,9 @@
         "Browser geometry, passive capture, dedicated process binding and real friend-room evidence; full regression in batch log."
       ],
       "completed_record": "docs/development/completed/DEV-005-browser-capture.md",
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -205,9 +206,9 @@
         "Live/recovery codec fixtures, real current protocol, credential sanitization and unknown action evidence verified."
       ],
       "completed_record": "docs/development/completed/DEV-006-passive-protocol.md",
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -231,8 +232,9 @@
         "Immutable authoritative reduction, deduplication, actual meld/riichi and acknowledged ron-skip furiten verified."
       ],
       "completed_record": "docs/development/completed/DEV-007-authoritative-reducer.md",
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -256,8 +258,9 @@
         "West extension/abort draws/multiwin/final rank fixtures and 13-round real final scores verified; completeness scope fixed."
       ],
       "completed_record": "docs/development/completed/DEV-008-round-match-identity.md",
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -265,7 +268,7 @@
       "kind": "development",
       "milestone": "M1",
       "title": "断线恢复、旧窗口失效与去重",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-008",
         "DEV-010"
@@ -278,11 +281,14 @@
         "sync快照和动作重放只建状态，恢复同场同小局、不点击旧operation",
         "恢复缺口标partial/gaps，不重发时间池，当前有效窗口单次开放"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "tests/test_runtime_lifecycle.py、tests/test_core.py、tests/test_browser_layout.py；runtime/reload-recovery-evidence.json；新启动Chrome PID16192在服务重启后保留且重绑成功。"
+      ],
+      "completed_record": "docs/development/completed/DEV-009-recovery.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-010",
@@ -305,9 +311,9 @@
         "WAL reopen/migration/replay/foreign-key tests and prior real compact archive equivalence verified."
       ],
       "completed_record": "docs/development/completed/DEV-010-transactional-archive.md",
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -315,7 +321,7 @@
       "kind": "development",
       "milestone": "M2",
       "title": "服务端操作约束与完整合法候选",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-008"
       ],
@@ -326,17 +332,21 @@
         "按消息/操作类型解释枚举和combination，覆盖吃替/红牌/立直/三杠/九种等",
         "候选完整且无策略筛选，服务端与本地冲突明确记录，不自动换牌"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "evidence": [
+        "tests/test_core.py、tests/test_rule_matrix.py：普通14实例、赤牌碰/杠全部消费实例、吃替、加杠副露ID、终止候选和未知役值仍保留服务器选择。"
+      ],
+      "completed_record": "docs/development/completed/DEV-011-legal-actions.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-012",
       "kind": "development",
       "milestone": "M2",
       "title": "向听、进张与阶段特征",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-004",
         "DEV-011"
@@ -348,17 +358,21 @@
         "通常/七对/国士、固定面子和赤牌计算正确，可见剩余枚数不冒充牌山",
         "弃牌后确定值、吃碰待弃牌映射、杠待补牌未知、终止动作分别表达"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "evidence": [
+        "tests/test_core.py、tests/test_rule_matrix.py；红牌与普通牌计数、被叫走牌不重复计入可见量、吃碰和补牌阶段测试通过。"
+      ],
+      "completed_record": "docs/development/completed/DEV-012-hand-features.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-013",
       "kind": "development",
       "milestone": "M2",
       "title": "役种、振听、和牌算点与规则选项",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-011",
         "DEV-012",
@@ -373,17 +387,21 @@
         "立直/过和振听、抢杠/岭上/海底等上下文，未知不伪造；算点可交叉核对",
         "实际相关役/条件/无役风险仍供实时决策；完整参考表不是可执行判役器"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "evidence": [
+        "tests/test_rule_matrix.py与test_core.py；服务器已接受过和测试幂等；食断开关、赤牌、累计役满、复合/双倍和切上矩阵通过。"
+      ],
+      "completed_record": "docs/development/completed/DEV-013-yaku-scoring.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-014",
       "kind": "development",
       "milestone": "M2",
       "title": "动作事实投影与无推荐排序",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-011",
         "DEV-012",
@@ -399,10 +417,14 @@
         "每候选有action_id、状态窗口归属、结果阶段/确定性/向听等事实",
         "稳定非策略顺序，立直绑定弃牌、吃碰不代选后续弃牌，模型输入信息完整"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "evidence": [
+        "tests/test_core.py、tests/test_rule_matrix.py；所有服务器候选与物理实例保持，动作阶段、食断/无役风险、筋吃替和补牌未知验证通过。"
+      ],
+      "completed_record": "docs/development/completed/DEV-014-action-facts.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-015",
@@ -425,9 +447,9 @@
         "Actual specified model none/SSE/strict schema/usage; cancellation and persistent review-attempt tests verified."
       ],
       "completed_record": "docs/development/completed/DEV-015-responses-runtime.md",
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -435,7 +457,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "结构化决策与具体小局打法计划",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-014",
         "DEV-015",
@@ -450,17 +472,21 @@
         "计划含目标/役路线依据/优先级/转向条件，版本化、限本小局，错误意图不变事实",
         "wire的q/短action_id/事件引用验证后恢复领域身份；当前完整计划每次独立传入，更新仍为完整结构"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "evidence": [
+        "tests/test_core.py、test_queries_and_model.py及真实配对；非法引用/过期版本拒绝，完整JSON、结构化输出、流终态、usage和取消样例通过；正式5+10首10次响应均合法。"
+      ],
+      "completed_record": "docs/development/completed/DEV-016-structured-decision-plan.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-017",
       "kind": "development",
       "milestone": "M3",
       "title": "决策协调、期限内纠错与失效取消",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-009",
         "DEV-010",
@@ -475,17 +501,21 @@
         "一个活动窗口唯一请求/执行，最多一次期限内纠错，迟到/人工改变/新阶段撤销",
         "所有主动输入包括唯一候选调模型；无窗口/客户端被迫动作单列，无本地策略接管"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "implementation present; verification and completion records pending"
+      "evidence": [
+        "tests/test_runtime_lifecycle.py：窗口跨重启不重决策、断线同步失效、按压期间取消完整释放、界面预观察取消后释放租约、模型失败零点击；实际事件确认回执保留。"
+      ],
+      "completed_record": "docs/development/completed/DEV-017-coordinator.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-018",
       "kind": "development",
       "milestone": "M3",
       "title": "5+20/5+10共享池与真实计时校准",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-008",
         "DEV-009"
@@ -497,11 +527,14 @@
         "核验字段单位/剩余池/恢复经过时间，维护保守账本，真实新小局才重置",
         "所有阶段与重试扣同一预算，monotonic时钟、执行余量、临界deadline与失守记录可验证"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "test_time_bank_round_scoped_and_no_reconnect_refill、test_verified_server_bank_clamps_and_deal_animation_does_not_spend_pool、test_recovered_current_clock_subtracts_calibrated_age_and_never_refills_saved_bank；真实5+10与恢复校准见批次日志。"
+      ],
+      "completed_record": "docs/development/completed/DEV-018-time-bank.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-019",
@@ -574,7 +607,7 @@
       "kind": "development",
       "milestone": "M5",
       "title": "战况、二十场与大牌查询投影",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-010"
       ],
@@ -585,11 +618,14 @@
         "live新鲜度与unknown、中断final/last分离、最近20场去重快照范围与分页",
         "大牌按等级筛本家并关联固定20场集合，HTTP只读投影不泄露活动手牌/认证"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "tests/test_queries_and_model.py、test_compact_archive.py、test_runtime_lifecycle.py；22场分页期间插入新场仍固定20场、不重复，排除其他玩家大牌、未完场final为空、read令牌不能访问控制、来源新鲜度验证通过。"
+      ],
+      "completed_record": "docs/development/completed/DEV-022-query-projections.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-023",
@@ -619,7 +655,7 @@
       "kind": "development",
       "milestone": "M6",
       "title": "经验与风格的独立修订库",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-010",
         "DEV-004"
@@ -633,18 +669,21 @@
         "与QQ人际记忆分域，自动操作只限经验和结构化风格，不能改事实/代码/核心提示",
         "复盘/经验记录实际引用的catalog_version和条目ID，正式规则表与策略经验分域"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "tests/test_review_lifecycle.py、test_queries_and_model.py；三后续场证据门槛、任意声称复核不计数、改主张重置支持、版本冲突/越界拒绝、事务回滚通过。"
+      ],
+      "completed_record": "docs/development/completed/DEV-024-memory-revisions.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-025",
       "kind": "development",
       "milestone": "M6",
       "title": "场后/中断异步复盘与证据检查",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-024",
         "DEV-015",
@@ -660,18 +699,21 @@
         "后续三场复核/反例门槛和立即纠错停用，队列不阻塞实时，复盘token单列",
         "只读read_yaku_reference按需读取相关役条目，必要时可看全表；修订建议不直接改成役条件"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "tests/test_review_lifecycle.py；真实旧终场复盘生成1条candidate且lookup=0如实记录。构造渠道按需查tanyao后记录catalog版本/役ID、后项坏引用整批回滚、三次取消上限跨重启有效。"
+      ],
+      "completed_record": "docs/development/completed/DEV-025-asynchronous-review.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-026",
       "kind": "development",
       "milestone": "M6",
       "title": "相关经验召回与跨场生效",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-024",
         "DEV-025"
@@ -685,11 +727,14 @@
         "具体局计划与长期风格分离，最终顺位目标不被人格盖过，QQ可读当前经验与历史",
         "实现/memories与/memories/{id}只读HTTP路由，修订历史分页，活动小局自由文本不进入QQ投影"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "tests/test_review_lifecycle.py、test_queries_and_model.py；本场新增不进入冻结集合、停用立即屏蔽、结构风格有界且不影响合法动作、经验只给模型精简投影。"
+      ],
+      "completed_record": "docs/development/completed/DEV-026-contextual-recall.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-027",
@@ -1007,7 +1052,7 @@
       "kind": "development",
       "milestone": "M3",
       "title": "完整决策上下文的紧凑投影与引用映射",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-004",
         "DEV-014"
@@ -1022,11 +1067,14 @@
         "与丰富模型输入做信息等价检查，直观格式可回退，固定说明随独立请求可用且计入token",
         "实时system/固定前缀/请求不附完整役种表，当前相关条件/食下/无役风险信息不被删除"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "test_wire_information_equivalence_and_evidence通过；最新真实配对每格式20次均合法、repair=0、事实误读=0、理由红牌矛盾=0，input均值rich7853.6/readable6837，约12.94%净输入节省。"
+      ],
+      "completed_record": "docs/development/completed/DEV-030-readable-compact-wire.md",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "VAL-010",
@@ -1102,9 +1150,9 @@
         "83 pytest passed; actual ended-match review created one candidate with catalog provenance; runtime reference lookup tests passed"
       ],
       "completed_record": "docs/development/completed/DEV-031-yaku-runtime.md",
-      "commits": [],
-      "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
-      "implementation_progress": "code_ready",
+      "commits": [
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1583,6 +1631,30 @@
       "evidence": [],
       "completed_record": null,
       "commits": []
+    },
+    {
+      "id": "DEV-048",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "离开提示检测、恢复与验收归因",
+      "status": "done",
+      "depends_on": [
+        "DEV-017",
+        "DEV-036"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "接管期间只识别并关闭已校准的离开提示，先取消旧决策，独占输入并防止用户停止后自动重启",
+        "离开和自动摸切不能算模型成功；恢复行为单独留证据且正式测试停止保留失败"
+      ],
+      "evidence": [
+        "124 pytest passed; test_client_guard verifies no strategy click and later user stop wins; live visible away observed/resume_clicked records and later model-selected discards server_confirmed."
+      ],
+      "completed_record": "docs/development/completed/DEV-048-client-away.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

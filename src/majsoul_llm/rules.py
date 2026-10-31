@@ -10,7 +10,7 @@ from mahjong.hand_calculating.scores import ScoresCalculator
 from mahjong.meld import Meld as CalcMeld
 from mahjong.shanten import Shanten
 
-from .domain import LegalAction, Snapshot, tile_index, tile_name
+from .domain import LegalAction, Meld, Snapshot, tile_index, tile_name
 
 KINDS = {1: "discard", 2: "chi", 3: "pon", 4: "ankan", 5: "daiminkan", 6: "kakan", 7: "riichi",
          8: "tsumo", 9: "ron", 10: "abort9"}
@@ -210,9 +210,29 @@ def legal_actions(state: Snapshot) -> list[LegalAction]:
                 if kind in ("ankan", "daiminkan"):
                     feature = {"after_phase": "awaiting_replacement", "shanten": None, "unknown": ["replacement_tile"]}
                 else:
+                    offer = state.context.get('last_discard')
+                    prospective = own_melds
+                    forbidden = set()
+                    if offer:
+                        called = tile_index(offer['tile'])
+                        forbidden.add(called)
+                        consumed = [state.hand[i] for i in indices]
+                        if kind == 'chi':
+                            group = sorted(map(tile_index,consumed))
+                            if called < group[0] and group[-1] % 9 < 8:
+                                forbidden.add(group[-1]+1)
+                            if called > group[-1] and group[0] % 9 > 0:
+                                forbidden.add(group[0]-1)
+                        prospective = own_melds + [Meld(id='projection',actor=state.self_seat,kind=kind,
+                            tiles=[*consumed,offer['tile']],source_seat=offer['seat'],called_tile=offer['tile'],
+                            event_id=op.window_id)]
                     feature = {"after_phase": "awaiting_discard", "shanten": None,
-                               "followup": [{"tile": t, "shanten": shanten(after[:i] + after[i+1:], len(own_melds)+1)} for i, t in enumerate(after)],
-                               "followup_legality": "local_projection_requires_next_server_window", "no_yaku_risk": "check_open_routes"}
+                               "followup": [{"tile": t, "shanten": shanten(after[:i] + after[i+1:], len(own_melds)+1),
+                                             'standard_kuikae_allowed':tile_index(t) not in forbidden if offer else None}
+                                            for i, t in enumerate(after)],
+                               "followup_legality": "local_projection_requires_next_server_window", "no_yaku_risk": "check_open_routes",
+                               'routes':routes(after,prospective,state) if offer else [],
+                               'route_certainty':'known_consumption_and_offered_tile' if offer else 'offer_missing'}
                 candidates.append((None, list(indices), None, feature))
         elif kind == "kakan":
             for meld in own_melds:

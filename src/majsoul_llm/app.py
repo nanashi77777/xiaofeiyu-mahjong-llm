@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, Response
 from .browser import Browser
 from .config import ROOT, Settings
 from .coordinator import Coordinator
+from .client_guard import ClientGuard
 from .engine import Engine
 from .execution import Executor
 from .input_lease import InputLease
@@ -20,6 +21,7 @@ from .lobby import LobbyError, LobbyJournal, Navigator
 from .lobby_commands import LobbyCommand
 from .lobby_ui import LobbyDriver, LobbyUI
 from .model import ModelClient
+from .native import InputDeferred
 from .protocol import Protocol
 from .practice import PracticeRooms, RoomAction
 from .queries import Queries
@@ -39,7 +41,7 @@ class Service:
         self.store.mark_interrupted()
         schema = settings.runtime / "protocol/protocol.proto"
         protocol = Protocol.from_proto(schema, settings.runtime / "generated") if schema.exists() else None
-        self.engine = Engine(self.store, protocol)
+        self.engine = Engine(self.store, protocol, recovery_timer_verified=settings.recovery_timer_verified)
         self.browser = Browser(settings, self.engine.frame)
         self.client = ModelClient(settings, self.store)
         self.coordinator = Coordinator(settings, self.engine, self.client)
@@ -59,6 +61,7 @@ class Service:
         self.queries = Queries(self.store, settings.read_token.get_secret_value(), self.engine.capture_health)
         self.practice = PracticeRooms(self)
         self.round_flow = RoundFlow(self)
+        self.client_guard = ClientGuard(self)
 
     async def changed(self, state, event):
         was_enabled = self.coordinator.enabled
@@ -66,6 +69,7 @@ class Service:
             await self.reviewer.pause_for_decision()
         await self.coordinator.changed(state, event)
         await self.round_flow.changed(state, was_enabled and not self.coordinator.shadow)
+        await self.client_guard.changed(state, was_enabled and not self.coordinator.shadow)
         if state and state.lifecycle == 'ended':
             self.coordinator.enabled = False
             self.coordinator.status = 'match_complete'
@@ -73,6 +77,7 @@ class Service:
             await self.reviewer.enqueue(state.match_id)
 
     async def close(self):
+        await self.client_guard.stop()
         await self.round_flow.stop()
         await self.navigator.stop()
         await self.coordinator.stop("service_stopped")
@@ -100,6 +105,7 @@ class Service:
                                "last_scene":self.round_flow.last_scene},
                 "state":state.model_dump(mode="json") if state else None, "plan":self.coordinator.plan,
                 "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
+                'recovery_timer_verified':self.settings.recovery_timer_verified,
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
                 "navigation":self.navigator.status(), "login_session":self.engine.lobby_session.public(),
                 "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
@@ -172,6 +178,11 @@ def create_app(settings=None, service=None):
     async def missing(request, error):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error":"record_not_found"}, status_code=404)
+
+    @app.exception_handler(InputDeferred)
+    async def unavailable_input(request, error):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({'error':'input_unavailable','reason':str(error)},status_code=409)
 
     @app.exception_handler(ValueError)
     async def invalid(request, error):
@@ -265,6 +276,10 @@ def create_app(settings=None, service=None):
             if s.navigator.busy():
                 raise LobbyError("navigation_in_progress")
             await s.browser.start()
+        elif action == 'reattach-browser':
+            if s.navigator.busy() or s.coordinator.enabled or s.coordinator.active() or s.input_lease.owner:
+                raise LobbyError('input_owner_active')
+            await s.browser.attach_existing(int(data['pid']))
         elif action == "fit-window":
             await s.navigator.stop()
             await s.coordinator.stop('window_layout_changed')

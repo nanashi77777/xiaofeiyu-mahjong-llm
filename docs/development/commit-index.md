@@ -13,4 +13,7 @@
 | 真实局制/持久确认、54321加入准备、原生稳定取图 | xiaofeiyu-mahjong-llm · 3f4b2d4228e78481c173039075d6b7bcffb615d3 | DEV-044、DEV-045、DEV-046；66项pytest/ruff、真实与隔离取图、用户确认稳定 |
 | QQ加入默认准备及只入房契约、角色部署 | qq-integration-project · 7fd45435d1e6f9ec6204133666098af0bc39fba1 | 独立库P035；193项回归、六类MCP读取、4会话重载可用，零测试外发 |
 
+| 自主人机房、输入生命周期与首轮实战联调 | xiaofeiyu-mahjong-llm · afe7ffa923e2cf282f19986031e05b589f52b222 | 自主人机进度记录；该轮未消费完整实战VAL |
+| 领域/采集/协议/归并/场局/归档/模型/役种任务消费与生产测试工具 | xiaofeiyu-mahjong-llm · b58eda77e80cabc35a59417d3fe068e439ac4b4c | DEV-004/005/006/007/008/010/015/031；108项pytest、ruff及任务检查，实战VAL继续开放 |
+
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

@@ -13,6 +13,26 @@ class InputDeferred(RuntimeError):
     pass
 
 
+class TargetExpired(InputDeferred):
+    """No press was sent; the same semantic target may be observed again."""
+
+
+def windows_command_args(command):
+    """Parse native quoting without executing the inspected command line."""
+    shell, kernel = ctypes.windll.shell32, ctypes.windll.kernel32
+    shell.CommandLineToArgvW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+    shell.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    kernel.LocalFree.argtypes, kernel.LocalFree.restype = [ctypes.c_void_p], ctypes.c_void_p
+    count = ctypes.c_int()
+    argv = shell.CommandLineToArgvW(command, ctypes.byref(count))
+    if not argv:
+        raise InputDeferred('browser process identity unavailable')
+    try:
+        return [argv[i] for i in range(count.value)]
+    finally:
+        kernel.LocalFree(argv)
+
+
 @dataclass(frozen=True)
 class Window:
     hwnd: int

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 import asyncio
 import base64
+import json
 
 import cv2
 import numpy as np
@@ -93,3 +94,22 @@ async def test_resize_during_native_capture_cannot_become_an_input_image():
     browser.cdp = SimpleNamespace(send=send)
     with pytest.raises(InputDeferred,match='layout changed during capture'):
         await browser.image_bytes()
+
+
+def test_reattach_rejects_another_profile_or_executable(monkeypatch, tmp_path):
+    from majsoul_llm.native import windows_command_args
+    runtime = tmp_path/'profile with spaces'
+    b = Browser(Settings(runtime=runtime), None)
+    command = f'"{b.settings.chrome_path}" --user-data-dir="{runtime / "browser-profile"}" --remote-debugging-port=9223'
+    assert windows_command_args(command)[1] == '--user-data-dir='+str(runtime/'browser-profile')
+    payload = {'ExecutablePath':b.settings.chrome_path,'CommandLine':command}
+    def run(*args,**kwargs):
+        return SimpleNamespace(stdout=json.dumps(payload))
+    monkeypatch.setattr('majsoul_llm.browser.subprocess.run',run)
+    b._verify_profile_process(12)
+    payload['CommandLine'] = 'chrome.exe --user-data-dir="C:\\unrelated profile"'
+    with pytest.raises(InputDeferred,match='profile differs'):
+        b._verify_profile_process(12)
+    payload['ExecutablePath'] = str(tmp_path/'other.exe')
+    with pytest.raises(InputDeferred,match='executable differs'):
+        b._verify_profile_process(12)

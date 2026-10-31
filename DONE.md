@@ -13,9 +13,22 @@
 | DEV-006 | 实现 | 当前协议版本与消息解码适配 | [完成记录](docs/development/completed/DEV-006-passive-protocol.md) |
 | DEV-007 | 实现 | 规范事件与幂等状态归并 | [完成记录](docs/development/completed/DEV-007-authoritative-reducer.md) |
 | DEV-008 | 实现 | 小局、终场、规则与模式身份 | [完成记录](docs/development/completed/DEV-008-round-match-identity.md) |
+| DEV-009 | 实现 | 断线恢复、旧窗口失效与去重 | [完成记录](docs/development/completed/DEV-009-recovery.md) |
 | DEV-010 | 实现 | 增量牌谱、SQLite与中断保存 | [完成记录](docs/development/completed/DEV-010-transactional-archive.md) |
+| DEV-011 | 实现 | 服务端操作约束与完整合法候选 | [完成记录](docs/development/completed/DEV-011-legal-actions.md) |
+| DEV-012 | 实现 | 向听、进张与阶段特征 | [完成记录](docs/development/completed/DEV-012-hand-features.md) |
+| DEV-013 | 实现 | 役种、振听、和牌算点与规则选项 | [完成记录](docs/development/completed/DEV-013-yaku-scoring.md) |
+| DEV-014 | 实现 | 动作事实投影与无推荐排序 | [完成记录](docs/development/completed/DEV-014-action-facts.md) |
 | DEV-015 | 实现 | Responses渠道、取消与token计量 | [完成记录](docs/development/completed/DEV-015-responses-runtime.md) |
+| DEV-016 | 实现 | 结构化决策与具体小局打法计划 | [完成记录](docs/development/completed/DEV-016-structured-decision-plan.md) |
+| DEV-017 | 实现 | 决策协调、期限内纠错与失效取消 | [完成记录](docs/development/completed/DEV-017-coordinator.md) |
+| DEV-018 | 实现 | 5+20/5+10共享池与真实计时校准 | [完成记录](docs/development/completed/DEV-018-time-bank.md) |
+| DEV-022 | 实现 | 战况、二十场与大牌查询投影 | [完成记录](docs/development/completed/DEV-022-query-projections.md) |
+| DEV-024 | 实现 | 经验与风格的独立修订库 | [完成记录](docs/development/completed/DEV-024-memory-revisions.md) |
+| DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
+| DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
+| DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
 | DEV-031 | 实现 | 役种表运行加载、按需检索与版本证据接入 | [完成记录](docs/development/completed/DEV-031-yaku-runtime.md) |
 | DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |
@@ -28,3 +41,4 @@
 | DEV-044 | 实现 | 真实四人局制映射与建房确认持久恢复 | [完成记录](docs/development/completed/DEV-044-lobby-confirmation.md) |
 | DEV-045 | 实现 | 加入友人房后服务端核验准备及QQ契约 | [完成记录](docs/development/completed/DEV-045-friend-ready.md) |
 | DEV-046 | 实现 | 消除取图路径的视口缩放并串行稳定裁剪 | [完成记录](docs/development/completed/DEV-046-stable-capture.md) |
+| DEV-048 | 实现 | 离开提示检测、恢复与验收归因 | [完成记录](docs/development/completed/DEV-048-client-away.md) |

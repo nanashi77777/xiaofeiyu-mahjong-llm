@@ -30,6 +30,7 @@ class Coordinator:
         self.frozen_memories = []
         self.bank = TimeBank(settings.base_seconds, settings.bank_seconds, settings.execution_margin)
         self.status = "stopped"
+        self.generation = 0
 
     def record_receipt(self, receipt, match_id, round_uid):
         validated = Receipt.model_validate(receipt).model_dump(mode='json',exclude_none=True)
@@ -63,6 +64,7 @@ class Coordinator:
             self.status="paused_server_rejected_input"
 
     async def stop(self, reason="paused"):
+        self.generation += 1
         self.enabled = False
         self.status = reason
         if self.executor:
@@ -84,6 +86,7 @@ class Coordinator:
             raise ValueError("input already owned")
         if not self.settings.api_key.get_secret_value():
             raise ValueError("model API key is missing")
+        self.generation += 1
         self.enabled, self.shadow = True, shadow
         if self.executor:
             self.executor.mouse.stop.clear()
@@ -104,6 +107,8 @@ class Coordinator:
             self.confirm(state, event)
         if state.match_id != self.match_id:
             self.match_id = state.match_id
+            self.used_windows.update(r['payload']['window_id'] for r in self.store.records('decision_window',state.match_id,10000))
+            self.used_windows.update(r['payload']['action']['window_id'] for r in self.store.records('decision',state.match_id,10000))
             # Frozen once per match; later reviews affect the next match.
             existing = self.store.records("memory_freeze", state.match_id, 1)
             self.frozen_memories = existing[0]["payload"]["memories"] if existing else Memories(self.store).freeze()
@@ -127,6 +132,7 @@ class Coordinator:
         if op.window_id in self.used_windows:
             return
         self.used_windows.add(op.window_id)
+        self.store.record('decision_window',{'window_id':op.window_id,'shadow':self.shadow},state.match_id,state.round_uid)
         self.task = asyncio.create_task(self.decide(state.model_copy(deep=True)))
 
     async def decide(self, state):
@@ -157,7 +163,14 @@ class Coordinator:
             context.data["clock"]["decision_seconds_remaining"] = max(0, deadline-time.monotonic())
             context.data['clock']['soft_seconds_remaining'] = max(0,self.settings.base_seconds-(time.monotonic()-start))
             model_start = time.monotonic()
-            decision, action, metrics = await self.model.decide(context, deadline)
+            observation = (asyncio.create_task(self.executor.observe(state,actions,deadline))
+                           if not self.shadow and self.executor and hasattr(self.executor,'observe') else None)
+            try:
+                decision, action, metrics = await self.model.decide(context, deadline)
+            finally:
+                if observation:
+                    observation.cancel()
+                    await asyncio.gather(observation,return_exceptions=True)
             metrics.update(rules_ms=(rules_done-rules_start)*1000,
                            wire_ms=(model_start-rules_done)*1000,
                            read_to_model_ms=(model_start-start)*1000)
@@ -185,7 +198,8 @@ class Coordinator:
                     input_start = time.monotonic()
                     clicked = await self.executor.execute(state, action, deadline + self.settings.execution_margin)
                     receipt.update(status="mouse_sent", clicked_mono=clicked,
-                                   input_ms=(clicked-input_start)*1000, read_to_mouse_ms=(clicked-start)*1000)
+                                   input_ms=(clicked-input_start)*1000, read_to_mouse_ms=(clicked-start)*1000,
+                                   input_steps=getattr(self.executor,'metrics',[]))
                     self.record_receipt(receipt,state.match_id,state.round_uid)
                     self.status = "awaiting_actual_event"
                     if self.pending and self.pending.get("early_ack"):
@@ -195,7 +209,7 @@ class Coordinator:
                     # A compound click may already have opened a menu. Preserve
                     # uncertainty, stop further input, and do not compare the
                     # next unrelated event to an unsent action.
-                    self.record_receipt({**receipt, "status":"execution_uncertain"},
+                    self.record_receipt({**receipt, "status":"execution_uncertain",'input_steps':getattr(self.executor,'metrics',[])},
                                       state.match_id, state.round_uid)
                     self.pending = None
                     self.enabled = False

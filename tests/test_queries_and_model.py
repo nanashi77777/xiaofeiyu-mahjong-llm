@@ -50,6 +50,36 @@ def test_http_read_cannot_control_and_origin(store):
     assert client.get("/control/status").status_code==401
 
 
+def test_twenty_match_scope_stays_fixed_across_new_matches_and_big_hands_filter(store,state):
+    from majsoul_llm.domain import Event
+    from majsoul_llm.store import utcnow
+    for index in range(22):
+        s=state.model_copy(deep=True,update={'match_id':f'm{index}', 'round_uid':f'r{index}',
+            'observed_at':f'2026-01-{index+1:02d}T00:00:00+00:00','lifecycle':'ended'})
+        data={'hules':[{'seat':0,'count':6,'fu':30,'point_sum':12000},
+                       {'seat':1,'count':8,'fu':30,'point_sum':16000}], 'scores':[25000]*4}
+        e=Event(id=f'win{index}',match_id=s.match_id,seq=2,kind='ActionHule',
+                data=data,received_at=s.observed_at,received_mono=0,source='fixture')
+        store.save_event(e,s)
+    q=Queries(store,'fixture')
+    first=q.matches(limit=5)
+    ids=[item['match_id'] for item in first['data']]
+    cursor=first['next_cursor']
+    fresh=state.model_copy(deep=True,update={'match_id':'new-arrival','observed_at':utcnow()})
+    store.save_snapshot(fresh)
+    while cursor:
+        page=q.matches(cursor=cursor,limit=5)
+        ids += [item['match_id'] for item in page['data']]
+        cursor=page['next_cursor']
+    assert len(ids)==len(set(ids))==20
+    assert set(ids)=={f'm{i}' for i in range(2,22)}
+    wins=q.big_hands(first['scope_cursor'],limit=30)
+    assert wins['total']==20 and {w['match_id'] for w in wins['data']}==set(ids)
+    assert all(w['level']=='haneman' and w['points']==12000 for w in wins['data'])
+    partial=q.match('new-arrival')['data']
+    assert partial['final_result'] is None
+
+
 async def test_model_strict_terminal_and_usage(state,store):
     context=build_context(state,legal_actions(state))
     output={"q":context.q,"action_id":"a0","reason":"保留进张","plan_update":None}
