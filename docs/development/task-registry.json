@@ -2322,6 +2322,54 @@
       ],
       "implementation_progress": "code_ready",
       "status_reason": "Stopped-result-only control and 4 isolated lifecycle tests pass; actual result-page click remains to verify on a subsequent observed result."
+    },
+    {
+      "id": "DEV-071",
+      "kind": "development",
+      "milestone": "M1",
+      "title": "跨小局断线恢复保持唯一序号与可重放归档",
+      "status": "done",
+      "depends_on": [
+        "DEV-009",
+        "DEV-010"
+      ],
+      "design_refs": [
+        "docs/design/recovery-round-index.md"
+      ],
+      "acceptance": [
+        "恢复已知小局沿用已记录序号；断线跨入新小局不减旧序号，未知期间缺局不虚构",
+        "同局重连幂等、跨局重连、连庄及全档事件重放与派生缓存一致；保留旧失败证据"
+      ],
+      "evidence": [
+        "16 targeted tests passed; 1163 real archived events replayed through the recorded 43-action recovery in an isolated database: 9 rounds, zero factual differences, repeat restore has no duplicate; original failure retained."
+      ],
+      "completed_record": "docs/development/completed/DEV-071-recovery-round-index.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-072",
+      "kind": "validation",
+      "milestone": "M4",
+      "title": "真实字形的三吃和更多组合构造菜单专项",
+      "status": "done",
+      "depends_on": [
+        "DEV-066",
+        "DEV-068"
+      ],
+      "design_refs": [
+        "docs/design/multi-choice-coverage.md"
+      ],
+      "acceptance": [
+        "使用真实本机字形与正式ONNX分类器验证三组及赤五五组、多行和UI换序",
+        "记录构造来源、不改生产配置、不注入真实操作；缺组错赤和歧义拒绝"
+      ],
+      "evidence": [
+        "Constructed real-glyph layouts with production ONNX and isolated Browser.background_click: 4 cases, 16 correct clicks, 12 rejection checks; production inputs=0; natural three-chi remains separate."
+      ],
+      "completed_record": "docs/development/completed/DEV-072-real-glyph-melds.md",
+      "commits": [],
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

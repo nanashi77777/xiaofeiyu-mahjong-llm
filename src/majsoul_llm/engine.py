@@ -218,9 +218,14 @@ class Engine:
             return self.state
         next_state.context["source_round_key"] = self.round_key
         if kind == "ActionNewRound":
-            row = self.store.db.execute("SELECT seq FROM rounds WHERE id=?", (next_state.round_uid,)).fetchone()
-            if row:
-                next_state.round_seq = row[0]
+            # Count observed authoritative round starts, including a new round
+            # reached while disconnected. The old snapshot may still belong
+            # to the previous round, and cached round indices may predate this
+            # correction. A historical replay uses its original event order.
+            observed = self.store.db.execute(
+                "SELECT COUNT(*) FROM events WHERE match_id=? AND kind='ActionNewRound' AND seq<=?",
+                (event.match_id, event.seq)).fetchone()[0]
+            next_state.round_seq = observed + int(existing is None)
         next_state.state_version = max(next_state.state_version, event.seq)
         if next_state.operation:
             next_state.operation.state_version = next_state.state_version
@@ -237,7 +242,7 @@ class Engine:
         if actions and actions[0].get("name") == "ActionNewRound":
             old = self.state
             self.state = Snapshot(match_id=old.match_id, self_seat=old.self_seat, rules=old.rules,
-                                  round_seq=max(0, old.round_seq - 1), completeness=old.completeness)
+                                  round_seq=old.round_seq, completeness=old.completeness)
             for action in actions:
                 await self.action(action["name"], action["data"], action.get("step"), historical=True)
         elif actions and self.state.round_completeness == "full":

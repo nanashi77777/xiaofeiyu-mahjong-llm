@@ -76,3 +76,5 @@
 | DEV-067 | 实现 | 保留完整场况的具名列传输及独立模型理解门禁 | [完成记录](docs/development/completed/DEV-067-named-table-wire.md) |
 | DEV-068 | 实现 | 多组合菜单观察区域覆盖与边界拒绝 | [完成记录](docs/development/completed/DEV-068-menu-band.md) |
 | DEV-069 | 实现 | 面板同步实际输入模式并保留未提交选择 | [完成记录](docs/development/completed/DEV-069-panel-mode.md) |
+| DEV-071 | 实现 | 跨小局断线恢复保持唯一序号与可重放归档 | [完成记录](docs/development/completed/DEV-071-recovery-round-index.md) |
+| DEV-072 | 验收 | 真实字形的三吃和更多组合构造菜单专项 | [完成记录](docs/development/completed/DEV-072-real-glyph-melds.md) |
