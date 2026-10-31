@@ -29,6 +29,8 @@
 
 ## Git 与发布边界
 
+2026-11-01后续要求代码同时推送公开和私有两个仓库。运行`python tools/github_sync.py`默认读取ignored runtime/git-sync.json，使用同一HEAD同步当前分支和main；公开origin沿用原分支，私有remote使用mirror/分支并保留旧历史，私有首页使用mirror/main。只有双库各分支读回一致才完成，任一失败须保留已成功结果并补齐。私有地址/仓库ID只在本机配置，见git-sync.example.json与DEV-083；没有该配置的新克隆仅使用自己的origin。
+
 2026-11-01用户授权公开项目。当前发布遵循[完整历史脱敏方案](docs/design/public-repository-release.md)：真实配置及个人身份只留本机，原私有历史留在私有归档，公开地址只接收完整脱敏的开发历史。文中早期private=true核验属于当时的历史证据。后续提交使用`Mahjong AI Contributors <contributors@example.invalid>`，并执行当前文件与完整历史审计。
 
 - 已在本目录初始化独立 Git并建立私有仓库 `nanashi77777/xiaofeiyu-mahjong-llm`，绑定唯一origin；未改旧麻将远端。实际提交及跨库关联见[提交索引](docs/development/commit-index.md)。

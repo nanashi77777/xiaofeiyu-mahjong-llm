@@ -2618,6 +2618,68 @@
       ],
       "completed_record": "docs/development/completed/DEV-081-public-repository-release.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-082",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "按错误阶段实施有限重试与恢复（用户暂缓）",
+      "status": "planned",
+      "deferred_by_user": true,
+      "status_reason": "仅登记TODO，用户明确暂不开发；后续明确解除暂缓再启动",
+      "depends_on": [
+        "DEV-021",
+        "DEV-018"
+      ],
+      "design_refs": [
+        "docs/design/bounded-error-recovery.md"
+      ],
+      "acceptance": [
+        "统一总尝试和原deadline/时间池，模型/按下前/提交未知/断线分层恢复，不用本地策略选牌",
+        "状态与阶段幂等，已提交未知不盲点；用户停止优先，连续失败熔断，原失败/恢复证据及token完整保留"
+      ],
+      "evidence": [],
+      "commits": []
+    },
+    {
+      "id": "VAL-014",
+      "kind": "validation",
+      "milestone": "M8",
+      "title": "有限重试与恢复专项验收（用户暂缓）",
+      "status": "planned",
+      "deferred_by_user": true,
+      "status_reason": "随DEV-082仅登记，暂不开发或开展实战",
+      "depends_on": [
+        "DEV-082"
+      ],
+      "design_refs": [
+        "docs/design/bounded-error-recovery.md"
+      ],
+      "acceptance": [
+        "错误注入覆盖模型/定位/提交未知/断线/人工停止竞态，次数和期限有界、重复副作用为零",
+        "独立真实5＋10保留原始失败与恢复结果，恢复不能伪称旧失败场或500窗口验收通过"
+      ],
+      "evidence": [],
+      "commits": []
+    },
+    {
+      "id": "DEV-083",
+      "kind": "development",
+      "milestone": "M0",
+      "title": "默认同步公开与私有两个麻将仓库",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-081"
+      ],
+      "design_refs": [
+        "docs/design/dual-repository-sync.md"
+      ],
+      "acceptance": [
+        "本机私有绑定双库身份/可见性/分支映射，默认两库推送；原私有历史保留在原分支且不回流公开",
+        "根提交与镜像分支可建立，非强推、幂等复用、单边失败如实报告；双库实际SHA和旧分支保持经读回核验"
+      ],
+      "evidence": [],
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

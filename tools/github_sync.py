@@ -10,12 +10,41 @@ import base64
 import json
 import re
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from audit_secrets import FORBIDDEN, rules_for
+from audit_secrets import FORBIDDEN, history_findings, rules_for
+
+
+def sync_configuration(root):
+    path = root / 'runtime/git-sync.json'
+    if not path.exists():
+        return [{'remote':'origin', 'branch_prefix':''}], False
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if (not isinstance(data, dict) or set(data) != {'schema_version','also_main','targets'}
+                or data['schema_version'] != 'git-sync.v1' or type(data['also_main']) is not bool
+                or not isinstance(data['targets'], list) or not data['targets']):
+            raise ValueError('invalid sync configuration')
+        names = set()
+        for item in data['targets']:
+            if (not isinstance(item, dict) or set(item) != {'remote','visibility','repository_id','branch_prefix'}
+                    or not isinstance(item['remote'], str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}', item['remote'])
+                    or item['remote'] in names or item['visibility'] not in ('public','private')
+                    or type(item['repository_id']) is not int or item['repository_id'] <= 0
+                    or not isinstance(item['branch_prefix'], str)
+                    or (item['branch_prefix'] and (not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_/-]*/',item['branch_prefix'])
+                                                  or '..' in item['branch_prefix'] or '//' in item['branch_prefix']))):
+                raise ValueError('invalid sync target')
+            if item['visibility'] == 'private' and not item['branch_prefix']:
+                raise ValueError('private mirror requires a separate branch namespace')
+            names.add(item['remote'])
+        return data['targets'], data['also_main']
+    except (OSError, ValueError, TypeError):
+        raise ValueError('invalid local Git synchronization configuration; details withheld') from None
 
 def git(root, *args, data=None):
     return subprocess.run(["git", *args], cwd=root, input=data, capture_output=True, check=True).stdout
@@ -43,13 +72,24 @@ def commit_data(root, sha):
             values[key.decode()] = value
         else:
             raise ValueError("signed or extended commits require regular Git transport")
-    if len(parents) != 1:
+    if len(parents) > 1:
         raise ValueError("only linear existing commits are supported")
     return {"tree":values["tree"].decode(), "parents":parents, "message":message.decode("utf-8"),
             "author":identity(values["author"]), "committer":identity(values["committer"])}
 
 
 def changes(root, parent, target):
+    if parent is None:
+        entries = []
+        for row in git(root, 'ls-tree', '-rz', target).split(b'\0'):
+            if not row:
+                continue
+            meta, path = row.split(b'\t', 1)
+            mode, kind, sha = meta.split()
+            if kind != b'blob':
+                raise ValueError('unsupported root entry')
+            entries.append({'path':path.decode(), 'mode':mode.decode(), 'type':'blob', 'sha':sha.decode()})
+        return entries
     fields = git(root, "diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--no-renames", parent, target).split(b"\0")
     entries = []
     for index in range(0, len(fields)-1, 2):
@@ -63,9 +103,10 @@ def changes(root, parent, target):
 
 
 class GitHub:
-    def __init__(self, root):
+    def __init__(self, root, remote_name='origin'):
         self.root = root
-        remote = git(root, "remote", "get-url", "origin").decode().strip()
+        self.remote_name = remote_name
+        remote = git(root, "remote", "get-url", remote_name).decode().strip()
         match = re.fullmatch(r"https://github\.com/([^/]+/[^/]+?)(?:\.git)?", remote)
         if not match:
             raise ValueError("unexpected repository origin")
@@ -75,6 +116,7 @@ class GitHub:
         self._token = values[b"password"].decode()
         account = self.api_request('/user')
         metadata = self.api("")
+        self.metadata = metadata
         if (metadata.get("full_name") != self.repo
                 or metadata.get('owner', {}).get('login') != account.get('login')
                 or self.repo.split('/')[0] != account.get('login')
@@ -88,6 +130,11 @@ class GitHub:
     def api_request(self, path, *, method="GET", body=None):
         if not path.startswith('/') or path.startswith('//'):
             raise ValueError('invalid GitHub API path')
+        if method != 'GET':
+            delay = .9 - (time.monotonic() - getattr(self, '_last_write_mono', 0))
+            if delay > 0:
+                time.sleep(delay)
+            self._last_write_mono = time.monotonic()
         request = urllib.request.Request("https://api.github.com"+path,
             data=json.dumps(body, ensure_ascii=False).encode() if body is not None else None, method=method,
             headers={"Authorization":"Bearer "+self._token, "Accept":"application/vnd.github+json",
@@ -125,8 +172,7 @@ class GitHub:
 
     def upload_commit(self, target):
         data = commit_data(self.root, target)
-        parent = data["parents"][0]
-        base_tree = git(self.root, "rev-parse", parent+"^{tree}").decode().strip()
+        parent = data["parents"][0] if data['parents'] else None
         entries = changes(self.root, parent, target)
         for entry in entries:
             if entry["sha"] is None:
@@ -139,32 +185,97 @@ class GitHub:
                 blob = self.api("/git/blobs", method="POST", body={"content":base64.b64encode(content).decode(), "encoding":"base64"})
                 if blob["sha"] != entry["sha"]:
                     raise ValueError("uploaded blob hash mismatch") from None
-        tree = self.api("/git/trees", method="POST", body={"base_tree":base_tree, "tree":entries})
+        tree_body = {'tree':entries}
+        if parent:
+            tree_body['base_tree'] = git(self.root, "rev-parse", parent+"^{tree}").decode().strip()
+        tree = self.api("/git/trees", method="POST", body=tree_body)
         if tree["sha"] != data["tree"]:
             raise ValueError("uploaded tree hash mismatch")
         commit = self.api("/git/commits", method="POST", body=data)
         if commit["sha"] != target:
             raise ValueError("uploaded commit hash mismatch; refs were not advanced")
 
-    def sync(self, branch, target):
+    def remote_commit_exists(self, target):
+        try:
+            return self.api('/git/commits/'+target)['sha'] == target
+        except ValueError as error:
+            if str(error) in ('GitHub API status 404', 'GitHub API status 409'):
+                return False
+            raise
+
+    def sync(self, branch, target, *, create=False, on_progress=None):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,180}", branch) or ".." in branch:
             raise ValueError("invalid target branch")
-        remote = self.api("/git/ref/heads/"+branch)["object"]["sha"]
-        git(self.root, "merge-base", "--is-ancestor", remote, target)
-        pending = git(self.root, "rev-list", "--reverse", remote+".."+target).decode().splitlines()
+        try:
+            remote = self.api("/git/ref/heads/"+branch)["object"]["sha"]
+        except ValueError as error:
+            if not create or str(error) != 'GitHub API status 404':
+                raise
+            remote = None
+        if remote:
+            git(self.root, "merge-base", "--is-ancestor", remote, target)
+        pending = git(self.root, "rev-list", "--reverse", remote+".."+target if remote else target).decode().splitlines()
         for sha in pending:
-            self.audit(sha, commit_data(self.root, sha)["parents"][0])
-        for sha in pending:
-            self.upload_commit(sha)
-        if remote != target:
+            parents = commit_data(self.root, sha)['parents']
+            self.audit(sha, parents[0] if parents else None)
+        uploaded = 0
+        if pending and not self.remote_commit_exists(target):
+            for sha in pending:
+                if not self.remote_commit_exists(sha):
+                    self.upload_commit(sha)
+                    uploaded += 1
+                    if on_progress and (uploaded % 5 == 0 or sha == pending[-1]):
+                        on_progress({'remote':getattr(self,'remote_name','origin'), 'status':'uploading',
+                                     'uploaded_commits':uploaded, 'pending_commits':len(pending)})
+        if remote is None:
+            result = self.api('/git/refs', method='POST', body={'ref':'refs/heads/'+branch,'sha':target})
+            if result['object']['sha'] != target:
+                raise ValueError('created remote ref hash mismatch')
+        elif remote != target:
             result = self.api("/git/refs/heads/"+branch, method="PATCH", body={"sha":target,"force":False})
             if result["object"]["sha"] != target:
                 raise ValueError("remote ref hash mismatch")
         if self.api("/git/ref/heads/"+branch)["object"]["sha"] != target:
             raise ValueError("remote verification failed")
-        git(self.root, "update-ref", "refs/remotes/origin/"+branch, target)
-        return {"repository":self.repo, "branch":branch, "sha":target, "uploaded_commits":len(pending),
+        git(self.root, "update-ref", "refs/remotes/"+getattr(self,'remote_name','origin')+"/"+branch, target)
+        return {"repository":self.repo, "branch":branch, "sha":target, "uploaded_commits":uploaded,
                 "force":False, "verified":True}
+
+
+def synchronize(root, branch, *, also_main=False, on_result=None):
+    targets, configured_main = sync_configuration(root)
+    _, findings = history_findings(root)
+    if findings:
+        raise ValueError('history privacy audit rejected synchronization')
+    target = git(root, 'rev-parse', 'HEAD').decode().strip()
+    branches = list(dict.fromkeys([branch, *(['main'] if also_main or configured_main else [])]))
+    clients = []
+    # Validate every configured repository before any upload/ref write.
+    for item in targets:
+        client = GitHub(root, item['remote'])
+        if (client.metadata.get('archived') or
+                ('visibility' in item and client.metadata.get('visibility') != item['visibility']) or
+                ('repository_id' in item and client.metadata.get('id') != item['repository_id'])):
+            raise ValueError('configured repository identity, visibility or archive state mismatch')
+        clients.append((client,item))
+    results, failed = [], False
+    for client, item in clients:
+        for source in branches:
+            destination = item['branch_prefix'] + source
+            try:
+                result = client.sync(destination, target, create=bool(item['branch_prefix']), on_progress=on_result)
+                results.append(result)
+                if on_result:
+                    on_result(result)
+            except (ValueError, OSError, subprocess.CalledProcessError):
+                failed = True
+                if on_result:
+                    on_result({'remote':item['remote'], 'branch':destination, 'verified':False,
+                               'error':'synchronization failed; details withheld'})
+                break
+    if failed:
+        raise ValueError('not all configured repositories synchronized; verified results retained')
+    return results
 
 
 def main():
@@ -173,15 +284,13 @@ def main():
     parser.add_argument("--branch")
     parser.add_argument("--also-main", action="store_true")
     args = parser.parse_args()
-    target = git(args.root, "rev-parse", "HEAD").decode().strip()
     branch = args.branch or git(args.root, "symbolic-ref", "--short", "HEAD").decode().strip()
-    github = GitHub(args.root)
-    for ref in dict.fromkeys([branch, *(["main"] if args.also_main else [])]):
-        print(json.dumps(github.sync(ref, target)))
+    synchronize(args.root, branch, also_main=args.also_main,
+                on_result=lambda result:print(json.dumps(result),flush=True))
 
 
 if __name__ == "__main__":
     try:
         main()
     except (ValueError, OSError, subprocess.CalledProcessError):
-        raise SystemExit("GitHub synchronization stopped; no force update or credential output.") from None
+        raise SystemExit("GitHub synchronization incomplete; inspect verified results above. No force update or credential output.") from None

@@ -6,6 +6,8 @@
 
 发布前扫描当前文件、全部可达Git对象及作者/提交者信息，另外核验旧敏感对象不能从公开仓库按旧哈希读取。原始历史保留在所有者的私有归档；公开地址使用独立仓库，未接收原始敏感对象。普通强推不能据此替代公开前清理。
 
+用户随后要求双库更新：私有库解除只读归档，原始历史仍仅留在其原分支，新的mirror/分支接收与公开库相同的脱敏提交。实际双库绑定在ignored runtime/git-sync.json，私有URL仅在本机Git配置，入库只有示范。私有fetch只取mirror/，不将旧私人历史带回公开工作流；同步前核对两库身份和可见性，全部目标验证成功才报告完成。
+
 本机提交前执行`python tools/audit_secrets.py --staged`，推送前执行`python tools/audit_secrets.py --history`。本机已安装对应Git hooks并使用通用提交身份。可在ignored runtime/privacy-values.json的blocked_strings数组补充仅本机知道的私人值；没有该文件的克隆仍有通用密钥、私人邮箱、用户目录和非匿名提交身份检查，无法推断另一台机器的未知秘密。
 
 公开读取、克隆或fork不授予源仓库写权限。发布时仅仓库所有者可写，无协作者邀请、部署密钥或仓库Webhook；Actions关闭，工作流令牌默认只读。不要为了接入QQ查询而分享GitHub写凭据，也不要把本机运行令牌放进issue、PR或提交说明。

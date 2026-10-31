@@ -1,0 +1,8 @@
+{
+  "schema_version": "git-sync.v1",
+  "also_main": true,
+  "targets": [
+    {"remote": "origin", "visibility": "public", "repository_id": 1, "branch_prefix": ""},
+    {"remote": "private", "visibility": "private", "repository_id": 2, "branch_prefix": "mirror/"}
+  ]
+}

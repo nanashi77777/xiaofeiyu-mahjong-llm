@@ -1,5 +1,9 @@
 # 本机运行与验证
 
+代码更新默认双库：`python tools/github_sync.py`读取本机runtime/git-sync.json，同步公开当前分支/main及私有mirror/映射分支。原私有库已按用户要求解除只读归档，原始历史分支保留，默认分支使用mirror/main；入库只有git-sync.example.json，私有地址不公开。任一库失败不算全部完成，按已验证结果补齐，不强推。
+
+DEV-082重试机制与VAL-014目前仅登记TODO，用户暂缓；当前出错停止行为尚未按新方案改动，见design/bounded-error-recovery.md。
+
 专用Chrome现在独立于服务进程运行。服务重启后，先用控制鉴权POST `/control/reattach-browser`，JSON为当前专用Chrome的`pid`，再绑定核对的`hwnd`。入口核验可执行文件、专用profile和唯一游戏页面，重新加载页面以收取真实认证/恢复；不会从旧缓存生成当前操作。若调试端口已有进程，`/control/browser`拒绝另开，不能把任意浏览器直接当作专用窗口。服务退出会保留独立浏览器，窗口可由用户正常关闭。
 
 正式人机验收使用`tools/practice_suite.py --games 3 --profile 5+10 --output runtime/<本次报告>.json`，只在已认证空闲大厅、无输入所有者且源码摘要一致时开始。失败场不删、不续作合格场，恢复/离开提示干预独立记账。当前已有5+10模型超时失败证据，500窗口和三完整场尚未通过。
