@@ -8,6 +8,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 from .config import Settings
+from .native import InputDeferred
 
 
 class Browser:
@@ -57,12 +58,13 @@ class Browser:
         self.playwright = await async_playwright().start()
         self.context = await self.playwright.chromium.launch_persistent_context(
             str(self.settings.runtime / "browser-profile"), executable_path=self.settings.chrome_path,
-            headless=False, viewport=None, args=["--start-maximized", "--disable-background-timer-throttling",
+            headless=False, no_viewport=True, args=["--start-maximized", "--disable-background-timer-throttling",
                                                 "--disable-renderer-backgrounding","--disable-backgrounding-occluded-windows",
                                                 "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling",
                                                 f"--remote-debugging-port={self.settings.debug_port}","--remote-debugging-address=127.0.0.1"])
         self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
         self.cdp = await self.context.new_cdp_session(self.page)
+        await self.fit_window()
         await self.cdp.send("Network.enable")
         await self.page.add_init_script("""(() => { window.__mjLocalPointer=null;
           addEventListener('pointermove',e=>{window.__mjLocalPointer={x:e.clientX,y:e.clientY}},true); })()""")
@@ -70,6 +72,44 @@ class Browser:
         self.cdp.on("Network.webSocketFrameSent", lambda msg: self._enqueue(msg, True))
         self.consumer = asyncio.create_task(self._consume())
         await self.page.goto(self.settings.game_url, wait_until="domcontentloaded", timeout=60000)
+
+    async def fit_window(self):
+        """Maximize the page's own native window using its real client viewport."""
+        if not self.page or not self.cdp:
+            raise ValueError("browser not started")
+        window = await self.cdp.send("Browser.getWindowForTarget")
+        if window["bounds"]["windowState"] in ("minimized", "fullscreen"):
+            await self.cdp.send("Browser.setWindowBounds", {"windowId":window["windowId"],
+                                                          "bounds":{"windowState":"normal"}})
+        await self.cdp.send("Browser.setWindowBounds", {"windowId":window["windowId"],
+                                                      "bounds":{"windowState":"maximized"}})
+        # Native resize and Unity's resize listener complete asynchronously.
+        for _ in range(20):
+            actual = await self.cdp.send("Browser.getWindowForTarget")
+            if actual["bounds"]["windowState"] == "maximized":
+                break
+            await asyncio.sleep(.05)
+        else:
+            raise InputDeferred("dedicated browser could not maximize")
+        return actual["bounds"]
+
+    async def layout_metrics(self):
+        if not self.page:
+            raise ValueError("browser not started")
+        return await self.page.evaluate("""() => {
+          const canvas=document.querySelector('#unity-canvas');
+          return {width:innerWidth,height:innerHeight,dpr:devicePixelRatio,
+            canvas:canvas?canvas.getBoundingClientRect().toJSON():null};
+        }""")
+
+    @staticmethod
+    def require_visible_canvas(layout):
+        canvas = layout.get("canvas")
+        if canvas is None:
+            return
+        if (canvas["width"] <= 0 or canvas["height"] <= 0 or canvas["x"] < -1 or canvas["y"] < -1
+                or canvas["right"] > layout["width"] + 1 or canvas["bottom"] > layout["height"] + 1):
+            raise InputDeferred("game canvas is clipped; restore the dedicated browser size")
 
     def _enqueue(self, message, from_client):
         response = message.get("response", {})
@@ -124,6 +164,9 @@ class Browser:
             raise ValueError("browser not started")
         canvas=self.page.locator("#unity-canvas")
         if await canvas.count()==1:
+            # locator.screenshot would scroll a clipped canvas into view. Reject
+            # it first so targets cannot be computed for a partially visible UI.
+            self.require_visible_canvas(await self.layout_metrics())
             return await canvas.screenshot(type="png",scale="css")
         return await self.page.screenshot(type="png", scale="css")
 

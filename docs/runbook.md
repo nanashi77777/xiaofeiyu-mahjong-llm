@@ -22,6 +22,10 @@ C:\Python312\python.exe -m venv .venv
 
 面板在 http://127.0.0.1:8765 。panel 命令通过本机 URL fragment 带入控制令牌，不进入 HTTP 请求地址或服务访问日志。专用浏览器由面板打开，独立 profile，不读取其他浏览器的登录资料。手动登录、进入友人场；默认停止输入。先使用仅记录模型选择，确认状态、计时和定位，再绑定窗口和开始接管。Esc、暂停、停止均阻止后续输入。不要使用未验证定位开始段位场。
 
+启动显式关闭Playwright固定视口，并核验本窗口最大化，游戏根据实际可用区域适配。面板“恢复完整窗口”先停接管再最大化；需要重新开启接管。截图前核验完整canvas在当前页面视口内，截断时暂停定位，防止截图自动滚动掩盖不完整窗口。本机125%缩放的真实大厅、手动缩小/恢复、后台最小化已核验；其他显示器/皮肤仍需专项验证。
+
+自动登录与按指令选场已登记M9计划，见lobby-automation.md；尚未提供这些控制按钮。当前保存的有效profile可由客户端自行恢复登录态，不等于失效会话的自动登录流程已实现。
+
 ## 协议与恢复
 
 从当前客户端或自己有权使用的来源取得匹配版本的 protobuf schema，以 `majsoul-llm import-proto --path <文件>` 导入。生成代码和原 schema 只在 runtime/。当前本机协议已编译且真实读取成功；尚未把许可未确认的第三方 schema 复制入仓库。协议指纹显示在面板，更新客户端后需要重验。
@@ -49,6 +53,8 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 ## 模型和计时
 
 指定 your-model-id、Responses、reasoning.effort=none、store=false。完整独立上下文，每次不延长远程会话。输出短键 q/a/r/p，程序还原领域字段；p 可为空或为完整本小局计划。token_usage 保存真实 usage；中断和缺 usage 保留 null。
+
+2026-10-31切换麻将专用密钥：decision、repair、review及经验迭代共用同一ModelClient，本机runtime/private.json的api_key覆盖全部麻将用途，不读取QQ/DSH凭据。控制面板usage_summary按billing_scope=mahjong及凭据指纹分组，并分decision/repair/review/probe；旧无标记请求单列legacy_unattributed，不记到新密钥。cached/reasoning是输入/输出中的子项，不能重复加到总token。缺usage显示未知，不据此推算供应商余额或货币金额。
 
 实战5+20，正式模拟5+10。timer_verified=false 时保守只使用基础时间，不假定可用整个共享池。实际房规 time_fixed 以秒、operation.time_fixed 以毫秒已有300+0样本证据；剩余 time_add 和恢复经过时间的语义仍待5+10/5+20验证。
 

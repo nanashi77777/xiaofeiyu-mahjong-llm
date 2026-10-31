@@ -11,3 +11,6 @@
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
 | DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |
+| DOC-004 | 资料/文档 | 自动登录与选场扩展方案 | [完成记录](docs/development/completed/DOC-004-lobby-plan.md) |
+| DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |
+| DEV-035 | 实现 | 麻将专用密钥与决策复盘用量分账 | [完成记录](docs/development/completed/DEV-035-mahjong-billing.md) |

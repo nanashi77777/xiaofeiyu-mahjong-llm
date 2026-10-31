@@ -18,6 +18,7 @@ from .protocol import Protocol
 from .queries import Queries
 from .review import Reviewer
 from .store import Store
+from .usage import usage_summary
 
 
 class Service:
@@ -70,6 +71,7 @@ class Service:
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
                 "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
                 "token_usage":self.store.records("token_usage", limit=20),
+                "usage_summary":usage_summary(self.store, self.client.credential_id),
                 "receipts":self.store.records("receipt", limit=10)}
 
 
@@ -189,6 +191,9 @@ def create_app(settings=None, service=None):
         data = await request.json()
         if action == "browser":
             await s.browser.start()
+        elif action == "fit-window":
+            await s.coordinator.stop('window_layout_changed')
+            await s.browser.fit_window()
         elif action == "bind":
             await s.executor.bind(int(data["hwnd"]))
         elif action == "shadow":

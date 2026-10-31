@@ -30,7 +30,7 @@ def render(registry):
                 status += "（代码已落地，验证中）"
             summary = "；".join(t["acceptance"]).replace("|", "／")
             todo += f"| {t['id']} | {kind}·{status} | [{t['title']}]({t['design_refs'][0]}) | {'、'.join(t['depends_on'])} | {summary} |\n"
-    todo += "\n完整视觉输入、历史导入、三麻/地方规则、自动匹配和QQ控局不在当前首版范围。完成任务转入DONE，实战未验证部分使用独立VAL任务跟踪。\n"
+    todo += "\n自动登录、按指令段位匹配与友人房加入/创建已纳入M9开发计划；现有QQ入口仍只读。完整视觉输入、历史导入、三麻/地方规则及QQ控局另行规划。完成任务转入DONE，实战未验证部分使用独立VAL任务跟踪。\n"
     done = "# 已完成记录\n\n本视图由 tools/tasks.py 生成。完成文档、实现与实战验收具有不同含义，以完成记录的实际证据为准。\n\n| ID | 类别 | 已完成内容 | 记录 |\n| --- | --- | --- | --- |\n"
     for t in registry["tasks"]:
         if t["status"] == "done":

@@ -186,7 +186,7 @@ class Store:
         if match_id:
             sql += " AND match_id=?"
             params.append(match_id)
-        return [{**dict(row), "payload": json.loads(row["payload"])} for row in self.db.execute(sql + " ORDER BY created_at DESC LIMIT ?", params + [limit])]
+        return [{**dict(row), "payload": json.loads(row["payload"])} for row in self.db.execute(sql + " ORDER BY created_at DESC,rowid DESC LIMIT ?", params + [limit])]
 
     def mark_interrupted(self):
         for state in self.recent():

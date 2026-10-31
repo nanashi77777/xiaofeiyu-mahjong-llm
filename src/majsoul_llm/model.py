@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 
@@ -23,10 +24,16 @@ class ModelClient:
         self.http = httpx.AsyncClient(base_url=settings.base_url.rstrip("/") + "/", timeout=settings.request_timeout,
                                       transport=transport, trust_env=False)
 
+    @property
+    def credential_id(self):
+        return hashlib.sha256(self.settings.api_key.get_secret_value().encode()).hexdigest()[:16]
+
     async def request(self, payload: dict, *, purpose="decision", deadline: float | None = None, system=SYSTEM):
         start = time.monotonic()
+        credential = self.settings.api_key.get_secret_value()
         metrics = {"purpose": purpose, "model": self.settings.model, "usage": None, "ttft_ms": None,
-                   "elapsed_ms": None, "status": "failed"}
+                   "elapsed_ms": None, "status": "failed", "billing_scope":"mahjong",
+                   "credential_id":hashlib.sha256(credential.encode()).hexdigest()[:16]}
         body = {"model": self.settings.model, "reasoning": {"effort": "none"}, "store": False,
                 "stream": True, "instructions": system,
                 "input": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}]}
@@ -40,7 +47,7 @@ class ModelClient:
             if timeout <= 0:
                 raise ModelFailure("deadline exhausted")
             async with asyncio.timeout(timeout):
-                async with self.http.stream("POST", "responses", headers={"Authorization": "Bearer " + self.settings.api_key.get_secret_value()}, json=body) as response:
+                async with self.http.stream("POST", "responses", headers={"Authorization": "Bearer " + credential}, json=body) as response:
                     if response.status_code != 200:
                         raise ModelFailure(f"model HTTP {response.status_code}")
                     async for line in response.aiter_lines():
