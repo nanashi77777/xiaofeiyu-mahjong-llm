@@ -1484,7 +1484,9 @@
         "66 pytest passed; ruff passed; real visible single/east/south/ai rooms confirmed from sanitized server results; restart revalidation performs zero clicks"
       ],
       "completed_record": "docs/development/completed/DEV-044-lobby-confirmation.md",
-      "commits": [],
+      "commits": [
+        "3f4b2d4228e78481c173039075d6b7bcffb615d3"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1507,7 +1509,9 @@
         "Real room 54321 joinRoom and readyPlay success with ready=true; enabled=false; 66 Python and 193 QQ tests; six live MCP tools read and four mapped sessions available after reload; no external test messages"
       ],
       "completed_record": "docs/development/completed/DEV-045-friend-ready.md",
-      "commits": [],
+      "commits": [
+        "3f4b2d4228e78481c173039075d6b7bcffb615d3"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1530,7 +1534,9 @@
         "66 pytest and ruff; DPR 1.25/1.5 offset canvas 12 captures each; live game 12 stable captures; isolated minimized 12 captures with 180 render frames and mouse event; user confirmed now stable"
       ],
       "completed_record": "docs/development/completed/DEV-046-stable-capture.md",
-      "commits": [],
+      "commits": [
+        "3f4b2d4228e78481c173039075d6b7bcffb615d3"
+      ],
       "completed_on": "2026-10-31"
     }
   ],
