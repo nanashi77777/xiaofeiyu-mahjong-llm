@@ -1,6 +1,6 @@
 # 标准四人麻将役种参考表
 
-版本：`standard-four-player.v1`，日期：2026-10-30。机器可读数据见 [JSON](standard-four-player.v1.json)，使用与维护边界见 [设计说明](../../docs/design/yaku-reference.md)。本表已对照本机 mahjong 1.4.0 与公开计算源码；运行加载与复盘检索尚未接入。
+版本：`standard-four-player.v1`，规则资料日期：2026-10-30，运行验收日期：2026-10-31。机器可读数据见 [JSON](standard-four-player.v1.json)，使用与维护边界见 [设计说明](../../docs/design/yaku-reference.md)。本表已对照本机 mahjong 1.4.0 与公开计算源码，运行加载、按需复盘检索和实时请求隔离已验证，见[VAL-011](../../docs/development/completed/VAL-011-yaku-reference.md)。流局满贯的部分核实标记仍保留，不以验收掩盖房规未知项。
 
 **实时决策不附全表；复盘与经验迭代按需读取。**当前决策仍须得到与手牌相关的役种条件、食下和无役风险事实。
 

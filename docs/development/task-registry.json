@@ -878,7 +878,9 @@
         "207 pytest passed; all server action kinds and red/phase/furiten/rule-switch fixtures; 45 normal/yakuman catalog cross-checks"
       ],
       "completed_record": "docs/development/completed/VAL-002-rule-matrix.md",
-      "commits": [],
+      "commits": [
+        "6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -905,7 +907,7 @@
       "kind": "validation",
       "milestone": "M3",
       "title": "指定模型实际渠道兼容性验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-015",
         "DEV-016",
@@ -919,9 +921,12 @@
         "指定模型/none/Schema或JSON约束/SSE/usage/取消/错误修复有真实响应证据",
         "两种格式使用同一指定模型与关闭推理配置，缓存和usage未知值如实区分"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "207 pytest passed; real outbound selected model/none/schema/SSE capture; completed/repair/cancel usage evidence retained"
+      ],
+      "completed_record": "docs/development/completed/VAL-004-real-model-channel.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "VAL-005",
@@ -1014,7 +1019,9 @@
         "207 pytest passed; production memory audit: 6 memories/7 versions, 500 recalls/418 linked decisions, 0 errors; no mutation"
       ],
       "completed_record": "docs/development/completed/VAL-008-memory-lifecycle.md",
-      "commits": [],
+      "commits": [
+        "1baa37b9878455ae760e698ad72afd7e81de5e3a"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1186,7 +1193,7 @@
       "kind": "validation",
       "milestone": "M8",
       "title": "役种参考准确性、实时隔离与复盘引用验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-031",
         "DEV-013",
@@ -1202,9 +1209,12 @@
         "捕获实时请求确认不含完整表/无关定义，当前相关役种事实与无役风险仍可用",
         "复盘按需检索条目/版本，规则修订建议与经验更正分离，旧版本引用可定位且不能自动覆写正式条件"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "45 normal/yakuman values cross-checked; real outbound realtime isolation; 3-call real channel fixture decision/reference lookup/final review with usage"
+      ],
+      "completed_record": "docs/development/completed/VAL-011-yaku-reference.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-032",
@@ -1658,7 +1668,9 @@
         "真实连续建房/三电脑/新鲜入局及旧场结算返回；失败均留档；207 pytest passed"
       ],
       "completed_record": "docs/development/completed/DEV-047-autonomous-practice.md",
-      "commits": [],
+      "commits": [
+        "6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1935,7 +1947,9 @@
         "149 pytest passed; vision-reuse-v1双按钮同坐标; 339.615至299.359ms离线对照"
       ],
       "completed_record": "docs/development/completed/DEV-058-frame-reuse-evidence.md",
-      "commits": [],
+      "commits": [
+        "cc653dd0280f7d9ed845743bb53477aae8f5cc63"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1982,7 +1996,9 @@
         "150 pytest passed; missing room ack persists uncertainty and repeated command never presses"
       ],
       "completed_record": "docs/development/completed/DEV-060-room-uncertainty.md",
-      "commits": [],
+      "commits": [
+        "28356145be3b0b06b2665b2e3ae43ff6e2a2e6e4"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -2005,7 +2021,9 @@
         "207 pytest passed; multi-red and unknown concealed-kan colors; 45 catalog values cross-checked"
       ],
       "completed_record": "docs/development/completed/DEV-061-red-multiplicity.md",
-      "commits": [],
+      "commits": [
+        "6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -2028,7 +2046,9 @@
         "207 pytest passed; archived pool3 vs local-0.610; fresh nonincreasing reports, duplicate and restart guards"
       ],
       "completed_record": "docs/development/completed/DEV-062-server-pool-reconciliation.md",
-      "commits": [],
+      "commits": [
+        "6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111"
+      ],
       "completed_on": "2026-10-31"
     }
   ],

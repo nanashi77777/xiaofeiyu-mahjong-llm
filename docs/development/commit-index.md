@@ -18,5 +18,9 @@
 | 恢复时钟、并行界面观察、离开恢复与实现任务消费 | xiaofeiyu-mahjong-llm · 94fc9601057988670bc3465852d97077ae402e8f | DEV-009/011/012/013/014/016/017/018/022/024/025/026/030/048；124项pytest，生产5+10首轮失败如实保留，两个远端分支均已读回核验 |
 | 过期识别撤销与已恢复旧复盘撤队 | xiaofeiyu-mahjong-llm · 41f90a2348d4263415e685c7c4b71eb602ad1d8d | DEV-049/050；126项pytest，两个远端分支已核验 |
 | 流式首动作、延后解释、手牌预观察和立直选牌修复 | xiaofeiyu-mahjong-llm · d48837f8c214288eacb4eaa984faea6f65c02a8f | DEV-023/051/052/053；143项pytest、两种格式各10次真实模型探针、新真实立直，两个远端分支已核验；short实战及完整VAL另跟踪 |
+| 同帧归一化复用、低频图像诊断及真实结算消费 | xiaofeiyu-mahjong-llm · cc653dd0280f7d9ed845743bb53477aae8f5cc63 | DEV-056/058；149项pytest、真实三页面确认并返回房间 |
+| 低频输入采样保护与房间未知状态持久化 | xiaofeiyu-mahjong-llm · 28356145be3b0b06b2665b2e3ae43ff6e2a2e6e4 | DEV-059/060；15Hz隔离20/20，真实开始/碰/立直/荣和后续确认 |
+| 服务端时间池校正、多赤和暗杠未知事实、规则专项 | xiaofeiyu-mahjong-llm · 6d27e4bba61f059eda4b9e9ef07ea83ecb2a8111 | DEV-047/061/062、VAL-002；207项pytest，正式5+10第37机会失败继续保留 |
+| 经验生命周期及生产只读证据审计 | xiaofeiyu-mahjong-llm · 1baa37b9878455ae760e698ad72afd7e81de5e3a | VAL-008；6条经验7版本、500非空召回，非性能验收分母 |
 
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

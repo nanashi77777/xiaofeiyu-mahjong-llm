@@ -29,11 +29,13 @@
 | DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
 | VAL-002 | 验收 | 标准规则与全合法候选专项验收 | [完成记录](docs/development/completed/VAL-002-rule-matrix.md) |
+| VAL-004 | 验收 | 指定模型实际渠道兼容性验收 | [完成记录](docs/development/completed/VAL-004-real-model-channel.md) |
 | VAL-008 | 验收 | 自主经验修订与后续受益机制验收 | [完成记录](docs/development/completed/VAL-008-memory-lifecycle.md) |
 | DOC-002 | 资料/文档 | 独立完整请求与紧凑输入结构方案交付 | [完成记录](docs/development/completed/DOC-002-compact-wire-design.md) |
 | DEV-030 | 实现 | 完整决策上下文的紧凑投影与引用映射 | [完成记录](docs/development/completed/DEV-030-readable-compact-wire.md) |
 | DOC-003 | 资料/文档 | 版本化役种参考数据与复盘使用边界交付 | [完成记录](docs/development/completed/DOC-003-yaku-reference.md) |
 | DEV-031 | 实现 | 役种表运行加载、按需检索与版本证据接入 | [完成记录](docs/development/completed/DEV-031-yaku-runtime.md) |
+| VAL-011 | 验收 | 役种参考准确性、实时隔离与复盘引用验收 | [完成记录](docs/development/completed/VAL-011-yaku-reference.md) |
 | DEV-033 | 实现 | 最小持久化牌谱与无损迁移 | [完成记录](docs/development/completed/DEV-033-compact-archive.md) |
 | DOC-004 | 资料/文档 | 自动登录与选场扩展方案 | [完成记录](docs/development/completed/DOC-004-lobby-plan.md) |
 | DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |

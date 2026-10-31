@@ -88,7 +88,8 @@ async def run(args):
         store.close()
         args.output.parent.mkdir(parents=True,exist_ok=True)
         args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
-    print(json.dumps({k:v for k,v in report.items() if k not in ('requests','lookups','reviews')},ensure_ascii=False))
+    print(json.dumps({k:v for k,v in report.items()
+                      if k not in ('requests','lookups','reviews','realtime_request_audit','decision')},ensure_ascii=False))
     return 0 if report['passed'] else 1
 
 
