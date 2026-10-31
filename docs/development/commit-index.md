@@ -36,4 +36,6 @@
 
 | 直接退房回执及最终rich/compact对照工具 | xiaofeiyu-mahjong-llm · d26aface75464a9db8b058858418121a75f509f8 | DEV-073、DEV-040、VAL-010；266项pytest，20种真实建房组合及18组真实模型配对；完整实战另验 |
 
+| 本机模型配置、并行帧交接、图像线程及无明显收益试验结项 | xiaofeiyu-mahjong-llm · ffc8401fc01b4ab20f86afca46c1b4852a273e02 | DEV-070/074/075/076/077；300项pytest/ruff，两个远端ref已读回核验；新5＋10另验 |
+
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

@@ -174,6 +174,8 @@ class Coordinator:
             model_start = time.monotonic()
             observation = (asyncio.create_task(self.executor.observe(state,actions,deadline))
                            if not self.shadow and self.executor and hasattr(self.executor,'observe') else None)
+            action = None
+            handoff_ms, handoff_mode = 0, None
             try:
                 if self.settings.stream_actions:
                     choice = await self.model.begin_decision(context, deadline)
@@ -182,9 +184,15 @@ class Coordinator:
                     decision, action, metrics = await self.model.decide(context, deadline)
             finally:
                 if observation:
-                    observation.cancel()
-                    await asyncio.gather(observation,return_exceptions=True)
+                    handoff_start = time.monotonic()
+                    if hasattr(self.executor, 'finish_observation'):
+                        handoff_mode = await self.executor.finish_observation(observation, state, action, deadline)
+                    else:
+                        observation.cancel()
+                        await asyncio.gather(observation,return_exceptions=True)
+                    handoff_ms = (time.monotonic()-handoff_start)*1000
             metrics.update(rules_ms=(rules_done-rules_start)*1000,
+                           observation_handoff_ms=handoff_ms, observation_handoff_mode=handoff_mode,
                            wire_ms=(model_start-rules_done)*1000,
                            read_to_model_ms=(model_start-start)*1000)
             current = self.engine.state

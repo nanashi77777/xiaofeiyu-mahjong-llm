@@ -46,6 +46,8 @@ class Executor:
         self.target_evidence = []
         self.offered_window = None
         self.offered_saved = set()
+        self.observation_frame = None
+        self.observation_stage = None
 
     async def cancel_idle_observation(self):
         task = self.idle_observation
@@ -155,7 +157,14 @@ class Executor:
                         # becomes ready. Publishing belongs to that transaction,
                         # so cancellation cannot discard a completed recognition
                         # and force execution to capture the same scene again.
-                        await finish_input(self._observe_frame(state, actions, deadline))
+                        frame = asyncio.create_task(self._observe_frame(state, actions, deadline))
+                        self.observation_frame = frame
+                        try:
+                            await finish_input(frame)
+                        finally:
+                            if self.observation_frame is frame:
+                                self.observation_frame = None
+                                self.observation_stage = None
                     except InputDeferred:
                         pass  # Optional observation; execution still has full recognition.
                     await asyncio.sleep(.15)
@@ -167,10 +176,13 @@ class Executor:
     async def _observe_frame(self, state, actions, deadline):
         async with asyncio.timeout_at(deadline):
             self._observation_current(state, deadline)
+            self.observation_stage = 'capture'
             layout = await self.browser.layout_metrics()
             raw = await self.browser.image_bytes()
             observed = time.monotonic()
+            self.observation_stage = 'recognition'
             boxes = await finish_input(asyncio.to_thread(self._recognize_candidates, raw, state, actions))
+            self.observation_stage = 'recheck'
             if await self.browser.layout_metrics() != layout:
                 return
             self._observation_current(state, deadline)
@@ -181,6 +193,41 @@ class Executor:
                 cached[key] = Target(point, (0,0,0,0), observed,
                     'parallel_visible_observation', point, layout, raw, box.confidence)
             self.observed_targets = {(state.match_id, state.state_version, state.operation.window_id):cached}
+
+    async def finish_observation(self, task, state, action, deadline):
+        """Bound handoff; discard redundant captures only, never a model action."""
+        frame = getattr(self, 'observation_frame', None)
+        mode = 'drain_started_frame'
+        if frame and not frame.done():
+            key = (state.match_id, state.state_version, state.operation.window_id)
+            cached = self.observed_targets.get(key, {})
+            if action is None:
+                frame.cancel()
+                mode = 'no_model_action'
+            else:
+                required = ([('tile', (action.tile_index,))] if action.kind == 'discard'
+                            else [('tile', (action.tile_index,)), ('riichi', ())] if action.kind == 'riichi'
+                            else [(action.kind, ())])
+                fresh = all(k in cached and time.monotonic()-cached[k].observed <= .45 for k in required)
+                if fresh and getattr(self, 'observation_stage', None) == 'capture':
+                    frame.cancel()
+                    mode = 'fresh_selected_target'
+        task.cancel()
+        try:
+            _, pending = await asyncio.wait({task}, timeout=max(0, min(.25, deadline-time.monotonic())))
+            if pending and frame and not frame.done():
+                frame.cancel()
+                mode = 'handoff_wait_bounded'
+            # Native CPU workers still drain before sharing their locator/cache
+            # or releasing the lease. No wait grants a new action deadline.
+            await finish_input(asyncio.gather(task, return_exceptions=True))
+        except asyncio.CancelledError:
+            if frame and not frame.done():
+                frame.cancel()
+            task.cancel()
+            await finish_input(asyncio.gather(task, return_exceptions=True))
+            raise
+        return mode
 
     async def bind(self, hwnd):
         matches = [w for w in self.mouse.windows() if w.hwnd == hwnd]

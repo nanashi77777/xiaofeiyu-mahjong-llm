@@ -2330,7 +2330,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-070-explicit-results.md",
       "commits": [
-        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56"
+        "cba927fdcfa51aa17b549d0d0b8a1d199eb7ce56",
+        "ffc8401fc01b4ab20f86afca46c1b4852a273e02"
       ],
       "implementation_progress": "code_ready",
       "completed_on": "2026-11-01"
@@ -2430,7 +2431,9 @@
         "24 related streaming tests; actual 6+6 alternating requests, 2.64% P50 gain, 6 canceled usage unknown; production remains delay0."
       ],
       "completed_record": "docs/development/completed/DEV-074-stream-race.md",
-      "commits": [],
+      "commits": [
+        "ffc8401fc01b4ab20f86afca46c1b4852a273e02"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -2454,7 +2457,9 @@
         "24 actual alternating same-context requests, 12 per model; zero invalid/failed, action P50 terra3461.5ms/sol3437ms (0.71%), means3640.67/3348.92; no clear overall improvement, production and local config verified terra, hedge0. All records retained."
       ],
       "completed_record": "docs/development/completed/DEV-075-sol-trial.md",
-      "commits": [],
+      "commits": [
+        "ffc8401fc01b4ab20f86afca46c1b4852a273e02"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -2478,7 +2483,9 @@
         "9 isolated profile tests plus actual local capture/list and live-service select rejection; mocked decision/repair/review routing, no new provider called."
       ],
       "completed_record": "docs/development/completed/DEV-076-model-profiles.md",
-      "commits": [],
+      "commits": [
+        "ffc8401fc01b4ab20f86afca46c1b4852a273e02"
+      ],
       "completed_on": "2026-11-01"
     },
     {
@@ -2502,8 +2509,31 @@
         "14 frame handoff races and browser threading/lock test; 32 related checks passed, fresh cache reuses exactly one capture; production performance separately tested."
       ],
       "completed_record": "docs/development/completed/DEV-077-observation-handoff.md",
-      "commits": [],
+      "commits": [
+        "ffc8401fc01b4ab20f86afca46c1b4852a273e02"
+      ],
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-078",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "按模型已选动作提前交接新鲜观察目标",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-077"
+      ],
+      "design_refs": [
+        "docs/design/selected-observation-handoff.md"
+      ],
+      "acceptance": [
+        "仅所需全部目标足够新鲜且尚处只读捕获时取消多余帧，分类中仍排空，不放宽原安全门槛",
+        "显式记录交接耗时并比较模型提交到点击；隔离竞态与独立真实5＋10验证，旧报告不覆盖"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
