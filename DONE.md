@@ -90,3 +90,4 @@
 | DEV-079 | 实现 | 提高经验召回条数并在复盘生成端压缩 | [完成记录](docs/development/completed/DEV-079-concise-experience.md) |
 | DEV-080 | 实现 | 实际模型配置仅留本机并加强提交隐私检查 | [完成记录](docs/development/completed/DEV-080-private-model-configuration.md) |
 | DEV-081 | 交付 | 完整历史脱敏并公开只读仓库 | [完成记录](docs/development/completed/DEV-081-public-repository-release.md) |
+| DEV-083 | 实现 | 默认同步公开与私有两个麻将仓库 | [完成记录](docs/development/completed/DEV-083-dual-repository-sync.md) |
