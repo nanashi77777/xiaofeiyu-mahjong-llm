@@ -81,6 +81,31 @@ async def test_review_attempt_cap_survives_restart_and_preemption(store, state):
             await restarted.worker
 
 
+async def test_queued_interrupted_review_does_not_spend_attempt_after_game_resumes(store,state):
+    state,_=add_match(store,state,0)
+    busy=True
+    async def request(*args,**kwargs):
+        raise AssertionError('active game must not request a review')
+    reviewer=Reviewer(store,SimpleNamespace(request=request),lambda:busy)
+    try:
+        await reviewer.enqueue(state.match_id)
+        state.lifecycle='active'
+        store.save_snapshot(state)
+        busy=False
+        await asyncio.wait_for(reviewer.queue.join(),1)
+        job=store.records('review_job',state.match_id,1)[0]['payload']
+        assert job['status']=='deferred_active' and job['attempt']==0
+        assert not store.records('review_failure')
+        state.lifecycle='interrupted'
+        store.save_snapshot(state)
+        busy=True
+        await reviewer.enqueue(state.match_id)
+        assert state.match_id in reviewer.queued and reviewer.attempts[state.match_id]==0
+    finally:
+        reviewer.worker.cancel()
+        await asyncio.gather(reviewer.worker,return_exceptions=True)
+
+
 def test_memory_needs_evidence_in_three_subsequent_matches_and_resets_changed_claim(store, state):
     m = Memories(store)
     origin, evidence = add_match(store,state,0)

@@ -205,14 +205,17 @@ class Coordinator:
                     if self.pending and self.pending.get("early_ack"):
                         payload, ack_id = self.pending.pop("early_ack")
                         await self.input_observed("accepted", action.window_id, payload, ack_id)
-                except Exception:
+                except Exception as error:
                     # A compound click may already have opened a menu. Preserve
                     # uncertainty, stop further input, and do not compare the
                     # next unrelated event to an unsent action.
-                    self.record_receipt({**receipt, "status":"execution_uncertain",'input_steps':getattr(self.executor,'metrics',[])},
+                    self.record_receipt({**receipt, "status":"execution_uncertain",
+                                        'reason':type(error).__name__+(': '+str(error) if isinstance(error,(InputDeferred,TimeoutError)) else ''),
+                                        'input_steps':getattr(self.executor,'metrics',[])},
                                       state.match_id, state.round_uid)
                     self.pending = None
                     self.enabled = False
+                    self.status = 'paused_execution_uncertain_'+type(error).__name__
                     raise
             # A server event may arrive during mouse release. Finish the input
             # and its journal write before changed() confirms the actual event.

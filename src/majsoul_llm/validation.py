@@ -45,6 +45,12 @@ def match_report(store, match_id):
         elif purpose == 'decision_cancelled':
             cancelled.append(data)
         elif purpose == 'receipt':
+            if data['status'] == 'execution_uncertain':
+                failure={'record_id':row['id'],'window_id':window_id,'error_type':'execution_uncertain',
+                         'detail':data.get('reason')}
+                failures.append(failure)
+                if window is not None:
+                    window['failures'].append(failure)
             if data['status'] == 'mismatch':
                 mismatches.append({'record_id':row['id'], **data})
             if window is not None:

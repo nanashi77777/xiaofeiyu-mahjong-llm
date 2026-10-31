@@ -103,7 +103,19 @@ class Executor:
             raise InputDeferred('dedicated browser window is not unique')
         await self.bind(windows[0].hwnd)
 
-    async def target(self, semantic, state, indices=None):
+    def _observation_current(self,state,deadline=None):
+        current=self.state_getter()
+        if (not current or not current.operation or current.match_id != state.match_id
+                or current.state_version != state.state_version
+                or current.operation.window_id != state.operation.window_id):
+            raise InputDeferred('observation superseded before press')
+        if self.mouse.stop.is_set():
+            raise InputDeferred('input stopped during observation')
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError('input deadline expired during observation')
+
+    async def target(self, semantic, state, indices=None, deadline=None):
+        self._observation_current(state,deadline)
         key = (state.match_id,state.state_version,state.operation.window_id)
         cached = getattr(self,'observed_targets',{}).get(key,{}).get((semantic,tuple(indices or [])))
         if cached and time.monotonic()-cached.observed <= .6:
@@ -112,12 +124,13 @@ class Executor:
         # Recognition can occasionally be delayed by the compositor/CPU. A
         # stale result may be discarded and observed again before any press.
         for _ in range(3):
-            target = await self._target_once(semantic, state, indices)
+            target = await self._target_once(semantic, state, indices, deadline)
+            self._observation_current(state,deadline)
             if time.monotonic()-target.observed <= 1.2:
                 return target
         raise TargetExpired('recognized layout repeatedly expired before input')
 
-    async def _target_once(self, semantic, state, indices=None):
+    async def _target_once(self, semantic, state, indices=None, deadline=None):
         stage_started = time.monotonic()
         def mark(stage):
             nonlocal stage_started
@@ -131,6 +144,7 @@ class Executor:
             await self.browser.prepare_background()
             await self.browser.page.mouse.move(5,5)
             await asyncio.sleep(.05)
+        self._observation_current(state,deadline)
         mark('prepare_pointer')
         if self.input_mode=='browser_background':
             from ctypes import wintypes
@@ -146,6 +160,7 @@ class Executor:
         # Unity draws its controls inside the canvas; a Laya stage traversal
         # cannot expose those pixels. Other renderers keep semantic-node support.
         nodes = [] if layout.get('canvas') else await self.browser.visible_nodes()
+        self._observation_current(state,deadline)
         mark('layout_and_visible_nodes')
         observed = time.monotonic()
         aliases = BUTTONS.get(semantic, ())
@@ -158,7 +173,9 @@ class Executor:
             evidence = "visible_ui_semantics"
         else:
             for attempt in range(3):
+                self._observation_current(state,deadline)
                 raw = await self.browser.image_bytes()
+                self._observation_current(state,deadline)
                 mark('capture_and_crop')
                 observed = time.monotonic()
                 try:
@@ -178,6 +195,7 @@ class Executor:
                     else:
                         box = await asyncio.to_thread(self.locator.button,raw,semantic)
                     mark('recognition')
+                    self._observation_current(state,deadline)
                     break
                 except InputDeferred:
                     import hashlib
@@ -194,6 +212,7 @@ class Executor:
             evidence = "calibrated_screenshot_matching"
         if await self.browser.layout_metrics() != layout:
             raise InputDeferred('layout changed during recognition')
+        self._observation_current(state,deadline)
         if self.input_mode == 'browser_background':
             geometry = {'x':0,'y':0,'ratio':1,'canvas':layout.get('canvas')}
         else:
@@ -235,7 +254,7 @@ class Executor:
 
         async def click_once(semantic,indices=None):
             target_start = time.monotonic()
-            target = await self.target(semantic, state, indices)
+            target = await self.target(semantic, state, indices, deadline)
             self.metrics.append({'semantic':semantic,'stage':'target','elapsed_ms':(time.monotonic()-target_start)*1000})
             self._current(state, action)
             if self.input_mode=='browser_background':
@@ -265,7 +284,7 @@ class Executor:
         if action.kind == "riichi":
             # Verify the whole hand before dimming makes full segmentation
             # unavailable. Following clicks target only the offered bright tile.
-            await self.target('tile', state, [action.tile_index])
+            await self.target('tile', state, [action.tile_index], deadline)
             await click("riichi")
             # UI selection is independent of the authoritative state version.
             for _ in range(15):

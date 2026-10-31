@@ -109,6 +109,13 @@ class Reviewer:
             try:
                 while self.active_decision():
                     await asyncio.sleep(0.2)
+                state = self.store.latest(match_id)
+                if not state or state.lifecycle == 'active':
+                    # An interrupted match may have resumed while queued.
+                    # No request was attempted; preserve the real attempt count.
+                    self.job_record(match_id,'deferred_active')
+                    self.queued.discard(match_id)
+                    continue
                 if self.attempts[match_id] >= 3:
                     self.job_record(match_id,'failed')
                     self.queued.discard(match_id)

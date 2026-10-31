@@ -26,3 +26,8 @@ def test_practice_report_pages_all_windows_and_retains_failed_denominator():
     assert result['read_to_mouse_ms']['p99'] == 6000
     assert len(result['failures']) == 1 and result['windows']['500:op']['failures']
     assert not result['windows']['500:op']['mouse_sent']
+    rows['receipt'].append({'id':'uncertain','purpose':'receipt','created_at':'e',
+        'payload':{'action':{'kind':'pass','window_id':'500:op'},'status':'execution_uncertain',
+                   'reason':'InputDeferred: observation superseded before press'}})
+    result=match_report(fake,'example')
+    assert any(f['error_type']=='execution_uncertain' and f['detail'] for f in result['failures'])

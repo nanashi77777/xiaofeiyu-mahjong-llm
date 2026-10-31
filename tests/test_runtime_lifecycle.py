@@ -70,7 +70,7 @@ async def test_only_prepress_expiry_can_reobserve_same_semantic_target(state):
     executor.input_mode,executor.metrics = 'browser_background',[]
     executor.mouse = SimpleNamespace(stop=threading.Event(),user=SimpleNamespace(GetAsyncKeyState=lambda key:0))
     targets,presses = [],[]
-    async def target(semantic,s,indices):
+    async def target(semantic,s,indices,deadline=None):
         targets.append((semantic,indices))
         return Target((10,10),(0,0,100,100),time.monotonic(),'test',(10,10),{'test':True})
     async def layout():
@@ -98,6 +98,8 @@ async def test_preobserved_targets_require_same_window_version_and_freshness(sta
     from majsoul_llm.execution import Target
     executor=object.__new__(Executor)
     executor.metrics=[]
+    executor.state_getter=lambda:state
+    executor.mouse=SimpleNamespace(stop=threading.Event())
     cached=Target((1,2),(0,0,0,0),time.monotonic(),'parallel_visible_observation',(1,2),{})
     key=(state.match_id,state.state_version,state.operation.window_id)
     executor.observed_targets={key:{('tile',(3,)):cached}}
@@ -110,10 +112,33 @@ async def test_preobserved_targets_require_same_window_version_and_freshness(sta
     assert not calls
     changed=state.model_copy(deep=True)
     changed.operation.window_id='new-window'
+    executor.state_getter=lambda:changed
     assert (await executor.target('tile',changed,[3])).evidence=='fresh'
+    executor.state_getter=lambda:state
     cached.observed=time.monotonic()-1
     assert (await executor.target('tile',state,[3])).evidence=='fresh'
     assert len(calls)==2
+
+
+async def test_target_observation_checks_deadline_and_state_before_retry(state):
+    from majsoul_llm.execution import Target
+    from majsoul_llm.native import InputDeferred
+    executor=object.__new__(Executor)
+    executor.state_getter=lambda:state
+    executor.mouse=SimpleNamespace(stop=threading.Event())
+    executor.metrics=[]
+    calls=[]
+    async def expired(*args):
+        calls.append(args)
+        state.operation=None
+        return Target((1,2),(0,0,0,0),time.monotonic()-2,'stale')
+    executor._target_once=expired
+    with pytest.raises(TimeoutError,match='deadline expired'):
+        await executor.target('tile',state,[0],time.monotonic()-1)
+    assert not calls
+    with pytest.raises(InputDeferred,match='superseded'):
+        await executor.target('tile',state,[0],time.monotonic()+1)
+    assert len(calls)==1
 
 
 @pytest.mark.parametrize('model_fails',[False,True])

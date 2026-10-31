@@ -286,7 +286,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-009-recovery.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -337,7 +338,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-011-legal-actions.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -363,7 +365,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-012-hand-features.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -392,7 +395,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-013-yaku-scoring.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -422,7 +426,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-014-action-facts.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -477,7 +482,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-016-structured-decision-plan.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -506,7 +512,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-017-coordinator.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -532,7 +539,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-018-time-bank.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -623,7 +631,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-022-query-projections.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -674,7 +683,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-024-memory-revisions.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -704,7 +714,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-025-asynchronous-review.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -732,7 +743,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-026-contextual-recall.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -1072,7 +1084,8 @@
       ],
       "completed_record": "docs/development/completed/DEV-030-readable-compact-wire.md",
       "commits": [
-        "b58eda77e80cabc35a59417d3fe068e439ac4b4c"
+        "b58eda77e80cabc35a59417d3fe068e439ac4b4c",
+        "94fc9601057988670bc3465852d97077ae402e8f"
       ],
       "completed_on": "2026-10-31"
     },
@@ -1653,6 +1666,54 @@
         "124 pytest passed; test_client_guard verifies no strategy click and later user stop wins; live visible away observed/resume_clicked records and later model-selected discards server_confirmed."
       ],
       "completed_record": "docs/development/completed/DEV-048-client-away.md",
+      "commits": [
+        "94fc9601057988670bc3465852d97077ae402e8f"
+      ],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-049",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "识别期间期限撤销与执行失败归因补强",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "每个取图/识别阶段检查原窗口和统一deadline，取消或过期不继续昂贵重取",
+        "按压前失败及取消期间执行不确定含原因留档，正式suite立即以失败归因停止"
+      ],
+      "evidence": [
+        "126 pytest passed; expired-before-read and superseded-after-capture checks; uncertain receipt counts as a suite failure"
+      ],
+      "completed_record": "docs/development/completed/DEV-049-observation-cancellation.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-050",
+      "kind": "development",
+      "milestone": "M6",
+      "title": "已恢复活动对局的旧复盘任务撤销",
+      "status": "done",
+      "depends_on": [
+        "DEV-025"
+      ],
+      "design_refs": [
+        "docs/design/model-and-memory.md"
+      ],
+      "acceptance": [
+        "跨服务恢复队列若原中断场已恢复active，撤销旧复盘排队且不消耗模型重试次数",
+        "后续真实终场/中断事实版本仍可正常排队，不能借此重置真实失败次数"
+      ],
+      "evidence": [
+        "126 pytest passed; resumed active game spends no review attempt and can enqueue after a real end"
+      ],
+      "completed_record": "docs/development/completed/DEV-050-review-resume.md",
       "commits": [],
       "completed_on": "2026-10-31"
     }

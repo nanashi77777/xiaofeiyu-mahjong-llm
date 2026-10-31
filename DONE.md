@@ -42,3 +42,5 @@
 | DEV-045 | 实现 | 加入友人房后服务端核验准备及QQ契约 | [完成记录](docs/development/completed/DEV-045-friend-ready.md) |
 | DEV-046 | 实现 | 消除取图路径的视口缩放并串行稳定裁剪 | [完成记录](docs/development/completed/DEV-046-stable-capture.md) |
 | DEV-048 | 实现 | 离开提示检测、恢复与验收归因 | [完成记录](docs/development/completed/DEV-048-client-away.md) |
+| DEV-049 | 实现 | 识别期间期限撤销与执行失败归因补强 | [完成记录](docs/development/completed/DEV-049-observation-cancellation.md) |
+| DEV-050 | 实现 | 已恢复活动对局的旧复盘任务撤销 | [完成记录](docs/development/completed/DEV-050-review-resume.md) |
