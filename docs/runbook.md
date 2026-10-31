@@ -13,7 +13,7 @@ C:\Python312\python.exe -m venv .venv
 .\.venv\Scripts\majsoul-llm.exe init-config
 ```
 
-在被忽略的 runtime/private.json 配置 api_key；也可通过 MAJSOUL_API_KEY 环境变量覆盖。read_token 和 control_token 自动生成且权限分离。禁止将配置、浏览器资料、牌谱或截图提交到 Git。
+在被忽略的 runtime/private.json 配置 api_key；也可通过 MAJSOUL_API_KEY 环境变量覆盖。read_token、navigation_token和control_token分别用于查询、窄导航、通用本机控制，自动生成且权限分离。旧配置升级需保存新增导航令牌后重启，再把navigationToken单独提供给QQ导航适配器。禁止将配置、浏览器资料、牌谱或截图提交到 Git。
 
 ```powershell
 .\.venv\Scripts\majsoul-llm.exe serve
@@ -24,7 +24,11 @@ C:\Python312\python.exe -m venv .venv
 
 启动显式关闭Playwright固定视口，并核验本窗口最大化，游戏根据实际可用区域适配。面板“恢复完整窗口”先停接管再最大化；需要重新开启接管。截图前核验完整canvas在当前页面视口内，截断时暂停定位，防止截图自动滚动掩盖不完整窗口。本机125%缩放的真实大厅、手动缩小/恢复、后台最小化已核验；其他显示器/皮肤仍需专项验证。
 
-自动登录与按指令选场已登记M9计划，见lobby-automation.md；尚未提供这些控制按钮。当前保存的有效profile可由客户端自行恢复登录态，不等于失效会话的自动登录流程已实现。
+登录与选场已提供面板表单、CLI和QQ工具，见lobby-automation.md及本批开发日志。登录命令复用有效profile并等待实际认证回包；没有有效登录态时显示waiting_user，新凭据/验证码需在专用浏览器完成，不能将此阶段说成完整自动登录已交付。页面适配使用runtime/navigation本地模板，未校准/歧义/精确选项读回失败时暂停。
+
+CLI以`majsoul-llm navigate --path <命令JSON>`提交，`majsoul-llm navigation --id <原ID>`查询；取消未提交指令或验证后续跑分别添加`--action cancel/resume`。JSON必须带稳定command_id，kind为login/ranked/join_friend/create_friend，具体字段见lobby_commands.py。入房不会自行准备/开局。成功提交的匹配/入房不能用本机取消任务冒充服务端退出，可见取消适配尚待DEV-038。
+
+QQ runtime/mahjong-navigation.json仅包含固定loopback baseUrl和navigationToken；原mahjong-readonly.json仍只含readToken。mahjong_navigate绑定当前会话和本轮真实消息生成ID；mahjong_navigation查进度或对原ID操作。新凭据登录、所有入口矩阵和自动接管仍按DEV-037..041、VAL-012/013跟踪；工具可调用不等于自动打牌/5秒目标已经完成。
 
 ## 协议与恢复
 
@@ -43,6 +47,10 @@ SQLite runtime/archive.sqlite 使用 WAL，逐事件保存投影，保留 interr
 用户于2026-10-31要求尝试后台点击，新增browser_background模式：面板切换后重新开始接管，使用浏览器鼠标事件，系统鼠标不移动，也不抢前台。此模式允许窗口最小化；仍要求绑定窗口/页面身份、截图与手牌核验、状态版本/期限和急停。Unity需先更新一帧悬停目标再按下，不依赖系统前台焦点。隔离最小化测试与一次真实8m弃牌均已有证据，连续及多组合验收仍独立进行。
 
 新增最小化真实1p弃牌服务端确认，系统光标与前台不变。为避免最小化后画布停帧，后台模式维持低分辨率CDP screencast，帧立即丢弃、不进入牌谱；切回物理模式释放。停止/过期或渲染期间状态变化不按下。
+
+大厅联调进一步修复低帧率Unity漏按：后台模式按下后等待两次渲染回调，抬起后再等一帧才归位；渲染异常也必须抬起。该行为会用于后续打牌执行，正常速度仍须重新实战计量，不能沿用旧样本证明5秒达标。
+
+GitHub首页使用main，已验证开发提交须与main核对。若本机Git HTTPS因失效代理/网络不可达，执行`.venv\Scripts\python.exe tools/github_sync.py --also-main`通过GitHub API同步已提交的线性历史；脚本核验自有私库、所有将上传文件的秘密审计和原对象哈希，不强推、不上传工作区。QQ仓库可加`--root <qq-project>`。签名/merge等不支持时保留本机历史，走标准Git。
 
 ## 最小牌谱存储
 

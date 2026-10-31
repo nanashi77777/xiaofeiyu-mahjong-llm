@@ -6,6 +6,7 @@ import hashlib
 import time
 
 from .domain import Event, Phase, Rules, Snapshot
+from .lobby_session import LobbySession
 from .state import apply_event, digest
 from .store import Store, packed, utcnow
 
@@ -45,6 +46,13 @@ class Engine:
         self.last_error: str | None = None
         self.input_windows = {}
         self.on_input = None
+        self.lobby_session = LobbySession()
+
+    def browser_reset(self):
+        self.lobby_session.reset()
+
+    def socket_closed(self, connection):
+        self.lobby_session.closed(connection)
 
     async def frame(self, connection, raw, from_client):
         if not self.protocol:
@@ -74,6 +82,9 @@ class Engine:
 
     async def message(self, message):
         async with self.lock:
+            if message["method"].startswith(".lq.Lobby."):
+                self.lobby_session.observe(message)
+                return
             method, direction = message["method"].rsplit(".", 1)[-1], message["direction"]
             data, connection = message["data"], message["connection"]
             if method == "authGame" and direction == "request":

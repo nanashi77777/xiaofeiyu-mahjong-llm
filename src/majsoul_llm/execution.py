@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 
 from .domain import LegalAction, Snapshot
+from .input_lease import InputLease, finish_input
 from .native import InputDeferred, Window, WindowsMouse
 from .locator import ScreenLocator
 
@@ -25,13 +26,14 @@ class Target:
 
 
 class Executor:
-    def __init__(self, browser, state_getter):
+    def __init__(self, browser, state_getter, lease=None):
         self.browser, self.state_getter = browser, state_getter
         self.mouse = WindowsMouse()
         self.window: Window | None = None
         self.calibration = None
         self.locator = ScreenLocator(browser.settings.runtime)
         self.input_mode = browser.settings.input_mode
+        self.lease = lease or InputLease()
 
     async def bind(self, hwnd):
         matches = [w for w in self.mouse.windows() if w.hwnd == hwnd]
@@ -99,6 +101,10 @@ class Executor:
             raise InputDeferred("state changed before input")
 
     async def execute(self, state: Snapshot, action: LegalAction, deadline):
+        async with self.lease.hold("gameplay:"+action.window_id):
+            return await self._execute(state, action, deadline)
+
+    async def _execute(self, state: Snapshot, action: LegalAction, deadline):
         self._current(state, action)
 
         async def click(semantic, indices=None):
@@ -112,7 +118,8 @@ class Executor:
                     raise InputDeferred('background layout expired')
                 return await self.browser.background_click(target.page_point,deadline,self.mouse.stop,
                                                            validate=lambda:self._current(state,action))
-            return await asyncio.to_thread(self.mouse.click, self.window, target.rect, target.point, target.observed, deadline)
+            return await finish_input(asyncio.to_thread(
+                self.mouse.click, self.window, target.rect, target.point, target.observed, deadline))
 
         if action.kind == "discard":
             return await click("tile", [action.tile_index])

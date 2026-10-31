@@ -12,6 +12,8 @@ from typing import Any
 
 from google.protobuf import descriptor_pool, json_format, message_factory
 
+from .lobby_session import LOBBY_METHODS, sanitize_lobby
+
 
 def xor_action(data: bytes) -> bytes:
     keys = (0x84, 0x5E, 0x4E, 0x42, 0x39, 0xA2, 0x1F, 0x60, 0x1C)
@@ -63,6 +65,15 @@ class Protocol:
             wrapper = self.decode("lq.Wrapper", raw[3:])
             name = wrapper.get("name", "")
             if kind == 2:
+                if name.startswith(".lq.Lobby."):
+                    service, method = name.lstrip(".").rsplit(".", 1)
+                    if method not in LOBBY_METHODS:
+                        return None
+                    descriptor = self.pool.FindServiceByName(service).methods_by_name[method]
+                    # Login request bytes can include passwords/tokens. Don't
+                    # decode or forward them, even to an in-memory observer.
+                    self.pending[(connection, request_id)] = (name, descriptor.output_type.full_name, None)
+                    return None
                 # Only gameplay RPCs. Auth values are never returned or persisted.
                 if not name.startswith(".lq.FastTest."):
                     return None
@@ -88,6 +99,8 @@ class Protocol:
                 decoded["data"] = self.action(decoded["name"], base64.b64decode(decoded.get("data", "")))
         else:
             decoded = self.decode(response_type, data)
+            if name.startswith(".lq.Lobby."):
+                decoded = sanitize_lobby(name.rsplit(".", 1)[-1], decoded)
             if name.endswith("authGame"):
                 decoded = {k: decoded[k] for k in ("error", "seat_list", "game_config", "is_game_start") if k in decoded}
             restore = decoded.get("game_restore")

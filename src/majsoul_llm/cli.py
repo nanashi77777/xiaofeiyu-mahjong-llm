@@ -25,8 +25,10 @@ async def probe(settings):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command",choices=("serve","status","probe","init-config","panel","import-proto"))
+    parser.add_argument("command",choices=("serve","status","probe","init-config","panel","import-proto", "navigate", "navigation"))
     parser.add_argument("--path",type=Path)
+    parser.add_argument("--id", help="existing navigation command ID")
+    parser.add_argument("--action", choices=("status", "cancel", "resume"), default="status")
     args = parser.parse_args()
     settings = Settings.load()
     if args.command == "init-config":
@@ -45,6 +47,25 @@ def main():
         print("Opened the local panel; control credential stays in the local URL fragment.")
     elif args.command == "probe":
         print(json.dumps(asyncio.run(probe(settings)),ensure_ascii=False))
+    elif args.command in ("navigate", "navigation"):
+        import httpx
+        base = f"http://127.0.0.1:{settings.port}/api/v1/mahjong/navigation"
+        headers = {"Authorization":"Bearer "+settings.navigation_token.get_secret_value()}
+        if args.command == "navigate":
+            from .lobby_commands import parse_command
+            if not args.path:
+                parser.error("navigate requires --path with a secret-free command JSON")
+            command = parse_command(json.loads(args.path.read_text(encoding="utf-8"))).model_dump(mode="json")
+            response = httpx.post(base+"/commands", json=command, headers=headers, timeout=10)
+        elif args.action != "status":
+            if not args.id:
+                parser.error("cancel/resume requires --id")
+            response = httpx.post(base+"/commands/"+args.id+"/"+args.action, json={}, headers=headers, timeout=10)
+        else:
+            response = httpx.get(base+("/commands/"+args.id if args.id else ""), headers=headers, timeout=10)
+        print(json.dumps(response.json(), ensure_ascii=False))
+        if response.is_error:
+            raise SystemExit(1)
     elif args.command == "import-proto":
         from .protocol import Protocol
         if not args.path:

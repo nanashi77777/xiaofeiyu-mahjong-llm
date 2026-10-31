@@ -1237,7 +1237,7 @@
       "kind": "development",
       "milestone": "M9",
       "title": "大厅命令契约与导航状态机",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "DOC-004",
         "DEV-034"
@@ -1249,16 +1249,19 @@
         "规范登录/段位/加入/建房参数，场级与房码不猜，fixed/bank单位明确",
         "command_id幂等，停止/恢复与活动对局互斥，单输入租约"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "49 pytest tests; ruff; idempotency/restart/cancel/input lease and real profile authentication"
+      ],
+      "completed_record": "docs/development/completed/DEV-036-navigation-state.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-037",
       "kind": "development",
       "milestone": "M9",
       "title": "登录态复用与自动登录",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-036"
       ],
@@ -1271,14 +1274,15 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "登录态复用和本机入口已接入；新凭据自动登录、匹配取消、进入对局后的打牌交接仍在开发"
     },
     {
       "id": "DEV-038",
       "kind": "development",
       "milestone": "M9",
       "title": "指定段位场级与四人东南匹配",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-037"
       ],
@@ -1291,14 +1295,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "implementation_progress": "code_ready",
+      "status_reason": "规范命令、UI流程和服务端核验代码已接入；自动凭据登录、取消匹配/真实入口和入局交接仍待完成，不冒充真实验收"
     },
     {
       "id": "DEV-039",
       "kind": "development",
       "milestone": "M9",
       "title": "按房间码加入友人房",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-037"
       ],
@@ -1311,14 +1317,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "implementation_progress": "code_ready",
+      "status_reason": "规范命令、UI流程和服务端核验代码已接入；自动凭据登录、取消匹配/真实入口和入局交接仍待完成，不冒充真实验收"
     },
     {
       "id": "DEV-040",
       "kind": "development",
       "milestone": "M9",
       "title": "创建四人友人房与思考时间设置",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-037"
       ],
@@ -1331,14 +1339,16 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "implementation_progress": "code_ready",
+      "status_reason": "规范命令、UI流程和服务端核验代码已接入；自动凭据登录、取消匹配/真实入口和入局交接仍待完成，不冒充真实验收"
     },
     {
       "id": "DEV-041",
       "kind": "development",
       "milestone": "M9",
       "title": "本机选场入口与对局接管交接",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "DEV-038",
         "DEV-039",
@@ -1354,7 +1364,8 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "登录态复用和本机入口已接入；新凭据自动登录、匹配取消、进入对局后的打牌交接仍在开发"
     },
     {
       "id": "VAL-012",
@@ -1395,6 +1406,49 @@
       "acceptance": [
         "真实场级/四东四南、加入房码、创建选项和时间读回有记录",
         "区分匹配/房间/入局状态，不以隔离模拟冒充真实完成"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": []
+    },
+    {
+      "id": "DEV-042",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "QQ选场工具及独立导航接口",
+      "status": "done",
+      "depends_on": [
+        "DEV-036"
+      ],
+      "design_refs": [
+        "docs/design/lobby-automation.md"
+      ],
+      "acceptance": [
+        "QQ小肥鱼通过窄工具提交规范选场命令、查询/取消/续跑；独立导航令牌不访问通用控制或查询秘密",
+        "沿用QQ白名单和当前会话绑定，真实消息ID幂等，原提示保留；本机接口/CLI/面板可见状态，未就绪适配诚实返回，零外发回归"
+      ],
+      "evidence": [
+        "49 Python and 193 QQ tests; six real MCP tool discovery/reads; 4 QQ sessions available; zero outbound messages"
+      ],
+      "completed_record": "docs/development/completed/DEV-042-qq-navigation.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-043",
+      "kind": "development",
+      "milestone": "M0",
+      "title": "GitHub默认分支同步与API推送后备入口",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-001"
+      ],
+      "design_refs": [
+        "docs/design/github-sync.md"
+      ],
+      "acceptance": [
+        "核验私有远端、默认分支及已上传提交；main仅快进，不上传未提交代码",
+        "Git HTTPS不可达时通过GitHub API保留原blob/tree/commit哈希、提交作者/时间/消息；秘密审计及非强制引用更新，真实远端校验"
       ],
       "evidence": [],
       "completed_record": null,

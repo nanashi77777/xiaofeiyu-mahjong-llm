@@ -70,3 +70,31 @@ async def test_background_expired_or_stopped_input_never_reaches_mouse():
         with pytest.raises(TimeoutError):
             await b.background_click((30,40), deadline, flag)
     assert not session.commands and not mouse.events
+
+
+async def test_background_press_spans_renderer_and_restore_follows_release_frame():
+    b, session, mouse = browser()
+    observations = []
+    async def evaluate(script):
+        if '__mjLocalPointer' in script:
+            return {'x':5,'y':5} if not mouse.events else {'x':30,'y':40}
+        observations.append(tuple(e[0] for e in mouse.events))
+        return True
+    b.page.evaluate = evaluate
+    await b.background_click((30,40), time.monotonic()+2, threading.Event())
+    assert observations == [('move',), ('move','down'), ('move','down','up')]
+    assert mouse.events[-1] == ('move',(5,5))
+
+
+async def test_background_renderer_failure_still_releases_pressed_mouse():
+    b, session, mouse = browser()
+    async def evaluate(script):
+        if '__mjLocalPointer' in script:
+            return None
+        if any(event[0]=='down' for event in mouse.events):
+            raise TimeoutError('renderer stalled while pressed')
+        return True
+    b.page.evaluate = evaluate
+    with pytest.raises(TimeoutError):
+        await b.background_click((30,40), time.monotonic()+2, threading.Event())
+    assert [event[0] for event in mouse.events] == ['move','down','up']

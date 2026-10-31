@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import inspect
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -70,6 +71,10 @@ class Browser:
           addEventListener('pointermove',e=>{window.__mjLocalPointer={x:e.clientX,y:e.clientY}},true); })()""")
         self.cdp.on("Network.webSocketFrameReceived", lambda msg: self._enqueue(msg, False))
         self.cdp.on("Network.webSocketFrameSent", lambda msg: self._enqueue(msg, True))
+        owner = getattr(self.on_message, "__self__", None)
+        if owner and hasattr(owner, "browser_reset"):
+            self.page.on("framenavigated", lambda frame: owner.browser_reset() if frame == self.page.main_frame else None)
+            self.cdp.on("Network.webSocketClosed", lambda msg: owner.socket_closed(msg["requestId"]))
         self.consumer = asyncio.create_task(self._consume())
         await self.page.goto(self.settings.game_url, wait_until="domcontentloaded", timeout=60000)
 
@@ -190,12 +195,24 @@ class Browser:
         if stop.is_set() or time.monotonic()>=deadline:
             raise TimeoutError('background input stopped before press')
         if validate:
-            validate()
+            validation = validate()
+            if inspect.isawaitable(validation):
+                await validation
+        if stop.is_set() or time.monotonic()>=deadline:
+            raise TimeoutError('background input stopped after validation')
         try:
             await self.page.mouse.down()
-            await asyncio.sleep(.03)
+            # Unity samples held input in its render loop. A fixed 30ms press
+            # can fit between two frames in a background/low-FPS lobby. Two
+            # callbacks guarantee a Unity tick between press and release even
+            # when our callback runs before Unity's callback in the first frame.
+            await asyncio.wait_for(self.page.evaluate('''() => new Promise(resolve=>
+              requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))'''), .4)
         finally:
             await self.page.mouse.up()
+        # Keep the target under the pointer until the release is sampled too.
+        await asyncio.wait_for(self.page.evaluate(
+            '() => new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))'), .4)
         clicked=time.monotonic()
         if original and not self.page.is_closed():
             current=await self.page.evaluate('() => window.__mjLocalPointer')
@@ -204,6 +221,9 @@ class Browser:
         return clicked
 
     async def close(self):
+        owner = getattr(self.on_message, "__self__", None)
+        if owner and hasattr(owner, "browser_reset"):
+            owner.browser_reset()
         if self.consumer:
             self.consumer.cancel()
         await self.release_background()

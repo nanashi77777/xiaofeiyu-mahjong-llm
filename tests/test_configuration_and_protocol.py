@@ -19,6 +19,8 @@ def test_private_settings_round_trip_and_no_dump_secret(tmp_path):
     restored=Settings.load(path)
     assert restored.api_key.get_secret_value()=='test-credential-not-real'
     assert restored.read_token!=restored.control_token
+    assert restored.navigation_token == settings.navigation_token
+    assert restored.navigation_token not in (restored.read_token, restored.control_token)
     assert restored.input_mode=='physical_foreground' and not restored.timer_verified
     assert not restored.compact_validated
 
@@ -44,10 +46,14 @@ def fixture_protocol():
     message('Wrapper',[('name',9),('data',12)])
     message('ReqAuth',[('account_id',13),('game_uuid',9),('token',9)])
     message('ResAuth',[('is_game_start',8)])
+    message('ReqLogin',[('password',9)])
+    message('ResLogin',[('access_token',9)])
     message('ActionDiscardTile',[('seat',13),('tile',9)])
     message('ActionPrototype',[('step',13),('name',9),('data',12)])
     service=file.service.add(name='FastTest')
     service.method.add(name='authGame',input_type='.lq.ReqAuth',output_type='.lq.ResAuth')
+    lobby=file.service.add(name='Lobby')
+    lobby.method.add(name='login',input_type='.lq.ReqLogin',output_type='.lq.ResLogin')
     return Protocol(file.SerializeToString())
 
 
@@ -68,6 +74,19 @@ def test_wire_protocol_sanitizes_auth_and_live_vs_recovery():
     prototype=protocol.message('lq.ActionPrototype')(step=17,name='ActionDiscardTile',data=xor_action(action))
     notify=b'\x01'+wrapper(name='.lq.ActionPrototype',data=prototype.SerializeToString()).SerializeToString()
     assert protocol.frame('c1',notify,False)['data']['data']=={'seat':2,'tile':'0p'}
+
+
+def test_lobby_login_request_is_not_decoded_or_forwarded():
+    protocol=fixture_protocol()
+    wrapper=protocol.message('lq.Wrapper')
+    # Even invalid request bytes are never decoded: a login request may carry
+    # secrets and its body is unnecessary for observing the response.
+    request=b'\x02'+struct.pack('<H',4)+wrapper(name='.lq.Lobby.login',data=b'not-protobuf-private').SerializeToString()
+    assert protocol.frame('lobby',request,True) is None
+    response=b'\x03'+struct.pack('<H',4)+wrapper(data=protocol.message('lq.ResLogin')(access_token='private-session-secret').SerializeToString()).SerializeToString()
+    result=protocol.frame('lobby',response,False)
+    assert result['data']=={'error_code':0,'has_game':False}
+    assert 'secret' not in json.dumps(result)
 
 
 def test_store_committed_state_survives_reopen_and_future_schema_rejected(tmp_path,state):

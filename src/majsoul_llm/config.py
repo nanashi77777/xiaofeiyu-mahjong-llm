@@ -20,6 +20,7 @@ class Settings(Record):
     api_key: SecretStr = Field(default_factory=lambda: SecretStr(""), exclude=True)
     control_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
     read_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
+    navigation_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
     port: int = 8765
     debug_port: int = 9223
     game_url: str = "https://game.maj-soul.com/1/"
@@ -47,7 +48,7 @@ class Settings(Record):
         path = path or self.runtime / "private.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         data = self.model_dump(mode="json")
-        for key in ("api_key", "control_token", "read_token"):
+        for key in ("api_key", "control_token", "read_token", "navigation_token"):
             data[key] = getattr(self, key).get_secret_value()
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
         return path

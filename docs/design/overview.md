@@ -37,7 +37,7 @@ flowchart TD
 | 协调器 | `DecisionWindow + DecisionResult → ExecutionRequest` | 请求取消、迟到失效、有限纠错、共享时间池、执行去重 |
 | 基础设施 | `ExecutionRequest + FreshUILayout → ExecutionReceipt` | 手牌/按钮定位、真实鼠标、立直/组合选择事务、输入后确认 |
 | 经验 | `ArchivedMatch → Review → MemoryRevision` | 异步复盘、候选与稳定经验、风格和相关召回 |
-| 查询/界面 | `Projection → HTTP / MCP / Panel` | QQ 只读查询，本机控制、状态、牌谱和计量 |
+| 查询/界面 | `Projection → HTTP / MCP / Panel` | QQ按需只读查询；选场使用独立导航能力，本机另有打牌控制、状态、牌谱和计量 |
 
 输入事实与 UI 定位分开。首版没有“用图像推理整桌牌局”的要求，但 WS 不提供屏幕坐标，仍需读取页面可见几何或用局部 CV 定位手牌/按钮。页面对象只能用于可见 UI 定位与核验，不能通过内部出牌函数、WebSocket 发送或读取未公开牌山代替正常玩法。
 

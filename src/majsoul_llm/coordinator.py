@@ -64,6 +64,8 @@ class Coordinator:
                 pass
 
     async def start(self, shadow=True):
+        if self.executor and self.executor.lease.owner is not None:
+            raise ValueError("input already owned")
         if not self.settings.api_key.get_secret_value():
             raise ValueError("model API key is missing")
         self.enabled, self.shadow = True, shadow

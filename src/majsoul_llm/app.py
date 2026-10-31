@@ -13,6 +13,10 @@ from .config import Settings
 from .coordinator import Coordinator
 from .engine import Engine
 from .execution import Executor
+from .input_lease import InputLease
+from .lobby import LobbyError, LobbyJournal, Navigator
+from .lobby_commands import LobbyCommand
+from .lobby_ui import LobbyDriver, LobbyUI
 from .model import ModelClient
 from .protocol import Protocol
 from .queries import Queries
@@ -32,8 +36,15 @@ class Service:
         self.browser = Browser(settings, self.engine.frame)
         self.client = ModelClient(settings, self.store)
         self.coordinator = Coordinator(settings, self.engine, self.client)
-        self.executor = Executor(self.browser, lambda:self.engine.state)
+        self.input_lease = InputLease()
+        self.executor = Executor(self.browser, lambda:self.engine.state, self.input_lease)
         self.coordinator.executor = self.executor
+        self.lobby_journal = LobbyJournal(settings.runtime / "lobby.sqlite")
+        self.lobby_ui = LobbyUI(self.browser, self.executor)
+        self.navigator = Navigator(self.lobby_journal, LobbyDriver(self.browser, self.engine.lobby_session, self.lobby_ui),
+                                   self.input_lease, self.executor.mouse.stop,
+                                   lambda:bool(self.engine.state and self.engine.state.lifecycle == "active"),
+                                   lambda:self.coordinator.enabled)
         self.reviewer = Reviewer(self.store, self.client, self.coordinator.active)
         self.engine.on_state = self.changed
         self.engine.on_input = self.coordinator.input_observed
@@ -47,6 +58,7 @@ class Service:
             await self.reviewer.enqueue(state.match_id)
 
     async def close(self):
+        await self.navigator.stop()
         await self.coordinator.stop("service_stopped")
         await self.engine.interrupt()
         await self.browser.close()
@@ -58,6 +70,7 @@ class Service:
                 pass
         await self.client.close()
         self.store.close()
+        self.lobby_journal.close()
 
     def status(self):
         state = self.engine.state
@@ -69,6 +82,7 @@ class Service:
                 "state":state.model_dump(mode="json") if state else None, "plan":self.coordinator.plan,
                 "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
+                "navigation":self.navigator.status(), "login_session":self.engine.lobby_session.public(),
                 "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
                 "token_usage":self.store.records("token_usage", limit=20),
                 "usage_summary":usage_summary(self.store, self.client.credential_id),
@@ -122,6 +136,18 @@ def create_app(settings=None, service=None):
         auth(request, control=True)
         return request.app.state.service
 
+    def navigator(request:Request):
+        token = request.headers.get("authorization", "").removeprefix("Bearer ")
+        if not any(hmac.compare_digest(token, key.get_secret_value())
+                   for key in (settings.navigation_token, settings.control_token)):
+            raise HTTPException(401, "invalid credential")
+        return request.app.state.service.navigator
+
+    @app.exception_handler(LobbyError)
+    async def lobby_error(request, error):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error":error.code}, status_code=409)
+
     @app.exception_handler(KeyError)
     async def missing(request, error):
         from fastapi.responses import JSONResponse
@@ -171,6 +197,28 @@ def create_app(settings=None, service=None):
     async def status(s=Depends(controller)):
         return s.status()
 
+    navigation_base = "/api/v1/mahjong/navigation"
+
+    @app.get(navigation_base)
+    async def navigation_status(n=Depends(navigator)):
+        return n.status()
+
+    @app.post(navigation_base+"/commands", status_code=202)
+    async def navigate(command:LobbyCommand, n=Depends(navigator)):
+        return await n.submit(command.model_dump(mode="json"))
+
+    @app.get(navigation_base+"/commands/{command_id}")
+    async def navigation_command(command_id:str, n=Depends(navigator)):
+        return n.journal.get(command_id)
+
+    @app.post(navigation_base+"/commands/{command_id}/resume", status_code=202)
+    async def navigation_resume(command_id:str, n=Depends(navigator)):
+        return await n.resume(command_id)
+
+    @app.post(navigation_base+"/commands/{command_id}/cancel")
+    async def navigation_cancel(command_id:str, n=Depends(navigator)):
+        return await n.cancel(command_id)
+
     @app.get("/control/windows")
     async def windows(s=Depends(controller)):
         return [w.__dict__ for w in s.executor.mouse.windows()]
@@ -190,15 +238,24 @@ def create_app(settings=None, service=None):
     async def control(action:str,request:Request,s=Depends(controller)):
         data = await request.json()
         if action == "browser":
+            if s.navigator.busy():
+                raise LobbyError("navigation_in_progress")
             await s.browser.start()
         elif action == "fit-window":
+            await s.navigator.stop()
             await s.coordinator.stop('window_layout_changed')
             await s.browser.fit_window()
         elif action == "bind":
+            if s.navigator.busy():
+                raise LobbyError("navigation_in_progress")
             await s.executor.bind(int(data["hwnd"]))
         elif action == "shadow":
+            if s.navigator.busy():
+                raise LobbyError("navigation_in_progress")
             await s.coordinator.start(shadow=True)
         elif action == "start":
+            if s.navigator.busy():
+                raise LobbyError("navigation_in_progress")
             if not s.executor.window:
                 raise ValueError("bind a game window first")
             await s.coordinator.start(shadow=False)
@@ -206,11 +263,13 @@ def create_app(settings=None, service=None):
             mode=data.get('mode')
             if mode not in ('physical_foreground','browser_background'):
                 raise ValueError('unsupported input mode')
+            await s.navigator.stop()
             await s.coordinator.stop('input_mode_changed')
             if mode == 'physical_foreground':
                 await s.browser.release_background()
             s.executor.input_mode=mode
         elif action in ("pause", "stop", "emergency"):
+            await s.navigator.stop()
             await s.coordinator.stop(action)
         else:
             raise HTTPException(404,"unknown control")
