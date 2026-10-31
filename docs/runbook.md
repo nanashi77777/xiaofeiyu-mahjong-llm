@@ -88,6 +88,10 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 ## 验证工具
 
+物理输入专项会实际操作一次性本机窗口并合成Esc；运行前自动查询生产输入必须空闲，接管/导航/结算进行中直接拒绝。先暂停生产接管，再运行`python tools/validate_physical_input.py --output runtime/physical-input-validation-<批次>.json`，不能与正式计时重叠。报告分别记录真实Windows点击和合成干预，不控制游戏。默认完整验证约数秒，桌面无法取得前台时保留受阻结果。
+
+`python tools/validate_panel.py --output runtime/panel-validation-<批次>.json`在独立headless浏览器加载正式面板，拦截全部路由；面板断线/恢复、既有QQ导航指令和表单/响应布局可复现，所有控制请求只到构造处理器。`python tools/audit_archive.py --output runtime/archive-replay-audit-<批次>.json`对正式库建立只读一致性事务，重建事件并比较事实缓存，不修改生产数据；未知老字段或差异会保留并返回失败，不自动重写缓存。
+
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\ruff.exe check src tests tools

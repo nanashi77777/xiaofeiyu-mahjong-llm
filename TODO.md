@@ -13,7 +13,7 @@
 | ID | 类别/状态 | 工作 | 依赖 | 验收摘要 |
 | --- | --- | --- | --- | --- |
 | DEV-019 | 实现·进行中 | [手牌、按钮与鸣牌组合定位](docs/design/timing-and-execution.md) | DEV-005、DEV-004 | 验证只读可见几何，必要时局部CV，DPI/缩放/移动映射和最新布局；红五/同牌/摸牌槽/重排/立直选牌/多组合准确；不得调用内部游戏动作函数 |
-| DEV-020 | 实现·进行中 | [真实鼠标输入与前台/急停保护](docs/design/timing-and-execution.md) | DEV-019、DEV-003 | SendInput移动后立即点击并归位，人工移动不覆盖，绑定窗口/遮挡/新鲜度校验；失焦暂停、人工接管撤销、Esc可中止未发送输入；隔离窗口真实验证 |
+| DEV-020 | 实现·进行中（代码已落地，验证中） | [真实鼠标输入与前台/急停保护](docs/design/timing-and-execution.md) | DEV-019、DEV-003 | SendInput移动后立即点击并归位，人工移动不覆盖，绑定窗口/遮挡/新鲜度校验；失焦暂停、人工接管撤销、Esc可中止未发送输入；隔离窗口真实验证 |
 | DEV-021 | 实现·进行中 | [复合点击事务与实际事件确认](docs/design/timing-and-execution.md) | DEV-017、DEV-020 | 立直两步/鸣牌组合保持模型原动作，pass/杠待补牌按实际阶段；mouse_sent与server_confirmed分开；意图偏差和有限同动作补点有证据，不重复盲点 |
 | VAL-003 | 验收·未开始 | [隔离及真实界面输入专项验收](docs/design/acceptance.md) | DEV-021 | 真实鼠标、布局映射、立直/组合、归位/人工移动/急停/过期确认验证，意图与结果可核对 |
 | DEV-032 | 实现·进行中（代码已落地，验证中） | [用户新增后台浏览器模拟点击模式](docs/design/background-input.md) | DEV-005、DEV-019、DEV-017 | 独立选择physical_foreground/browser_background；后台画布截图定位及完整状态/期限/急停校验；隔离最小化窗口点击及真实Unity服务端确认，系统光标与前台不变；不调用内部动作或协议发包 |

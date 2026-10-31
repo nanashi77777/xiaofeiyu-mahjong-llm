@@ -583,10 +583,13 @@
         "SendInput移动后立即点击并归位，人工移动不覆盖，绑定窗口/遮挡/新鲜度校验",
         "失焦暂停、人工接管撤销、Esc可中止未发送输入；隔离窗口真实验证"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 runtime/physical-input-validation-v4.json：正式WindowsMouse隔离13项通过、DPI120，原v1/v2受阻保留；其他DPI及真实游戏完整矩阵仍待DEV-019/VAL-003。"
+      ],
       "completed_record": null,
       "commits": [],
-      "status_reason": "基础代码已落地，补全及验证中"
+      "status_reason": "基础代码已落地，补全及验证中",
+      "implementation_progress": "code_ready"
     },
     {
       "id": "DEV-021",
@@ -773,7 +776,9 @@
         "连接/绑定/开始暂停停止、场况手牌/计划/意图实际/时间池/token/历史经验可查看",
         "loopback+控制鉴权/Origin防护，QQ只读令牌不能控局，陈旧/异常不冒充正常"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 修复断线旧状态标记及已有QQ导航指令恢复；tools/validate_panel.py正式HTML隔离13项通过，控制请求全部拦截、零生产控制。整体联调依赖仍开放。"
+      ],
       "completed_record": null,
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
@@ -799,7 +804,9 @@
         "计时回放与真实交互区分，失败分母和实际输入耗时来源明确，不能删失败样本",
         "提供同局面丰富/紧凑格式配对样本与报告，固定说明也计token，不用字符数冒充usage"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 新增只读一致性事件审计及真实物理/面板故障隔离工具；严格审计保留3场早期缺concealed_count差异，失败不隐藏。"
+      ],
       "completed_record": null,
       "commits": [],
       "status_reason": "Runtime implementation present; full task verification remains. See docs/development/2026-10-31-runtime-progress.md.",
@@ -853,7 +860,9 @@
       "acceptance": [
         "黄金事件与实际消息覆盖表通过，多家和/终场/中断/重连幂等和计时语义有证据"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 runtime/archive-replay-audit-v1.json：16场10505事件、92小局，近期13场事实缓存匹配；早期3场缺concealed_count保留差异。协议/恢复专项尚未全部完成。"
+      ],
       "completed_record": null,
       "commits": []
     },
@@ -947,7 +956,9 @@
       "acceptance": [
         "正常样本至少500真实模型窗口按小局扣池，零耗尽；报告5秒成功率/分位/失败/确认时间"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 short-v4：24机会23确认12次五秒内；第24模型完整14.2秒预算无首包而失败，报告冻结。早期与合成Esc隔离重叠，不能用作无干扰通过样本；详见验收进展。"
+      ],
       "completed_record": null,
       "commits": []
     },
@@ -993,7 +1004,9 @@
         "当前/历史/大牌/经验正确，二十场快照范围与中断语义、私密投影和不可控制有效，不发测试消息",
         "活动小局reason/计划依据/引用自由文本不会间接泄露本家暗手或计划"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-10-31 QQ真实MCP四查询及导航状态再次通过，外发和导航提交均0；完整隐私/经历专项仍按独立验收跟踪。"
+      ],
       "completed_record": null,
       "commits": []
     },
