@@ -11,12 +11,26 @@ import json
 import re
 import subprocess
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
+
 from audit_secrets import FORBIDDEN, history_findings, rules_for
+
+
+def safe_failure(error):
+    message = str(error)
+    safe = re.fullmatch(r'GitHub API status \d{3}', message) or message in {
+        'configured repository identity, visibility or archive state mismatch',
+        'repository authenticated ownership check failed',
+        'history privacy audit rejected synchronization',
+        'invalid local Git synchronization configuration; details withheld',
+        'not all configured repositories synchronized; verified results retained',
+        'uploaded blob hash mismatch', 'uploaded tree hash mismatch',
+        'uploaded commit hash mismatch; refs were not advanced',
+    }
+    return {'error_type':type(error).__name__, 'detail':message if safe else 'details withheld'}
 
 
 def sync_configuration(root):
@@ -135,24 +149,29 @@ class GitHub:
             if delay > 0:
                 time.sleep(delay)
             self._last_write_mono = time.monotonic()
-        request = urllib.request.Request("https://api.github.com"+path,
-            data=json.dumps(body, ensure_ascii=False).encode() if body is not None else None, method=method,
-            headers={"Authorization":"Bearer "+self._token, "Accept":"application/vnd.github+json",
-                     "Content-Type":"application/json", "X-GitHub-Api-Version":"2022-11-28"})
+        if not getattr(self, '_http', None):
+            self._http = httpx.Client(timeout=30, follow_redirects=True)
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                content = response.read()
-                return json.loads(content) if content else None
-        except urllib.error.HTTPError as error:
+            response = self._http.request(method, "https://api.github.com"+path, json=body,
+                headers={"Authorization":"Bearer "+self._token, "Accept":"application/vnd.github+json",
+                         "Content-Type":"application/json", "X-GitHub-Api-Version":"2022-11-28"})
+        except httpx.HTTPError:
+            raise OSError('GitHub API transport failed; details withheld') from None
+        if response.status_code >= 400:
             # Response bodies/headers are not included in user-visible errors.
-            raise ValueError("GitHub API status "+str(error.code)) from None
+            raise ValueError("GitHub API status "+str(response.status_code)) from None
+        return response.json() if response.content else None
+
+    def close(self):
+        if getattr(self, '_http', None):
+            self._http.close()
 
     def audit(self, target, parent=None):
         rules = rules_for(self.root)
         metadata = git(self.root, 'cat-file', 'commit', target)
         if any(pattern.search(metadata) for pattern in rules.values()):
             raise ValueError('committed secret pattern in commit metadata')
-        count = 0
+        selected = []
         uploaded = {e["sha"] for e in changes(self.root, parent, target) if e["sha"]} if parent else None
         for record in git(self.root, "ls-tree", "-rz", target).split(b"\0"):
             if not record:
@@ -164,11 +183,24 @@ class GitHub:
             path = raw_path.decode()
             if path.startswith(FORBIDDEN) or kind != b"blob":
                 raise ValueError("committed runtime or unsupported entry: "+path)
-            data = git(self.root, "cat-file", "blob", sha.decode())
+            selected.append((sha,path))
+        if not selected:
+            return 0
+        output = git(self.root, 'cat-file', '--batch', data=b'\n'.join(sha for sha,_ in selected)+b'\n')
+        cursor = 0
+        for sha, path in selected:
+            end = output.index(b'\n',cursor)
+            fields = output[cursor:end].split()
+            if len(fields) != 3 or fields[0] != sha or fields[1] != b'blob':
+                raise ValueError('unreadable committed object')
+            size = int(fields[2])
+            data = output[end+1:end+1+size]
+            if len(data) != size:
+                raise ValueError('truncated committed object')
+            cursor = end+size+2
             if any(pattern.search(data) for pattern in rules.values()):
                 raise ValueError("committed secret pattern: "+path)
-            count += 1
-        return count
+        return len(selected)
 
     def upload_commit(self, target):
         data = commit_data(self.root, target)
@@ -267,12 +299,14 @@ def synchronize(root, branch, *, also_main=False, on_result=None):
                 results.append(result)
                 if on_result:
                     on_result(result)
-            except (ValueError, OSError, subprocess.CalledProcessError):
+            except (ValueError, OSError, subprocess.CalledProcessError) as error:
                 failed = True
                 if on_result:
                     on_result({'remote':item['remote'], 'branch':destination, 'verified':False,
-                               'error':'synchronization failed; details withheld'})
+                               'error':'synchronization failed', **safe_failure(error)})
                 break
+        if getattr(client, 'close', None):
+            client.close()
     if failed:
         raise ValueError('not all configured repositories synchronized; verified results retained')
     return results
@@ -292,5 +326,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, OSError, subprocess.CalledProcessError):
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+        print(json.dumps({'status':'incomplete', **safe_failure(error)}),flush=True)
         raise SystemExit("GitHub synchronization incomplete; inspect verified results above. No force update or credential output.") from None

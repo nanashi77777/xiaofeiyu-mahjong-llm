@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +29,48 @@ def git(root, *args):
 
 def test_no_local_configuration_only_uses_origin(tmp_path, sync):
     assert sync.sync_configuration(tmp_path) == ([{'remote':'origin','branch_prefix':''}], False)
+
+
+def test_failure_reports_safe_status_but_withholds_unknown_input(sync):
+    assert sync.safe_failure(ValueError('GitHub API status 403')) == {
+        'error_type':'ValueError','detail':'GitHub API status 403'}
+    assert sync.safe_failure(ValueError('fixture-private-input'))['detail'] == 'details withheld'
+
+
+@pytest.mark.parametrize('failure', ['status', 'transport'])
+def test_api_failures_withhold_response_and_transport_input(sync, failure):
+    client = object.__new__(sync.GitHub)
+    client._token = 'fixture-token'
+    def handle(request):
+        if failure == 'transport':
+            raise httpx.ConnectError('fixture-private-input', request=request)
+        return httpx.Response(401, json={'error':'fixture-private-input'})
+    client._http = httpx.Client(transport=httpx.MockTransport(handle))
+    try:
+        with pytest.raises((OSError, ValueError)) as caught:
+            client.api_request('/user')
+        assert 'fixture-private-input' not in str(caught.value)
+        if failure == 'status':
+            assert str(caught.value) == 'GitHub API status 401'
+    finally:
+        client.close()
+
+
+def test_api_reuses_one_client_for_sequential_requests(sync, monkeypatch):
+    client = object.__new__(sync.GitHub)
+    client._token = 'fixture-token'
+    created = []
+    transport = httpx.Client(transport=httpx.MockTransport(lambda request:httpx.Response(200,json={'ok':True})))
+    def factory(**kwargs):
+        created.append(kwargs)
+        return transport
+    monkeypatch.setattr(sync.httpx, 'Client', factory)
+    try:
+        assert client.api_request('/user') == {'ok':True}
+        assert client.api_request('/user') == {'ok':True}
+        assert len(created) == 1
+    finally:
+        client.close()
 
 
 @pytest.mark.parametrize('change', ['visibility', 'private_prefix', 'duplicate', 'repository_id', 'unknown_key'])

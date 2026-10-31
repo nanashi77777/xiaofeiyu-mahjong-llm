@@ -1,10 +1,10 @@
 import importlib
-import io
 import json
 import subprocess
 from pathlib import Path
 
 import pytest
+import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,6 +86,9 @@ def test_github_settings_accept_no_content_response(monkeypatch):
     sync = importlib.import_module('github_sync')
     client = object.__new__(sync.GitHub)
     client._token = 'fixture-token'
-    monkeypatch.setattr(sync.urllib.request, 'urlopen', lambda *args, **kwargs:io.BytesIO(b''))
-    assert client.api_request('/repos/fixture-owner/fixture-project/actions/permissions',
-                              method='PUT', body={'enabled':False}) is None
+    client._http = httpx.Client(transport=httpx.MockTransport(lambda request:httpx.Response(204)))
+    try:
+        assert client.api_request('/repos/fixture-owner/fixture-project/actions/permissions',
+                                  method='PUT', body={'enabled':False}) is None
+    finally:
+        client.close()
