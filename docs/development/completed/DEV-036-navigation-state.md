@@ -10,4 +10,4 @@
 
 限制：此任务证明命令/状态/输入互斥，不能代替完整凭据登录、每个场级/房规的真实验收或自动接管交接。后续DEV-037..041、VAL-012/013继续跟踪；输入帧修复和当前大厅适配进度另见本批开发日志。
 
-Git关联：本批feat导航实现提交，实际哈希由docs/development/commit-index.md在提交后回填。回退源码可停用导航；保留lobby.sqlite和真实牌谱，不重放未知提交。
+Git关联：5a7d89c3342f2c401d95043f4dda3324adfea8aa，已上传开发分支及main，见docs/development/commit-index.md。回退源码可停用导航；保留lobby.sqlite和真实牌谱，不重放未知提交。

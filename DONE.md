@@ -16,3 +16,4 @@
 | DEV-035 | 实现 | 麻将专用密钥与决策复盘用量分账 | [完成记录](docs/development/completed/DEV-035-mahjong-billing.md) |
 | DEV-036 | 实现 | 大厅命令契约与导航状态机 | [完成记录](docs/development/completed/DEV-036-navigation-state.md) |
 | DEV-042 | 实现 | QQ选场工具及独立导航接口 | [完成记录](docs/development/completed/DEV-042-qq-navigation.md) |
+| DEV-043 | 实现 | GitHub默认分支同步与API推送后备入口 | [完成记录](docs/development/completed/DEV-043-github-sync.md) |

@@ -2,6 +2,8 @@
 
 独立项目目录：`<project-root>`。已建立独立私有仓库：[nanashi77777/xiaofeiyu-mahjong-llm](https://github.com/nanashi77777/xiaofeiyu-mahjong-llm)。
 
+GitHub默认`main`已同步本批已验证开发提交；“had recent pushes”是开发分支更新提示。Git HTTPS当前网络不可达时可使用保留原提交哈希的API后备上传，命令与验证见[开发流程](DEVELOPMENT.md)及[DEV-043完成记录](docs/development/completed/DEV-043-github-sync.md)。
+
 当前阶段为 **方案已确认，正在开发**（2026-10-30用户指示开始）。运行能力以DONE和实际验收记录为准，设计示例不代表功能已经可用。
 
 运行链路已有真实协议与点击确认，详见[本机手册](docs/runbook.md)和[开发进度/未验收项](docs/development/2026-10-31-runtime-progress.md)。后台最小化弃牌与最小牌谱迁移已验证；指定渠道的5秒目标、完整规则及连续整场验收仍在进行。

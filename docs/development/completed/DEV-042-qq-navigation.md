@@ -12,4 +12,4 @@ QQ侧使用当前会话key和本轮真实消息ID生成稳定command_id；跨会
 
 证据留本机：runtime/mahjong-navigation-verification.json、mahjong-mcp-verification.json、mahjong-navigation-tests.log及独立项目lobby-command-verification.json。实现位置：app.py/cli.py/panel.html和QQ库bridge/src/mahjong-navigation.js、mcp-qq-chat.js、dsh-context-safety.mjs、qq-mahjong-prompt.js。完整矩阵仍在DEV-037..041、VAL-012/013；新凭据自动登录和自动打牌交接不能因工具可调用就标为完成。
 
-Git关联：独立库本批导航实现，QQ库P034；实际提交见提交索引。回退两库源码、移除专用导航配置并重载，保留原查询配置与游戏档案。
+Git关联：独立库14dc03b685631fda1613ea251abcaecc675abd8b，QQ库a46546a92b2d71ac70b0c8a076fa0045b8b2382b（P034），均已上传开发分支及main，见提交索引。回退两库源码、移除专用导航配置并重载，保留原查询配置与游戏档案。

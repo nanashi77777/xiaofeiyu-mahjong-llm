@@ -1250,10 +1250,12 @@
         "command_id幂等，停止/恢复与活动对局互斥，单输入租约"
       ],
       "evidence": [
-        "49 pytest tests; ruff; idempotency/restart/cancel/input lease and real profile authentication"
+        "50 pytest tests; ruff; idempotency/restart/cancel/input lease and real profile authentication"
       ],
       "completed_record": "docs/development/completed/DEV-036-navigation-state.md",
-      "commits": [],
+      "commits": [
+        "5a7d89c3342f2c401d95043f4dda3324adfea8aa"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1428,10 +1430,13 @@
         "沿用QQ白名单和当前会话绑定，真实消息ID幂等，原提示保留；本机接口/CLI/面板可见状态，未就绪适配诚实返回，零外发回归"
       ],
       "evidence": [
-        "49 Python and 193 QQ tests; six real MCP tool discovery/reads; 4 QQ sessions available; zero outbound messages"
+        "50 Python and 193 QQ tests; six real MCP tool discovery/reads; 4 QQ sessions available; zero outbound messages"
       ],
       "completed_record": "docs/development/completed/DEV-042-qq-navigation.md",
-      "commits": [],
+      "commits": [
+        "5a7d89c3342f2c401d95043f4dda3324adfea8aa",
+        "a46546a92b2d71ac70b0c8a076fa0045b8b2382b"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1439,7 +1444,7 @@
       "kind": "development",
       "milestone": "M0",
       "title": "GitHub默认分支同步与API推送后备入口",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-001"
       ],
@@ -1450,9 +1455,14 @@
         "核验私有远端、默认分支及已上传提交；main仅快进，不上传未提交代码",
         "Git HTTPS不可达时通过GitHub API保留原blob/tree/commit哈希、提交作者/时间/消息；秘密审计及非强制引用更新，真实远端校验"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "Two private repositories: exact original commit/tree/blob hashes uploaded and remote feature/main refs verified; second sync uploaded_commits=0 on both; default main and private=true confirmed"
+      ],
+      "completed_record": "docs/development/completed/DEV-043-github-sync.md",
+      "commits": [
+        "5a7d89c3342f2c401d95043f4dda3324adfea8aa"
+      ],
+      "completed_on": "2026-10-31"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
