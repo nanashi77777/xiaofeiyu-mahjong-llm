@@ -55,7 +55,7 @@ class Service:
                                    lambda:bool(self.engine.state and self.engine.state.lifecycle == "active"),
                                    lambda:self.coordinator.enabled)
         self.reviewer = Reviewer(self.store, self.client,
-                                 lambda:self.coordinator.enabled or self.coordinator.active())
+                                 lambda:self.coordinator.enabled or self.coordinator.active() or bool(self.coordinator.annotation_tasks))
         self.engine.on_state = self.changed
         self.engine.on_input = self.coordinator.input_observed
         self.queries = Queries(self.store, settings.read_token.get_secret_value(), self.engine.capture_health)
@@ -66,8 +66,10 @@ class Service:
     async def changed(self, state, event):
         was_enabled = self.coordinator.enabled
         if state and state.operation:
+            await self.executor.cancel_idle_observation()
             await self.reviewer.pause_for_decision()
         await self.coordinator.changed(state, event)
+        await self.executor.refresh_idle_hand(state,was_enabled and not self.coordinator.shadow)
         await self.round_flow.changed(state, was_enabled and not self.coordinator.shadow)
         await self.client_guard.changed(state, was_enabled and not self.coordinator.shadow)
         if state and state.lifecycle == 'ended':
@@ -100,6 +102,9 @@ class Service:
                 "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
                 "bound_window":self.executor.window.__dict__ if self.executor.window else None,
                 "input_mode":self.executor.input_mode,
+                'vision_cache':{'hand_hits':self.executor.locator.hand_cache_hits,
+                                'hand_misses':self.executor.locator.hand_cache_misses,
+                                'idle_active':bool(self.executor.idle_observation and not self.executor.idle_observation.done())},
                 "runtime_build":self.runtime_build,
                 "result_flow":{"active":bool(self.round_flow.task and not self.round_flow.task.done()),
                                "last_scene":self.round_flow.last_scene},
@@ -107,10 +112,13 @@ class Service:
                 "time_bank":self.coordinator.bank.remaining, "timer_verified":self.settings.timer_verified,
                 'recovery_timer_verified':self.settings.recovery_timer_verified,
                 "model":self.settings.model, "compact_enabled":self.settings.compact_validated,
+                'stream_actions':self.settings.stream_actions,
+                'stream_action_format':self.settings.stream_action_format,
                 "navigation":self.navigator.status(), "login_session":self.engine.lobby_session.public(),
                 "diagnostics":self.browser.errors[-5:], "input_error":self.engine.last_error,
                 "capture_health":self.engine.capture_health(),
                 "token_usage":self.store.records("token_usage", limit=20),
+                "decision_annotations":self.store.records('decision_annotation',limit=10),
                 "usage_summary":usage_summary(self.store, self.client.credential_id),
                 "receipts":self.store.records("receipt", limit=10)}
 

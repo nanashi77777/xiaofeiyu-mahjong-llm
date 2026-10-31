@@ -64,6 +64,7 @@ def match_report(store, match_id):
                  if w['mouse_sent'] and w.get('read_to_mouse_ms') is not None]
     confirmed = [w for w in windows.values() if w['server_confirmed']]
     within5 = sum(w.get('read_to_mouse_ms', float('inf')) <= 5000 for w in confirmed)
+    annotations = store.records('decision_annotation',match_id,100000)
     return {
         'match_id':match_id, 'lifecycle':state.lifecycle, 'completeness':state.completeness,
         'consistent':state.consistent, 'rounds':state.round_seq,
@@ -75,6 +76,9 @@ def match_report(store, match_id):
         'read_to_mouse_ms':{'p50':percentile(durations,.5), 'p95':percentile(durations,.95),
                             'p99':percentile(durations,.99), 'max':max(durations,default=None)},
         'failures':failures, 'mismatches':mismatches, 'cancellations':cancelled,
+        'annotations':{'complete':sum(r['payload']['status']=='complete' for r in annotations),
+                       'failed':sum(r['payload']['status']=='failed' for r in annotations),
+                       'cancelled':sum(r['payload']['status']=='cancelled' for r in annotations)},
         'windows':windows,
         'result_evidence':[{'record_id':r['id'], **r['payload']}
                            for r in store.records('result_ui', match_id, 100)],

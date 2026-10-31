@@ -36,6 +36,17 @@ def test_visual_instances_red_draw_slot_and_ambiguity(tmp_path,state):
     state.drawn_index=2
     found=locator.hand(raw,state)
     assert len(found)==3 and found[2].center[0]==152.5 and found[0].label=='tile_0m'
+    assert locator.hand(raw,state)==found and locator.hand_cache_hits==1
+    # Opponent events may change the state version without moving our hand.
+    state.state_version+=1
+    assert locator.hand(raw,state)==found and locator.hand_cache_hits==2
+    changed=screen.copy()
+    changed[65:105,140:165]=0
+    with pytest.raises(InputDeferred):
+        locator.hand(png(changed),state)
+    state.drawn_index=None
+    locator.hand(raw,state)
+    assert locator.hand_cache_hits==2
     with pytest.raises(InputDeferred):
         locator.button(raw,'riichi')
     state.hand=['0m','5m','4m']

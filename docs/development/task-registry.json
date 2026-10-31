@@ -641,7 +641,7 @@
       "kind": "development",
       "milestone": "M6",
       "title": "小肥鱼按需只读MCP集成",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-022",
         "DEV-026"
@@ -654,10 +654,16 @@
         "四业务工具按需注册、最小角色说明，无每轮召回/主动播报/控制权",
         "保留QQ已有变更/白名单，运行test-qq和秘密审计，独立仓库提交，真实消息外发为零"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": [],
-      "status_reason": "implementation present; verification and completion records pending"
+      "evidence": [
+        "QQ 193 regression tests passed; real stdio MCP four read calls and two navigation discoveries/status available, zero messages sent; user prompt modifications preserved"
+      ],
+      "completed_record": "docs/development/completed/DEV-023-qq-readonly-integration.md",
+      "commits": [
+        "a4d0b25",
+        "94fc9601057988670bc3465852d97077ae402e8f"
+      ],
+      "status_reason": "implementation present; verification and completion records pending",
+      "completed_on": "2026-10-31"
     },
     {
       "id": "DEV-024",
@@ -1691,7 +1697,9 @@
         "126 pytest passed; expired-before-read and superseded-after-capture checks; uncertain receipt counts as a suite failure"
       ],
       "completed_record": "docs/development/completed/DEV-049-observation-cancellation.md",
-      "commits": [],
+      "commits": [
+        "41f90a2348d4263415e685c7c4b71eb602ad1d8d"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1714,8 +1722,127 @@
         "126 pytest passed; resumed active game spends no review attempt and can enqueue after a real end"
       ],
       "completed_record": "docs/development/completed/DEV-050-review-resume.md",
+      "commits": [
+        "41f90a2348d4263415e685c7c4b71eb602ad1d8d"
+      ],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-051",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "立直选牌的重采样定位修复",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "保持原阈值使用同核模糊匹配消除点纹重采样误差；亮牌、重复实例和摸牌槽完整核验",
+        "真实失败截图离线复核及负例回归，保留原失败，真实新立直按模型意图确认"
+      ],
+      "evidence": [
+        "143 pytest and ruff; original 8p failure image passes unchanged .91 threshold with .95648 smoothed correlation; new live two-step riichi matches actual is_liqi event, read_to_mouse 5563ms; mixed game excluded from formal acceptance"
+      ],
+      "completed_record": "docs/development/completed/DEV-051-riichi-resampling.md",
+      "commits": [],
+      "implementation_progress": "code_ready",
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-052",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "流式动作提前执行与延后解释归档",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/streaming-action.md"
+      ],
+      "acceptance": [
+        "完整首动作对象和字段分隔符提交；绑定本请求合法候选，禁止尾段改写或重复执行",
+        "真实状态确认不取消有界解释接收；解释/usage留档，迟到计划不能覆盖新版本或新局",
+        "分片/中断/停止/过期/计划竞态回归及指定模型实际流式验证，五秒按真实点击衡量"
+      ],
+      "evidence": [
+        "143 full regression tests; 10/10 nested specified-model probes; formal 5+10 stopped at opportunity 42 after 41 ordinary confirmations and complete annotations; later mixed continuation preserves one pon mismatch"
+      ],
+      "completed_record": "docs/development/completed/DEV-052-streaming-action.md",
       "commits": [],
       "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-053",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "事件驱动手牌预识别与可见像素缓存",
+      "status": "done",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "在无当前操作的等待阶段预先核验手牌；模型与本窗口全部候选目标继续并行识别",
+        "手牌/摸牌槽/副露/小局/布局变化或可见像素变化时重新核验，不复用陈旧点击目标",
+        "同一输入租约与停止取消保护；缓存命中/失效及同步启动识别回归与实际记录可追"
+      ],
+      "evidence": [
+        "143 full regression tests including two idle-observer lifecycle tests; live cache 48 hits/54 misses; pixels/draw-slot/hand changes invalidate and cancellation holds lease until completion"
+      ],
+      "completed_record": "docs/development/completed/DEV-053-hand-preobservation.md",
+      "commits": [],
+      "completed_on": "2026-10-31"
+    },
+    {
+      "id": "DEV-054",
+      "kind": "development",
+      "milestone": "M3",
+      "title": "精简流式首动作字段与等价验证",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-052"
+      ],
+      "design_refs": [
+        "docs/design/streaming-action.md"
+      ],
+      "acceptance": [
+        "首动作由嵌套d/q/a缩为单a字段，q保留在本机请求绑定且不降低合法/期限/版本校验",
+        "动态Schema和完整尾段禁止动作改写；嵌套兼容格式保留，实际同局面对照token与动作可用耗时",
+        "正式5+10按实际格式重新实测，不以输出减少宣称五秒已通过"
+      ],
+      "evidence": [
+        "143 full regression tests; 10/10 short specified-model probes, reasoning zero, no-plan output 34-36 tokens; actual short 5+10 run pending"
+      ],
+      "completed_record": null,
+      "commits": [],
+      "implementation_progress": "code_ready"
+    },
+    {
+      "id": "DEV-055",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "鸣牌点击未提交的可审计诊断与有限同动作恢复",
+      "status": "planned",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/development/2026-10-31-streaming-progress.md"
+      ],
+      "acceptance": [
+        "保留真实碰白失败及自动跳过事实，补充按下目标、可见图像和客户端请求关联以定位未提交原因",
+        "仅在原窗口仍有效、无已提交请求且重新确认同一目标时评估有限恢复；复合菜单、重复输入和未知结果不得盲点",
+        "离线/隔离回归和真实鸣牌确认，所有失败继续计入原报告，不把混合续测变回正式成功"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

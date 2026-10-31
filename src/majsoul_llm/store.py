@@ -192,6 +192,22 @@ class Store:
             params.append(match_id)
         return [{**dict(row), "payload": json.loads(row["payload"])} for row in self.db.execute(sql + " ORDER BY created_at DESC,rowid DESC LIMIT ?", params + [limit])]
 
+    def decisions(self, match_id, limit=10000):
+        rows = self.records('decision',match_id,limit)
+        annotations = {}
+        for annotation in self.records('decision_annotation',match_id,limit):
+            data = annotation['payload']
+            annotations.setdefault(data['decision_record_id'],data)
+        for row in rows:
+            annotation = annotations.get(row['id'])
+            if annotation:
+                payload = row['payload']
+                payload['annotation_status'] = annotation['status']
+                if annotation['status'] == 'complete':
+                    payload['decision'] = annotation['decision']
+                    payload['metrics'] = {**payload.get('metrics',{}),**annotation['metrics']}
+        return rows
+
     def mark_interrupted(self):
         for state in self.recent():
             if state.lifecycle == "active":

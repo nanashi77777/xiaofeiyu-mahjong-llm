@@ -24,6 +24,7 @@
 | DEV-017 | 实现 | 决策协调、期限内纠错与失效取消 | [完成记录](docs/development/completed/DEV-017-coordinator.md) |
 | DEV-018 | 实现 | 5+20/5+10共享池与真实计时校准 | [完成记录](docs/development/completed/DEV-018-time-bank.md) |
 | DEV-022 | 实现 | 战况、二十场与大牌查询投影 | [完成记录](docs/development/completed/DEV-022-query-projections.md) |
+| DEV-023 | 实现 | 小肥鱼按需只读MCP集成 | [完成记录](docs/development/completed/DEV-023-qq-readonly-integration.md) |
 | DEV-024 | 实现 | 经验与风格的独立修订库 | [完成记录](docs/development/completed/DEV-024-memory-revisions.md) |
 | DEV-025 | 实现 | 场后/中断异步复盘与证据检查 | [完成记录](docs/development/completed/DEV-025-asynchronous-review.md) |
 | DEV-026 | 实现 | 相关经验召回与跨场生效 | [完成记录](docs/development/completed/DEV-026-contextual-recall.md) |
@@ -44,3 +45,6 @@
 | DEV-048 | 实现 | 离开提示检测、恢复与验收归因 | [完成记录](docs/development/completed/DEV-048-client-away.md) |
 | DEV-049 | 实现 | 识别期间期限撤销与执行失败归因补强 | [完成记录](docs/development/completed/DEV-049-observation-cancellation.md) |
 | DEV-050 | 实现 | 已恢复活动对局的旧复盘任务撤销 | [完成记录](docs/development/completed/DEV-050-review-resume.md) |
+| DEV-051 | 实现 | 立直选牌的重采样定位修复 | [完成记录](docs/development/completed/DEV-051-riichi-resampling.md) |
+| DEV-052 | 实现 | 流式动作提前执行与延后解释归档 | [完成记录](docs/development/completed/DEV-052-streaming-action.md) |
+| DEV-053 | 实现 | 事件驱动手牌预识别与可见像素缓存 | [完成记录](docs/development/completed/DEV-053-hand-preobservation.md) |

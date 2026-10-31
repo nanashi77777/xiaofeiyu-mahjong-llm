@@ -16,5 +16,6 @@
 | 自主人机房、输入生命周期与首轮实战联调 | xiaofeiyu-mahjong-llm · afe7ffa923e2cf282f19986031e05b589f52b222 | 自主人机进度记录；该轮未消费完整实战VAL |
 | 领域/采集/协议/归并/场局/归档/模型/役种任务消费与生产测试工具 | xiaofeiyu-mahjong-llm · b58eda77e80cabc35a59417d3fe068e439ac4b4c | DEV-004/005/006/007/008/010/015/031；108项pytest、ruff及任务检查，实战VAL继续开放 |
 | 恢复时钟、并行界面观察、离开恢复与实现任务消费 | xiaofeiyu-mahjong-llm · 94fc9601057988670bc3465852d97077ae402e8f | DEV-009/011/012/013/014/016/017/018/022/024/025/026/030/048；124项pytest，生产5+10首轮失败如实保留，两个远端分支均已读回核验 |
+| 过期识别撤销与已恢复旧复盘撤队 | xiaofeiyu-mahjong-llm · 41f90a2348d4263415e685c7c4b71eb602ad1d8d | DEV-049/050；126项pytest，两个远端分支已核验 |
 
 已核验两个仓库归nanashi77777且private=true、默认分支main。上述本批实现分别同步feat/initial-websocket-runtime与feat/mahjong-readonly及各自main，均非强制快进且远端读回一致；重复同步上传数为0，见DEV-043。源代码和脱敏测试入库，本机凭据/牌谱/截图/浏览器/日志没有提交；QQ现有qq-system-prompt.js的无关工作区变更保留，未纳入本次提交。

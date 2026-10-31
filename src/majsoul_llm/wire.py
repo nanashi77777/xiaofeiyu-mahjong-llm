@@ -89,6 +89,20 @@ class Context:
             decision.plan_update.basis_event_ids = [self.event_refs.get(e,e) for e in plan["basis_event_ids"]]
         return decision, self.actions[decision.action_id]
 
+    def stream_response_schema(self,format='nested'):
+        schema = self.response_schema()
+        props = schema['properties']
+        if format == 'short':
+            schema['properties'] = {k:props[k] for k in ('a','r','p')}
+            schema['required'] = ['a','r','p']
+            return schema
+        schema['properties'] = {
+            'd':{'type':'object','properties':{'q':props['q'],'a':props['a']},
+                 'required':['q','a'],'additionalProperties':False},
+            'r':props['r'],'p':props['p']}
+        schema['required'] = ['d','r','p']
+        return schema
+
 
 def build_context(state: Snapshot, actions: list[LegalAction], *, plan=None, memories=None, compact=False):
     if not actions:

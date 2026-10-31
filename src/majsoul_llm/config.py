@@ -34,6 +34,8 @@ class Settings(Record):
     compact_validated: bool = False
     request_timeout: float = 25
     json_schema: bool = False
+    stream_actions: bool = False
+    stream_action_format: Literal['nested','short'] = 'nested'
     integration_test: bool = False
     input_mode: Literal['physical_foreground','browser_background'] = 'physical_foreground'
 

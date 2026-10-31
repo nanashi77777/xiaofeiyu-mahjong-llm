@@ -109,7 +109,9 @@ class Queries:
             # Keep the same small shape as the active projection for bot archives.
             events = [{k:e[k] for k in ("id", "seq", "kind", "data")} for e in events]
         decisions = [] if current else [{"id":r["id"], "decision":r["payload"].get("decision"),
-                                         "action":r["payload"].get("action")} for r in self.store.records("decision", state.match_id, 1000)
+                                         "action":r["payload"].get("action"),
+                                         "annotation_status":r["payload"].get("annotation_status","complete")}
+                                        for r in self.store.decisions(state.match_id, 1000)
                                         if r["round_uid"] == round_id]
         result = self.store.event(row["result_event_id"]) if not current and row["result_event_id"] else None
         return self.envelope({"round_id":round_id, "match_id":state.match_id, "events":events, "decisions":decisions,

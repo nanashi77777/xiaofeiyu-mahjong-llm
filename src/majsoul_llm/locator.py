@@ -49,6 +49,15 @@ class ScreenLocator:
         self.folder = runtime / "calibration"
         self.path = self.folder / "profile.json"
         self.classifier = None
+        self.hand_cache = None
+        self.hand_cache_hits = 0
+        self.hand_cache_misses = 0
+
+    @staticmethod
+    def hand_signature(state):
+        return (state.match_id,state.round_uid,tuple(state.hand),state.drawn_index,
+                tuple((m.id,m.kind,tuple(m.tiles)) for m in state.players[state.self_seat].melds),
+                bool(state.public_events and state.public_events[-1]['kind']=='ActionNewRound'))
 
     def profile(self):
         if not self.path.exists():
@@ -88,7 +97,7 @@ class ScreenLocator:
         self.path.write_text(json.dumps(profile,ensure_ascii=False,indent=2),encoding="utf-8",newline="\n")
         return {"label":label,"viewport":[width,height],"calibrated_labels":list(profile["templates"])}
 
-    def matches(self, raw, labels, *, region=None):
+    def matches(self, raw, labels, *, region=None, resampled=False):
         profile = self.profile()
         image,sx,sy = self.normalized(raw,profile)
         height,width = image.shape[:2]
@@ -106,6 +115,10 @@ class ScreenLocator:
             if float(np.std(patch)) < 3:
                 raise InputDeferred("calibration patch has no identifying detail")
             result = cv2.matchTemplate(search,patch,cv2.TM_CCOEFF_NORMED)
+            if resampled:
+                result = np.maximum(result, cv2.matchTemplate(
+                    cv2.GaussianBlur(search,(3,3),.6),cv2.GaussianBlur(patch,(3,3),.6),
+                    cv2.TM_CCOEFF_NORMED))
             # Suppress adjacent pixel maxima for one physical tile/button.
             for _ in range(20):
                 _,value,_,point = cv2.minMaxLoc(result)
@@ -117,6 +130,7 @@ class ScreenLocator:
         return sorted(boxes,key=lambda b:(b.x,b.y,b.label))
 
     def hand(self, raw, state):
+        signature = self.hand_signature(state)
         if state.public_events and state.public_events[-1]['kind'] == 'ActionNewRound':
             # Also accept pre-fix cached snapshots: initial dealing is a sorted
             # complete row, not an ActionDealTile draw instance.
@@ -124,6 +138,15 @@ class ScreenLocator:
         profile = self.profile()
         if "hand_region" not in profile:
             raise InputDeferred("hand region not calibrated")
+        image,sx,sy = self.normalized(raw,profile)
+        x,y,w,h = profile['hand_region']
+        pixels = image[y:y+h,x:x+w]
+        cache_key = (signature,sx,sy,self.path.stat().st_mtime_ns)
+        cached = self.hand_cache
+        if cached and cached['key'] == cache_key and np.array_equal(pixels,cached['pixels']):
+            self.hand_cache_hits += 1
+            return dict(cached['mapping'])
+        self.hand_cache_misses += 1
         labels = ["tile_"+tile for tile in sorted(set(state.hand))]
         if profile.get("verified_sorted_row"):
             candidates=self.learn_sorted_row(raw,state,profile)
@@ -156,6 +179,8 @@ class ScreenLocator:
                 raise InputDeferred("tile instance cannot be mapped")
             mapping[index] = selected[1]
             pool.remove(selected)
+        self.hand_cache = {'key':(signature,sx,sy,self.path.stat().st_mtime_ns),
+                           'pixels':pixels.copy(),'mapping':dict(mapping)}
         return mapping
 
     def learn_sorted_row(self,raw,state,profile):
@@ -224,10 +249,25 @@ class ScreenLocator:
             raise InputDeferred('riichi tile is not offered by the server')
         profile = self.profile()
         region = profile['hand_region']
-        found = self.matches(raw, ['tile_'+tile], region=region)
+        found = self.matches(raw, ['tile_'+tile], region=region, resampled=True)
+        # Correlation alone is insensitive to brightness. A legal glyph must
+        # also remain an enabled white face after the riichi overlay.
+        image,sx,sy = self.normalized(raw,profile)
+        ox,oy,w,h = region
+        white = cv2.inRange(cv2.cvtColor(image[oy:oy+h,ox:ox+w],cv2.COLOR_BGR2HSV),
+                            (0,0,175),(180,55,255))
+        contours,_ = cv2.findContours(white,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        faces = [(ox+x,oy+y,bw,bh) for contour in contours for x,y,bw,bh in [cv2.boundingRect(contour)]
+                 if 35<bw<85 and 65<bh<115 and cv2.contourArea(contour) > bw*bh*.7]
+        found = [box for box in found if any(
+            x-2 <= box.x/sx and y-2 <= box.y/sy and
+            (box.x+box.width)/sx <= x+bw+2 and (box.y+box.height)/sy <= y+bh+2
+            for x,y,bw,bh in faces)]
         if not found:
             raise InputDeferred('legal riichi discard glyph is not visible')
         found.sort(key=lambda b:b.x)
+        if len(found) != state.hand.count(tile):
+            raise InputDeferred('riichi tile occurrences are not completely visible')
         if state.drawn_index == index:
             return found[-1]
         same = [i for i,t in enumerate(state.hand) if t == tile and i != state.drawn_index]

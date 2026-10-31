@@ -170,7 +170,7 @@ class Reviewer:
                       'payload':{key:row['payload'][key] for key in
                                  ('decision','action','context_fingerprint','wire_version','shadow')
                                  if key in row['payload']}}
-                     for row in self.store.records("decision", match_id, limit=10000)]
+                     for row in self.store.decisions(match_id)]
         yaku_ids = set()
         for record in decisions:
             plan = record["payload"].get("decision", {}).get("plan_update") or {}

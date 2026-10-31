@@ -4,6 +4,8 @@
 
 输出q/a/r/p严格校验，Schema动态限制本请求、合法ID、旧计划版本和证据ID；不执行半截JSON或无终态流。具体小局计划只在真实动作确认后采用，新小局重置，与实际场况分离。
 
+后续变更：用户于2026-10-31新增流式提前执行要求，DEV-052增加独立的完整首动作段提交契约；旧非流式模式保留。本记录描述原提交时行为，现行规则以docs/design/streaming-action.md为准。
+
 实现位置：src/majsoul_llm/domain.py、wire.py、model.py、coordinator.py。
 
 验证与证据：tests/test_core.py、test_queries_and_model.py及真实配对；非法引用/过期版本拒绝，完整JSON、结构化输出、流终态、usage和取消样例通过；正式5+10首10次响应均合法。

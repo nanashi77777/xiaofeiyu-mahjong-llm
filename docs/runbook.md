@@ -70,15 +70,17 @@ SQLite v2的事件payload仅事实数据，场/局/序号等复用表列；小�
 
 ## 模型和计时
 
-指定 your-model-id、Responses、reasoning.effort=none、store=false。完整独立上下文，每次不延长远程会话。输出短键 q/a/r/p，程序还原领域字段；p 可为空或为完整本小局计划。token_usage 保存真实 usage；中断和缺 usage 保留 null。
+指定 your-model-id、Responses、reasoning.effort=none、store=false。完整独立上下文，每次不延长远程会话。非流式模式使用q/a/r/p；stream_actions=true时以完整首动作字段及逗号提前提交，r/p继续有界接收，正常服务器事件不取消解释。stream_action_format=nested输出d={q,a}/r/p，short输出a/r/p并由本机请求绑定q，默认保留nested。p不变为空，变化才输出完整本小局计划。两种流式格式都核对候选、窗口、版本、停止和输入截止；尾段失败不重发动作。token_usage保存真实usage；中断和缺usage保留null。详见streaming-action.md。
 
 2026-10-31切换麻将专用密钥：decision、repair、review及经验迭代共用同一ModelClient，本机runtime/private.json的api_key覆盖全部麻将用途，不读取QQ/DSH凭据。控制面板usage_summary按billing_scope=mahjong及凭据指纹分组，并分decision/repair/review/probe；旧无标记请求单列legacy_unattributed，不记到新密钥。cached/reasoning是输入/输出中的子项，不能重复加到总token。缺usage显示未知，不据此推算供应商余额或货币金额。
 
-实战5+20，正式模拟5+10。timer_verified=false 时保守只使用基础时间，不假定可用整个共享池。实际房规 time_fixed 以秒、operation.time_fixed 以毫秒已有300+0样本证据；剩余 time_add 和恢复经过时间的语义仍待5+10/5+20验证。
+实战5+20，正式模拟5+10。timer_verified=false时保守只使用基础时间，不假定可用整个共享池。已真实核验房规time_fixed为秒、operation.time_fixed/time_add为毫秒及5+10共享池消耗；恢复passed_waiting_time以秒计，实测189与本机188.359秒相符。恢复扣经过时间及保守余量，并保留此前共享池下界，不给旧窗口重新发满池。证据保留runtime/reload-recovery-evidence.json；5+20完整连续验收仍独立进行。
 
 本次用户明确使用300+0联调，runtime/private.json 的 integration_test=true 仅在实际操作消息为300000毫秒且附加池为0时采用长联调期限。它不改变正式验收设置，300+0数据不能算5+10通过。
 
-紧凑格式增加完整特征/子事实共享，semantic_actions 可完全还原；目前真实配对仍发现解释或引用错误，因此 compact_validated=false，尚未正式启用。小样本已将部分请求从十多秒降至4至6秒，仍有超时，未达到“绝大部分低于5秒”验收。
+早期紧凑格式曾出现解释/引用错误，失败已保留；后续可读mj.readable.2只共享重复条件说明，semantic_actions可完全还原。最新配对每格式20次合法且无关键事实误读，真实input约减少12.94%，本机compact_validated=true启用此版本。仍保留完整牌河、事件、候选和当前相关役种事实，完整役种表不进入实时请求。流式和并行识别已接入，但模型TTFT及输入仍有长尾，500窗口和三场完整5+10尚未通过。
+
+手牌空闲预识别与当前操作并行观察共用输入租约。只有新截图手牌像素、手牌/摸牌槽/副露签名、尺度和校准版本全同才复用牌实例映射；点击目标仍有原0.6秒缓存和1.2秒按下检查。vision_cache命中数不等于已节省毫秒。
 
 ## QQ查询
 

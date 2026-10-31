@@ -37,6 +37,51 @@ class Executor:
         self.lease = lease or InputLease()
         self.metrics = []
         self.observed_targets = {}
+        self.idle_observation = None
+        self.idle_hand_signature = None
+
+    async def cancel_idle_observation(self):
+        task = self.idle_observation
+        if task and not task.done():
+            task.cancel()
+            await asyncio.gather(task,return_exceptions=True)
+        self.idle_observation = None
+
+    async def refresh_idle_hand(self,state,allowed):
+        signature = self.locator.hand_signature(state) if state else None
+        if (not allowed or not state or state.operation or state.lifecycle != 'active'
+                or not state.consistent or state.phase.value not in ('waiting','awaiting_replacement')):
+            await self.cancel_idle_observation()
+            return
+        if signature == self.idle_hand_signature:
+            return
+        await self.cancel_idle_observation()
+        self.idle_observation = asyncio.create_task(self._observe_idle_hand(state,signature))
+
+    async def _observe_idle_hand(self,state,signature):
+        try:
+            async with self.lease.hold('idle_hand:'+state.round_uid):
+                current = self.state_getter()
+                if self.mouse.stop.is_set() or not current or current.operation or self.locator.hand_signature(current) != signature:
+                    return
+                async def neutral():
+                    await self.browser.prepare_background()
+                    await self.browser.page.mouse.move(5,5)
+                    await asyncio.sleep(.05)
+                if self.input_mode != 'browser_background':
+                    return
+                await finish_input(neutral())
+                raw = await self.browser.image_bytes()
+                await finish_input(asyncio.to_thread(self.locator.hand,raw,state))
+                current = self.state_getter()
+                if current and self.locator.hand_signature(current) == signature:
+                    self.idle_hand_signature = signature
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Optional read-only preparation must never select an action or
+            # stop a fresh decision. A later fresh frame uses full recognition.
+            return
 
     def _recognize_candidates(self, raw, state, actions):
         boxes = {}

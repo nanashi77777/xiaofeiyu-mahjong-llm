@@ -31,6 +31,7 @@ class Coordinator:
         self.bank = TimeBank(settings.base_seconds, settings.bank_seconds, settings.execution_margin)
         self.status = "stopped"
         self.generation = 0
+        self.annotation_tasks = set()
 
     def record_receipt(self, receipt, match_id, round_uid):
         validated = Receipt.model_validate(receipt).model_dump(mode='json',exclude_none=True)
@@ -69,12 +70,17 @@ class Coordinator:
         self.status = reason
         if self.executor:
             self.executor.mouse.stop.set()
+            if hasattr(self.executor,'cancel_idle_observation'):
+                await self.executor.cancel_idle_observation()
         if self.task and not self.task.done():
             self.task.cancel()
             try:
                 await self.task
             except asyncio.CancelledError:
                 pass
+        for task in list(self.annotation_tasks):
+            task.cancel()
+        await asyncio.gather(*self.annotation_tasks,return_exceptions=True)
         if self.pending:
             pending, self.pending = self.pending, None
             state = pending['state']
@@ -138,6 +144,8 @@ class Coordinator:
     async def decide(self, state):
         op = state.operation
         start = op.received_mono
+        choice = None
+        annotation_started = False
         try:
             self.status = "deciding"
             rules_start = time.monotonic()
@@ -166,7 +174,11 @@ class Coordinator:
             observation = (asyncio.create_task(self.executor.observe(state,actions,deadline))
                            if not self.shadow and self.executor and hasattr(self.executor,'observe') else None)
             try:
-                decision, action, metrics = await self.model.decide(context, deadline)
+                if self.settings.stream_actions:
+                    choice = await self.model.begin_decision(context, deadline)
+                    decision,action,metrics = None,choice.action,choice.metrics
+                else:
+                    decision, action, metrics = await self.model.decide(context, deadline)
             finally:
                 if observation:
                     observation.cancel()
@@ -178,14 +190,23 @@ class Coordinator:
             if not current or not current.operation or current.state_version != state.state_version or time.monotonic() >= deadline:
                 raise TimeoutError("decision superseded or expired")
             proposed_plan = None
-            if decision.plan_update:
+            if decision and decision.plan_update:
                 proposed_plan = {**decision.plan_update.model_dump(), 'schema_version':RoundPlanUpdate.contract_version,
                                  "version":(self.plan or {}).get("version", 0)+1,
                                  "round_uid":state.round_uid, "state_version":state.state_version}
                 self.store.record("round_plan_proposed", proposed_plan, state.match_id, state.round_uid)
-            self.store.record("decision", {'schema_version':Decision.contract_version, "decision":decision.model_dump(), "action":action.model_dump(),
+            decision_id = self.store.record("decision", {'schema_version':'decision.stream.v1' if choice else Decision.contract_version,
+                                           "decision":decision.model_dump() if decision else {'q':context.q,
+                                               'action_id':next(k for k,a in context.actions.items() if a.id==action.id),
+                                               'reason':None,'plan_update':None},
+                                           'annotation_status':'pending' if choice else 'complete',"action":action.model_dump(),
                                            "context_fingerprint":context.fingerprint, "wire_version":context.data["v"],
                                            "metrics":metrics, "shadow":self.shadow}, state.match_id, state.round_uid)
+            if choice:
+                tail = asyncio.create_task(self.finish_annotation(choice,context,state,decision_id,self.shadow))
+                self.annotation_tasks.add(tail)
+                tail.add_done_callback(self.annotation_tasks.discard)
+                annotation_started = True
             if self.shadow:
                 self.status = "shadow_decision_recorded"
                 return
@@ -228,6 +249,42 @@ class Coordinator:
             self.store.record("decision_failure", {"window_id":op.window_id, "error_type":type(error).__name__,
                                                    "detail":str(error) if isinstance(error, (InputDeferred, TimeoutError)) else None,
                                                    "elapsed_ms":(time.monotonic()-start)*1000}, state.match_id, state.round_uid)
+        finally:
+            if choice and not annotation_started:
+                choice.completion.cancel()
+                await asyncio.gather(choice.completion,return_exceptions=True)
+
+    async def finish_annotation(self,choice,context,state,decision_id,shadow):
+        base = {'decision_record_id':decision_id,'window_id':state.operation.window_id,'q':context.q}
+        try:
+            decision,action,metrics = await choice.completion
+            if action.id != choice.action.id:
+                raise ValueError('annotation action differs from committed choice')
+            self.store.record('decision_annotation',{**base,'status':'complete',
+                              'decision':decision.model_dump(),'metrics':metrics},state.match_id,state.round_uid)
+            update = decision.plan_update
+            if shadow or update is None:
+                return
+            if (self.match_id != state.match_id or self.round_uid != state.round_uid
+                    or (self.plan or {}).get('version',0) != update.based_on_plan_version):
+                self.store.record('round_plan_late_ignored',{**base,'reason':'round_or_plan_version_changed'},
+                                  state.match_id,state.round_uid)
+                return
+            proposed = {**update.model_dump(),'schema_version':RoundPlanUpdate.contract_version,
+                        'version':update.based_on_plan_version+1,'round_uid':state.round_uid,
+                        'state_version':state.state_version}
+            self.store.record('round_plan_proposed',proposed,state.match_id,state.round_uid)
+            if self.pending and self.pending['receipt']['action']['id'] == action.id:
+                self.pending['proposed_plan'] = proposed
+            elif any(r['payload'].get('status') == 'server_confirmed' and
+                     r['payload']['action']['id'] == action.id for r in self.store.records('receipt',state.match_id,10000)):
+                self.adopt_plan({'proposed_plan':proposed,'state':state})
+        except asyncio.CancelledError:
+            self.store.record('decision_annotation',{**base,'status':'cancelled','usage':None},state.match_id,state.round_uid)
+            raise
+        except Exception as error:
+            self.store.record('decision_annotation',{**base,'status':'failed','error_type':type(error).__name__},
+                              state.match_id,state.round_uid)
 
     def confirm(self, state, event):
         pending = self.pending
