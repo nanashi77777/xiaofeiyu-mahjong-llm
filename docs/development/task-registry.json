@@ -1850,6 +1850,28 @@
       "evidence": [],
       "completed_record": null,
       "commits": []
+    },
+    {
+      "id": "DEV-056",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "结算确认等待可见按钮并准确记录提交点",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-017"
+      ],
+      "design_refs": [
+        "docs/design/timing-and-execution.md"
+      ],
+      "acceptance": [
+        "结算标题先于按钮出现时继续有界等待，不能提前记录submitted后退出或把未点击当完成",
+        "仅可见确认按钮通过预检后记录提交；按压/场景切换结果未知不重复点击，换局/停止取消",
+        "真实终场按钮和小局页面确认有证据，模拟预检未就绪与释放超时通过；既有混合场仍不计完整正式通过"
+      ],
+      "evidence": [],
+      "completed_record": null,
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

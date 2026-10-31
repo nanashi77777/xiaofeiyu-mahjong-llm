@@ -245,8 +245,9 @@ async def test_result_flow_only_confirms_observed_results_and_cancels_on_new_rou
     stop = threading.Event()
     async def observe():
         return 'round_win'
-    async def click(scene, control, ctx):
+    async def click(scene, control, ctx,*,submit):
         ctx.check()
+        ctx.before_submit(submit)
         clicked.append((scene, control))
         raise TimeoutError('release scene transition')
     async def image_bytes():

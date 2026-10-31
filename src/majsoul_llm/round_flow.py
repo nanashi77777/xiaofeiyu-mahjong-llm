@@ -46,6 +46,9 @@ class RoundFlow:
 
             def before_submit(self, step):
                 self.check()
+                clicked.add(scene)
+                service.store.record('result_ui',{'scene':scene,'status':'submitted','screenshot':filename},
+                                     match_id,round_uid)
 
         ctx = Context()
         clicked = set()
@@ -65,18 +68,22 @@ class RoundFlow:
                     continue
                 async with service.input_lease.hold('result:'+round_uid):
                     ctx.check()
-                    clicked.add(scene)
                     folder = service.settings.runtime / 'results'
                     folder.mkdir(parents=True,exist_ok=True)
                     filename = hashlib.sha256((match_id+round_uid+scene).encode()).hexdigest()[:24]+'.png'
                     (folder/filename).write_bytes(await service.browser.image_bytes())
-                    service.store.record('result_ui',{'scene':scene,'status':'submitted','screenshot':filename},match_id,round_uid)
                     try:
-                        await service.lobby_ui.click(scene,'confirm',ctx)
+                        await service.lobby_ui.click(scene,'confirm',ctx,submit='confirm_result')
+                    except WaitingUser:
+                        # The result title may precede its enabled button.
+                        # No input has been submitted: recheck the visible UI.
+                        if scene in clicked:
+                            raise
                     except TimeoutError:
                         # A scene transition can suspend Unity's release-frame
                         # callback after the click. Do not press a second time.
-                        service.store.record('result_ui',{'scene':scene,'status':'awaiting_scene_after_release'},match_id,round_uid)
+                        if scene in clicked:
+                            service.store.record('result_ui',{'scene':scene,'status':'awaiting_scene_after_release'},match_id,round_uid)
                 await asyncio.sleep(.2)
         except asyncio.CancelledError:
             raise
