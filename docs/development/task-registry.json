@@ -1177,7 +1177,9 @@
         "58-task dependency/design check; user-requested lobby paths and parameters mapped; implementation remains planned"
       ],
       "completed_record": "docs/development/completed/DOC-004-lobby-plan.md",
-      "commits": [],
+      "commits": [
+        "76eeda2f60bec59b224eb6ecbb52b76571ae29f2"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1200,7 +1202,9 @@
         "35 pytest tests; real game DPR1.25 maximized/resized/restored/minimized full canvas; screenshot and frame verified"
       ],
       "completed_record": "docs/development/completed/DEV-034-window-fit.md",
-      "commits": [],
+      "commits": [
+        "76eeda2f60bec59b224eb6ecbb52b76571ae29f2"
+      ],
       "completed_on": "2026-10-31"
     },
     {
@@ -1223,7 +1227,9 @@
         "35 pytest tests; new key probe79 and real review24313 tokens, reasoning0; all Mahjong purposes tagged; three QQ credential files unchanged"
       ],
       "completed_record": "docs/development/completed/DEV-035-mahjong-billing.md",
-      "commits": [],
+      "commits": [
+        "76eeda2f60bec59b224eb6ecbb52b76571ae29f2"
+      ],
       "completed_on": "2026-10-31"
     },
     {
