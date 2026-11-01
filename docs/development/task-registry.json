@@ -1473,9 +1473,11 @@
       "kind": "development",
       "milestone": "M9",
       "title": "按房间码加入友人房",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
-        "DEV-037"
+        "DEV-036",
+        "DEV-034",
+        "DEV-045"
       ],
       "design_refs": [
         "docs/design/lobby-automation.md"
@@ -1484,11 +1486,14 @@
         "房间码字符串含前导零，输入后核对真实房间",
         "无效/满员/密码/重复请求可处理，准备和开始按指令范围执行"
       ],
-      "evidence": [],
-      "completed_record": null,
+      "evidence": [
+        "25 lobby tests and ruff passed; prior actual join/readback/ready evidence in DEV-045; three synthetic rejection outcomes remain definitive and duplicate-safe. Broader real entry matrix stays VAL-012/013."
+      ],
+      "completed_record": "docs/development/completed/DEV-039-join-friend.md",
       "commits": [],
       "implementation_progress": "code_ready",
-      "status_reason": "规范命令、UI流程和服务端核验代码已接入；自动凭据登录、取消匹配/真实入口和入局交接仍待完成，不冒充真实验收"
+      "status_reason": "有效会话下加入/准备实现已落地，补服务端拒绝及重复指令回归；新凭据登录、段位取消与入局接管保持独立任务",
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-040",
@@ -2754,7 +2759,9 @@
       "evidence": [
         "410 full pytest and ruff passed; functional-only eligibility and retained mismatch-stop regression. Three complete real functional matches tracked by VAL-006."
       ],
-      "commits": [],
+      "commits": [
+        "e2bd37f52497f83eab8971ee2b0c417b080a546b"
+      ],
       "completed_record": "docs/development/completed/DEV-085-functional-validation.md",
       "completed_on": "2026-11-01"
     },
@@ -2778,8 +2785,34 @@
       "evidence": [
         "410 full pytest and ruff passed; page/browser disconnect invalidation, old callback/queue isolation and live-start idempotency verified. Independent actual restore follows under VAL-001."
       ],
-      "commits": [],
+      "commits": [
+        "e2bd37f52497f83eab8971ee2b0c417b080a546b"
+      ],
       "completed_record": "docs/development/completed/DEV-086-browser-disconnection.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-087",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "吃碰后置灰禁打牌的完整手牌定位",
+      "status": "done",
+      "depends_on": [
+        "DEV-021",
+        "DEV-082"
+      ],
+      "design_refs": [
+        "docs/design/kuikae-hand-observation.md"
+      ],
+      "acceptance": [
+        "完整识别白色和置灰牌面，数量/字形/排序/红牌实例核验保持严格；置灰牌不点击且不污染校准",
+        "冻结实战失败重现与合成回归通过，真实恢复及新完整实战另验，旧报告不改成功"
+      ],
+      "evidence": [
+        "418 full pytest and ruff passed; frozen real frame maps all 8 tiles, two disabled slots excluded, chosen enabled tile correct and calibration unchanged; five synthetic tests cover dim faces, count/glyph rejection, no calibration pollution and draw/red instances. Live suite and restore remain separate."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-087-kuikae-hand-observation.md",
       "completed_on": "2026-11-01"
     }
   ],

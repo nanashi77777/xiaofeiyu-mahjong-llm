@@ -97,7 +97,7 @@ class Executor:
         boxes = {}
         if any(a.kind in ('discard','riichi') for a in actions):
             try:
-                boxes.update({('tile',(i,)):box for i,box in self.locator.hand(raw,state).items()})
+                boxes.update({('tile',(i,)):box for i,box in self.locator.hand(raw,state).items() if box.enabled})
             except InputDeferred:
                 pass
         for kind in sorted({a.kind for a in actions} - {'discard'}):
@@ -320,8 +320,7 @@ class Executor:
                 if semantic == "riichi_tile":
                     box = await asyncio.to_thread(self.locator.riichi_tile,raw,state,indices[0])
                 elif semantic == "tile":
-                    box = await asyncio.to_thread(self.locator.hand,raw,state)
-                    box = box[indices[0]]
+                    box = await asyncio.to_thread(self.locator.discard_tile,raw,state,indices[0])
                 elif semantic.startswith("combo:"):
                     kind = semantic.split(":",1)[1]
                     tiles = [state.hand[i] for i in indices]

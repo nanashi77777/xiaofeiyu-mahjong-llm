@@ -50,6 +50,7 @@
 | DEV-034 | 实现 | 专用浏览器完整视口与画布显示修复 | [完成记录](docs/development/completed/DEV-034-window-fit.md) |
 | DEV-035 | 实现 | 麻将专用密钥与决策复盘用量分账 | [完成记录](docs/development/completed/DEV-035-mahjong-billing.md) |
 | DEV-036 | 实现 | 大厅命令契约与导航状态机 | [完成记录](docs/development/completed/DEV-036-navigation-state.md) |
+| DEV-039 | 实现 | 按房间码加入友人房 | [完成记录](docs/development/completed/DEV-039-join-friend.md) |
 | DEV-040 | 实现 | 创建四人友人房与思考时间设置 | [完成记录](docs/development/completed/DEV-040-create-room-matrix.md) |
 | DEV-042 | 实现 | QQ选场工具及独立导航接口 | [完成记录](docs/development/completed/DEV-042-qq-navigation.md) |
 | DEV-043 | 实现 | GitHub默认分支同步与API推送后备入口 | [完成记录](docs/development/completed/DEV-043-github-sync.md) |
@@ -96,3 +97,4 @@
 | DEV-084 | 实现 | 实际输入请求关联与客户端自动动作归因 | [完成记录](docs/development/completed/DEV-084-input-origin-attribution.md) |
 | DEV-085 | 实现 | 独立功能实战模式与性能资格隔离 | [完成记录](docs/development/completed/DEV-085-functional-validation.md) |
 | DEV-086 | 实现 | 浏览器断开失效与显式重启清理 | [完成记录](docs/development/completed/DEV-086-browser-disconnection.md) |
+| DEV-087 | 实现 | 吃碰后置灰禁打牌的完整手牌定位 | [完成记录](docs/development/completed/DEV-087-kuikae-hand-observation.md) |

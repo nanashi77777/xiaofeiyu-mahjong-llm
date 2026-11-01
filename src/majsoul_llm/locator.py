@@ -21,6 +21,7 @@ class Box:
     height: int
     confidence: float
     label: str
+    enabled: bool = True
 
     @property
     def center(self):
@@ -215,25 +216,33 @@ class ScreenLocator:
         image,sx,sy=self.normalized(raw,profile)
         ox,oy,w,h=profile["hand_region"]
         hsv=cv2.cvtColor(image[oy:oy+h,ox:ox+w],cv2.COLOR_BGR2HSV)
-        mask=cv2.inRange(hsv,(0,0,175),(180,55,255))
-        contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
         boxes=[]
-        for contour in contours:
-            x,y,bw,bh=cv2.boundingRect(contour)
-            if 35<bw<85 and 65<bh<115:
-                boxes.append((x+ox,y+oy,bw,bh))
+        # Kuikae makes forbidden faces grey after a call. They still occupy
+        # physical slots and must participate in count/order verification.
+        # Separate masks keep the grey tile rims from joining bright faces.
+        for lower,upper,enabled in ((175,255,True),(110,174,False)):
+            mask=cv2.inRange(hsv,(0,0,lower),(180,55,upper))
+            contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                x,y,bw,bh=cv2.boundingRect(contour)
+                if 35<bw<85 and 65<bh<115 and cv2.contourArea(contour)>bw*bh*.7:
+                    boxes.append((x+ox,y+oy,bw,bh,enabled))
         boxes.sort()
         if len(boxes)!=len(state.hand):
             raise InputDeferred("calibrated tile row segmentation differs from hand count")
+        if any(x2<x+bw-2 for (x,_y,bw,_bh,_enabled),(x2,*_) in zip(boxes,boxes[1:],strict=False)):
+            raise InputDeferred("calibrated tile row faces overlap")
         concealed=[t for i,t in enumerate(state.hand) if i!=state.drawn_index]
         ordered=sorted(concealed,key=lambda t:(tile_index(t),0 if t.startswith('0') else 1))
         if state.drawn_index is not None:
             ordered.append(state.hand[state.drawn_index])
         anchors=set()
         scores={}
-        for tile,(x,y,bw,bh) in zip(ordered,boxes,strict=True):
+        for tile,(x,y,bw,bh,enabled) in zip(ordered,boxes,strict=True):
             item=profile["templates"].get("tile_"+tile)
             if not item:
+                if not enabled:
+                    raise InputDeferred("dimmed tile glyph is not independently calibrated")
                 continue
             patch=decode_image((self.folder/item["file"]).read_bytes())
             region=image[max(0,y+6):y+bh,x+2:x+bw-2]
@@ -247,17 +256,23 @@ class ScreenLocator:
         if len(anchors)<3:
             raise InputDeferred("insufficient distinct known glyph anchors")
         changed=False
-        for tile,(x,y,_bw,_bh) in zip(ordered,boxes,strict=True):
+        for tile,(x,y,_bw,_bh,enabled) in zip(ordered,boxes,strict=True):
             label="tile_"+tile
-            if label not in profile["templates"]:
+            if enabled and label not in profile["templates"]:
                 patch=image[y+12:y+90,x+8:x+56]
                 cv2.imencode('.png',patch)[1].tofile(str(self.folder/(label+'.png')))
                 profile["templates"][label]={"file":label+'.png',"size":[48,78],"source":"verified_sorted_row_anchors"}
                 changed=True
         if changed:
             self.path.write_text(json.dumps(profile,ensure_ascii=False,indent=2),encoding='utf-8',newline='\n')
-        return [Box(round(x*sx),round(y*sy),round(bw*sx),round(bh*sy),scores.get((x,y),1.0),'tile_'+tile)
-                for tile,(x,y,bw,bh) in zip(ordered,boxes,strict=True)]
+        return [Box(round(x*sx),round(y*sy),round(bw*sx),round(bh*sy),scores.get((x,y),1.0),'tile_'+tile,enabled)
+                for tile,(x,y,bw,bh,enabled) in zip(ordered,boxes,strict=True)]
+
+    def discard_tile(self, raw, state, index):
+        box = self.hand(raw,state)[index]
+        if not box.enabled:
+            raise InputDeferred("selected discard face is dimmed")
+        return box
 
     def button(self,raw,kind):
         found = self.matches(raw,["button_"+kind])

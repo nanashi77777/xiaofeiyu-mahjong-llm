@@ -309,6 +309,31 @@ async def test_failed_confirmation_is_durable_but_never_confirms_success(tmp_pat
     n.journal.close()
 
 
+@pytest.mark.parametrize('fixture_error',[101,102,103])
+async def test_join_rejection_never_prepares_or_rejoins_on_duplicate(tmp_path,fixture_error):
+    # Synthetic errors stand for a server refusal (missing/full/password etc.);
+    # they are not asserted to be the production client's numeric mapping.
+    calls = []
+    class RejectedJoin(Driver):
+        async def run(self, command, ctx):
+            calls.append(command.room_code)
+            ctx.before_submit('joinRoom')
+            driver = LobbyDriver(None,SimpleNamespace(latest={'joinRoom':{
+                'observed_mono':float('inf'),'error_code':fixture_error}}),None)
+            await driver._ack('joinRoom',0,ctx)
+            raise AssertionError('rejected room must never prepare')
+    n,_ = navigation(tmp_path,RejectedJoin())
+    command = {'command_id':'join-rejected','kind':'join_friend','room_code':'00123','ready':True}
+    await n.submit(command)
+    await n.task
+    result = n.journal.get(command['command_id'])
+    assert result['status'] == 'failed' and result['reason'] == 'server_rejected_'+str(fixture_error)
+    assert result['result'] is None and result['confirmation']['method'] == 'joinRoom'
+    assert not result.get('confirmations',{}).get('readyPlay')
+    assert (await n.submit(command))['status'] == 'failed' and calls == ['00123']
+    n.journal.close()
+
+
 async def test_ui_selection_waits_for_same_click_to_settle_without_reclicking():
     clicks, checks = [], []
     readings = iter([False, False, True])
