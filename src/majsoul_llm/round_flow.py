@@ -74,15 +74,19 @@ class RoundFlow:
                     continue
                 if scene in ('room','lobby'):
                     return
-                if scene not in ('round_win','round_score','final') or scene in clicked:
+                if scene not in ('round_win','round_score','final','final_reward') or scene in clicked:
+                    await asyncio.sleep(.2)
+                    continue
+                if scene == 'final_reward' and service.engine.state.lifecycle != 'ended':
                     await asyncio.sleep(.2)
                     continue
                 async with service.input_lease.hold('result:'+round_uid):
                     ctx.check()
                     folder = service.settings.runtime / 'results'
                     folder.mkdir(parents=True,exist_ok=True)
-                    filename = hashlib.sha256((match_id+round_uid+scene).encode()).hexdigest()[:24]+'.png'
-                    (folder/filename).write_bytes(await service.browser.image_bytes())
+                    raw = await service.browser.image_bytes()
+                    filename = hashlib.sha256((match_id+round_uid+scene).encode()+raw).hexdigest()[:24]+'.png'
+                    (folder/filename).write_bytes(raw)
                     try:
                         await service.lobby_ui.click(scene,'confirm',ctx,submit='confirm_result')
                     except WaitingUser:

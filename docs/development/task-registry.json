@@ -2838,9 +2838,55 @@
       "evidence": [
         "418 full pytest and ruff passed; both exact frozen real frames map all 8/14 tiles correctly, grey kuikae slots remain unclickable and normal dot artwork is not double-counted; calibration unchanged. Real reload checks passed independently, post-recovery input failure retained."
       ],
-      "commits": [],
+      "commits": [
+        "4befec8a24795fff749c243824038b7f7beca9a2"
+      ],
       "completed_record": "docs/development/completed/DEV-088-dim-face-containment.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-089",
+      "kind": "development",
+      "milestone": "M1",
+      "title": "已结束旧牌谱派生小局序号的可审计重建",
+      "status": "done",
+      "depends_on": [
+        "DEV-071",
+        "DEV-010"
+      ],
+      "design_refs": [
+        "docs/design/archive-round-index-rebuild.md"
+      ],
+      "acceptance": [
+        "默认只读重放清单，仅修正事实一致且已结束完整档案的派生小局序号；原事件、分数、失败报告不改",
+        "显式应用前一致备份，事务重验指纹、原值和来源记录；合成回归与真实独立前后审计通过"
+      ],
+      "evidence": [
+        "427 full pytest and ruff passed; 9 rebuild tests including backups, immutable original events/failures, stale or tampered plans, ineligible states and provenance rollback. One actual ended archive repaired only derived indices with backup; new 20-match replay audit and read-only HTTP round order passed; original failed reports preserved."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-089-archive-round-index-rebuild.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-090",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "终场奖励页的独立确认与不可覆盖截图",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-058",
+        "DEV-070"
+      ],
+      "design_refs": [
+        "docs/design/final-reward-flow.md"
+      ],
+      "acceptance": [
+        "区分普通final与final_reward，各页最多确认一次，奖励页只在权威终场后处理，停止和新状态优先",
+        "结算截图按内容摘要保存不覆盖旧帧；隔离回归、真实奖励页核验和新实战分别记录"
+      ],
+      "evidence": [],
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

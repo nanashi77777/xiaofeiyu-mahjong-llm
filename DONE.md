@@ -99,3 +99,4 @@
 | DEV-086 | 实现 | 浏览器断开失效与显式重启清理 | [完成记录](docs/development/completed/DEV-086-browser-disconnection.md) |
 | DEV-087 | 实现 | 吃碰后置灰禁打牌的完整手牌定位 | [完成记录](docs/development/completed/DEV-087-kuikae-hand-observation.md) |
 | DEV-088 | 实现 | 普通牌灰色纹样与禁打牌面隔离 | [完成记录](docs/development/completed/DEV-088-dim-face-containment.md) |
+| DEV-089 | 实现 | 已结束旧牌谱派生小局序号的可审计重建 | [完成记录](docs/development/completed/DEV-089-archive-round-index-rebuild.md) |

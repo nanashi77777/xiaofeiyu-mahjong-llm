@@ -184,6 +184,9 @@ async def test_failed_window_continues_only_on_new_window_and_three_unique_failu
     for i in (2,3):
         fresh = state.model_copy(deep=True)
         fresh.operation.window_id = f'fresh-{i}'
+        # A distinct server window has a new observation time. Reusing the
+        # first timestamp accidentally tests expiry under a busy test host.
+        fresh.operation.received_mono = time.monotonic()
         c.engine.state = fresh
         await c.changed(fresh,None)
         await c.task
