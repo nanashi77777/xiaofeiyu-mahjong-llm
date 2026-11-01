@@ -98,3 +98,4 @@
 | DEV-085 | 实现 | 独立功能实战模式与性能资格隔离 | [完成记录](docs/development/completed/DEV-085-functional-validation.md) |
 | DEV-086 | 实现 | 浏览器断开失效与显式重启清理 | [完成记录](docs/development/completed/DEV-086-browser-disconnection.md) |
 | DEV-087 | 实现 | 吃碰后置灰禁打牌的完整手牌定位 | [完成记录](docs/development/completed/DEV-087-kuikae-hand-observation.md) |
+| DEV-088 | 实现 | 普通牌灰色纹样与禁打牌面隔离 | [完成记录](docs/development/completed/DEV-088-dim-face-containment.md) |

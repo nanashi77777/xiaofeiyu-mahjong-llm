@@ -1490,7 +1490,9 @@
         "25 lobby tests and ruff passed; prior actual join/readback/ready evidence in DEV-045; three synthetic rejection outcomes remain definitive and duplicate-safe. Broader real entry matrix stays VAL-012/013."
       ],
       "completed_record": "docs/development/completed/DEV-039-join-friend.md",
-      "commits": [],
+      "commits": [
+        "d08e533eb4abf5a67c4210d4b5ec9362d2c76c70"
+      ],
       "implementation_progress": "code_ready",
       "status_reason": "有效会话下加入/准备实现已落地，补服务端拒绝及重复指令回归；新凭据登录、段位取消与入局接管保持独立任务",
       "completed_on": "2026-11-01"
@@ -2811,8 +2813,33 @@
       "evidence": [
         "418 full pytest and ruff passed; frozen real frame maps all 8 tiles, two disabled slots excluded, chosen enabled tile correct and calibration unchanged; five synthetic tests cover dim faces, count/glyph rejection, no calibration pollution and draw/red instances. Live suite and restore remain separate."
       ],
-      "commits": [],
+      "commits": [
+        "d08e533eb4abf5a67c4210d4b5ec9362d2c76c70"
+      ],
       "completed_record": "docs/development/completed/DEV-087-kuikae-hand-observation.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-088",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "普通牌灰色纹样与禁打牌面隔离",
+      "status": "done",
+      "depends_on": [
+        "DEV-087"
+      ],
+      "design_refs": [
+        "docs/design/dim-face-containment.md"
+      ],
+      "acceptance": [
+        "白色牌面内灰色纹样不重复计数，真实置灰牌仍完整核验且不可点击",
+        "新增合成纹样回归，两份真实冻结帧及全量测试通过；原失败不覆盖，新实战另验"
+      ],
+      "evidence": [
+        "418 full pytest and ruff passed; both exact frozen real frames map all 8/14 tiles correctly, grey kuikae slots remain unclickable and normal dot artwork is not double-counted; calibration unchanged. Real reload checks passed independently, post-recovery input failure retained."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-088-dim-face-containment.md",
       "completed_on": "2026-11-01"
     }
   ],

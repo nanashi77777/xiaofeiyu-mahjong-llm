@@ -226,6 +226,14 @@ class ScreenLocator:
             for contour in contours:
                 x,y,bw,bh=cv2.boundingRect(contour)
                 if 35<bw<85 and 65<bh<115 and cv2.contourArea(contour)>bw*bh*.7:
+                    # Dense dot glyphs can contain a large grey component.
+                    # A component inside an already verified white face is
+                    # that face's artwork, never an additional physical slot.
+                    if not enabled and any(
+                            bx-2<=x+ox and by-2<=y+oy and
+                            x+ox+bw<=bx+bwidth+2 and y+oy+bh<=by+bheight+2
+                            for bx,by,bwidth,bheight,bright in boxes if bright):
+                        continue
                     boxes.append((x+ox,y+oy,bw,bh,enabled))
         boxes.sort()
         if len(boxes)!=len(state.hand):

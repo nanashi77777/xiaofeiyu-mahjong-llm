@@ -20,6 +20,10 @@ def fixture_row(tmp_path, state):
     for index,tile in enumerate(tiles):
         x,y = 20+index*75,20
         face = np.full((96,61,3),225,dtype=np.uint8)
+        if tile == '7m':
+            # Large neutral artwork has the size/brightness of a dim face,
+            # but belongs to a surrounding, fully enabled white tile.
+            cv2.rectangle(face,(8,8),(52,87),(135,135,135),-1)
         color = (10,10,170) if tile == '0m' else (15,15,15)
         cv2.putText(face,str(index+1),(12,62),cv2.FONT_HERSHEY_SIMPLEX,1.4,color,3)
         image[y:y+96,x:x+61] = face
