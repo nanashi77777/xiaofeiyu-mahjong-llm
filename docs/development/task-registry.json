@@ -865,7 +865,7 @@
       "kind": "validation",
       "milestone": "M1",
       "title": "真实协议、状态和恢复专项验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-006",
         "DEV-007",
@@ -875,18 +875,22 @@
         "DEV-018"
       ],
       "design_refs": [
-        "docs/design/acceptance.md"
+        "docs/design/acceptance.md",
+        "docs/development/protocol-state-coverage.md"
       ],
       "acceptance": [
         "黄金事件与实际消息覆盖表通过，多家和/终场/中断/重连幂等和计时语义有证据"
       ],
       "evidence": [
-        "2026-10-31 runtime/archive-replay-audit-v1.json：16场10505事件、92小局，近期13场事实缓存匹配；早期3场缺concealed_count保留差异。协议/恢复专项尚未全部完成。"
+        "2026-10-31 runtime/archive-replay-audit-v1.json：16场10505事件、92小局，近期13场事实缓存匹配；早期3场缺concealed_count保留差异。协议/恢复专项尚未全部完成。",
+        "Current 20-match consistent read-only replay passed with 176 round starts and 12 terminal notifications; 88 wins all source-confirmed. Earlier live same-match restore checks passed, later new reload attempts returned actual client rejection 1202 and remain failed/interrupted; continuation to terminal is not yet accepted.",
+        "452 full pytest passed; protocol/state coverage matrix reviewed. Separate consistent real 20-match replay passed (176 round starts, 12 final notifications) and win audit passed (88 confirmed sources, two double-ron events). Two live same-match reloads passed eight state/stop/dedup checks, calibrated real restore age and repeated cross-round replay passed. Later actual server 1202 refusals retained as interrupted; continuation-to-terminal remains VAL-006."
       ],
-      "completed_record": null,
+      "completed_record": "docs/development/completed/VAL-001-protocol-state-recovery.md",
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
-      ]
+      ],
+      "completed_on": "2026-11-01"
     },
     {
       "id": "VAL-002",
@@ -1011,7 +1015,9 @@
       "acceptance": [
         "三场真实完整AI友人四南，以及另行中断/恢复，终场分数顺位、牌谱与去重一致"
       ],
-      "evidence": [],
+      "evidence": [
+        "Functional v2 froze at 19 opportunities/18 confirmations on red reflection before riichi; v4 froze at 52/51 on pre-down image expiry, both zero mismatches. Original failures retained; no three-complete-match pass."
+      ],
       "completed_record": null,
       "commits": [],
       "status_reason": "用户暂缓五秒比例门槛；以独立60+0功能实战先检验三场闭环，计时仍由VAL-005保留"
@@ -2990,9 +2996,12 @@
         "未变化时复用验收报告，任何新记录/状态及终场均重算，真实失败/偏差停止检查保持"
       ],
       "evidence": [
-        "452 full pytest and ruff passed. Progress forbids history scan, rejects read/navigation tokens, advances record version. Practice cache regression skips unchanged poll yet immediately stops and retains newly recorded failure; full reports and strict gates preserved."
+        "452 full pytest and ruff passed. Progress forbids history scan, rejects read/navigation tokens, advances record version. Practice cache regression skips unchanged poll yet immediately stops and retains newly recorded failure; full reports and strict gates preserved.",
+        "Actual idle production progress: three samples 0-16ms, 524 bytes; recorded private report retained. Public and private four refs and owner-only write read-back verified at implementation SHA."
       ],
-      "commits": [],
+      "commits": [
+        "a370a6038a8e99135c7ac05f22f426455007ab3e"
+      ],
       "completed_record": "docs/development/completed/DEV-094-validation-progress.md",
       "completed_on": "2026-11-01"
     }
