@@ -1923,23 +1923,30 @@
       "id": "DEV-055",
       "kind": "development",
       "milestone": "M4",
-      "title": "鸣牌点击未提交的可审计诊断与有限同动作恢复",
-      "status": "in_progress",
-      "status_reason": "诊断保留原状态；涉及的有限恢复统一归入DEV-082，随用户要求暂缓，不先行开发重试",
+      "title": "鸣牌未提交的可审计诊断（恢复移交暂缓任务）",
+      "status": "done",
+      "status_reason": "原有限恢复范围已移交DEV-082并按用户要求暂缓；本任务只交付诊断，不宣称根因修复或恢复已实现",
       "depends_on": [
         "DEV-017"
       ],
       "design_refs": [
-        "docs/development/2026-10-31-streaming-progress.md"
+        "docs/development/2026-10-31-streaming-progress.md",
+        "docs/design/input-origin-attribution.md"
       ],
       "acceptance": [
-        "保留真实碰白失败及自动跳过事实，补充按下目标、可见图像和客户端请求关联以定位未提交原因",
-        "有限恢复部分统一由DEV-082规划并按用户要求暂缓；原窗口有效性、同一目标与已提交状态仍须诊断，复合菜单和未知结果不得盲点",
-        "离线/隔离回归和真实鸣牌确认，所有失败继续计入原报告，不把混合续测变回正式成功"
+        "保留真实碰白失败及自动跳过事实，不补造缺失的旧截图；新非弃牌执行保存原识别帧、置信度、坐标、窗口与版本",
+        "诊断关联实际客户端输入、服务端回执及实际牌局事件，区分未观察到请求、自动操作和真实确认；重复/未知结果不盲点",
+        "诊断I/O错误不能重按或覆盖真实点击结果，隔离回归及已有真实鸣牌证据核验；恢复统一移交DEV-082暂缓，完整输入验收仍由VAL-003独立跟踪"
       ],
-      "evidence": [],
-      "completed_record": null,
-      "commits": []
+      "evidence": [
+        "Diagnostics-only scope after recovery moved to explicitly deferred DEV-082. Original missed-pon failure and missing-frame limitation retained. Three evidence/uncertainty/I-O regressions keep one press; 368 pytest/ruff. Real prior archive has 15 pon and 3 chi confirmations, 11 pon and 2 chi with saved recognition frames; new request references verified in live 5+10. Root cause/full input/recovery not claimed complete."
+      ],
+      "completed_record": "docs/development/completed/DEV-055-input-diagnostics.md",
+      "commits": [
+        "c33eb9ada818cb97a1d2b30e8c22e7f0671b1dd1",
+        "3fad22d7269094682288a41b6e9e2f7a6e8ba387"
+      ],
+      "completed_on": "2026-11-01"
     },
     {
       "id": "DEV-056",
@@ -2694,7 +2701,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "实际输入请求关联与客户端自动动作归因",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-017",
         "DEV-021"
@@ -2706,9 +2713,15 @@
         "客户端请求与响应及receipt以记录引用关联，已知自动标记不能确认模型成功；普通或缺失来源保持未确定，实际牌谱不受模型或诊断改写",
         "构造自动同动作/早回包/不同窗口/停止等回归，真实历史只读核验并开展独立5＋10；不实现暂缓的重试或把旧失败改成功"
       ],
-      "evidence": [],
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "368 pytest and ruff passed; read-only audit 1263 actual requests including 33 client-automatic markers, zero attribution errors and old gaps explicit. Live 5+10 four-player south with one human and three robots: 32 verified normal confirmations covering discard/pass/riichi/ron/chi, new references and archive replay checked. Full game/500 windows remain independent; deferred recovery unchanged."
+      ],
+      "commits": [
+        "3fad22d7269094682288a41b6e9e2f7a6e8ba387"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_record": "docs/development/completed/DEV-084-input-origin-attribution.md",
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

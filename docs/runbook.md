@@ -4,6 +4,10 @@
 
 DEV-082重试机制与VAL-014目前仅登记TODO，用户暂缓；当前出错停止行为尚未按新方案改动，见design/bounded-error-recovery.md。
 
+DEV-084增加实际输入归因：client_input记录的method/input_origin与记录ID用于关联server_input_ack和receipt。当前客户端已核验timeuse=1000000为自动操作标记；其他值保持unverified，不能只凭timeuse证明bot点击成功。自动操作即使与模型所选动作相同也不计AI确认，实际牌谱仍按服务器事实记录。match-report.v2-input-origin保留自动请求和关联引用；重算旧记录时不改原始receipt或旧报告，缺失引用明确保留。
+
+`python tools/audit_input_attribution.py --output runtime/<本次审计>.json`以SQLite只读一致性事务核对请求/响应/receipt引用及自动来源，不调用模型、不改生产库。passed只表示可核对的引用无错误；legacy_unlinked_acks与receipts_without_request_refs仍需分别查看，不能将旧记录缺口说成完整可归因。
+
 专用Chrome现在独立于服务进程运行。服务重启后，先用控制鉴权POST `/control/reattach-browser`，JSON为当前专用Chrome的`pid`，再绑定核对的`hwnd`。入口核验可执行文件、专用profile和唯一游戏页面，重新加载页面以收取真实认证/恢复；不会从旧缓存生成当前操作。若调试端口已有进程，`/control/browser`拒绝另开，不能把任意浏览器直接当作专用窗口。服务退出会保留独立浏览器，窗口可由用户正常关闭。
 
 正式人机验收使用`tools/practice_suite.py --games 3 --profile 5+10 --output runtime/<本次报告>.json`，只在已认证空闲大厅、无输入所有者且源码摘要一致时开始。失败场不删、不续作合格场，恢复/离开提示干预独立记账。当前已有5+10模型超时失败证据，500窗口和三完整场尚未通过。
