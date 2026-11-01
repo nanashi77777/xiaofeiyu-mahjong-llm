@@ -8,6 +8,7 @@ import time
 from .domain import Event, Phase, Rules, Snapshot
 from .game_modes import FOUR_PLAYER_LENGTHS
 from .lobby_session import LobbySession, ROOM_NOTIFICATIONS
+from .input_origin import input_origin
 from .state import apply_event, digest
 from .store import Store, packed, utcnow
 from .protocol import UnsupportedAction
@@ -48,6 +49,7 @@ class Engine:
         self.lock = asyncio.Lock()
         self.last_error: str | None = None
         self.input_windows = {}
+        self.input_records = {}
         self.on_input = None
         self.lobby_session = LobbySession()
         self.authenticated_mono = 0
@@ -76,6 +78,7 @@ class Engine:
         self.authenticated_mono = 0
         self.last_frame_mono = 0
         self.input_windows.clear()
+        self.input_records.clear()
         if not self.state or self.state.lifecycle != "active":
             return
         state = self.state.model_copy(deep=True)
@@ -161,14 +164,19 @@ class Engine:
                 if method in ("inputOperation", "inputChiPengGang"):
                     window=self.state.operation.window_id if self.state.operation else None
                     self.input_windows[(connection,message.get("request_id"))]=window
-                    self.store.record("client_input", {**data,"window_id":window}, self.state.match_id, self.state.round_uid)
+                    record_id = self.store.record("client_input", {**data,"window_id":window,
+                        'method':method, 'input_origin':input_origin(data)}, self.state.match_id, self.state.round_uid)
+                    self.input_records[(connection,message.get('request_id'))] = record_id
                     if self.on_input:
-                        await self.on_input("request",window,data,None)
+                        await self.on_input("request",window,data,record_id)
                 return
             if direction=="response" and method in ("inputOperation","inputChiPengGang"):
                 window=self.input_windows.pop((connection,message.get("request_id")),None)
+                request_record_id = self.input_records.pop((connection,message.get('request_id')),None)
                 original=message.get("original_input") or {}
-                ack_id=self.store.record("server_input_ack",{"window_id":window,"input":original,"accepted":not bool(data.get("error",{}).get("code"))},self.state.match_id,self.state.round_uid)
+                ack_id=self.store.record("server_input_ack",{"window_id":window,"input":original,
+                    'request_record_id':request_record_id, 'method':method,
+                    "accepted":not bool(data.get("error",{}).get("code"))},self.state.match_id,self.state.round_uid)
                 if self.on_input:
                     await self.on_input("accepted" if not data.get("error",{}).get("code") else "rejected",window,original,ack_id)
                 if (not data.get('error',{}).get('code') and original.get('cancel_operation')

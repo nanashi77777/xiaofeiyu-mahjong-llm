@@ -8,6 +8,7 @@ import uuid
 from .memory import Memories
 from .domain import Decision, Receipt, RoundPlanUpdate
 from .input_lease import finish_input
+from .input_origin import input_origin
 from .native import InputDeferred
 from .rules import legal_actions
 from .store import utcnow
@@ -46,6 +47,29 @@ class Coordinator:
         if not self.pending or self.pending["receipt"]["action"]["window_id"]!=window_id:
             return
         action=self.pending["receipt"]["action"]
+        automatic = input_origin(payload) == 'client_automatic'
+        if stage == 'request':
+            if ack_id:
+                ids = self.pending['receipt'].setdefault('client_input_ids', [])
+                if ack_id not in ids:
+                    ids.append(ack_id)
+            if automatic:
+                self.pending['automatic_input'] = True
+            return
+        if stage == 'accepted' and (automatic or self.pending.get('automatic_input')):
+            if self.pending['receipt']['status'] == 'validated':
+                self.pending['early_ack'] = (payload, ack_id)
+                return
+            pending, self.pending = self.pending, None
+            state = pending['state']
+            elapsed = max(0, time.monotonic()-pending['start'])
+            self.record_receipt({**pending['receipt'], 'status':'mismatch',
+                'reason':'client_automatic_input_not_bot_confirmation', 'actual_ack_id':ack_id,
+                'confirmed_at':utcnow(), 'elapsed_ms':elapsed*1000}, state.match_id,state.round_uid)
+            self.bank.charge(window_id, elapsed, fixed_ms=state.operation.fixed_ms if self.settings.timer_verified else None)
+            self.store.record('time_bank',self.bank.checkpoint(window_id),state.match_id,state.round_uid)
+            self.enabled, self.status = False, 'paused_client_automatic_input'
+            return
         if stage=="accepted" and action["kind"]=="pass" and payload.get("cancel_operation"):
             if self.pending["receipt"]["status"] == "validated":
                 self.pending["early_ack"] = (payload, ack_id)
@@ -330,8 +354,12 @@ class Coordinator:
             matches = event.kind == "ActionLiuJu"
         else:
             matches = kind == "pass" and event.kind not in ("ActionChiPengGang", "ActionAnGangAddGang")
+        automatic = bool(pending.get('automatic_input'))
+        matches = matches and not automatic
         receipt = {**pending["receipt"], "status":"server_confirmed" if matches else "mismatch", "actual_event_id":event.id,
                    "confirmed_at":utcnow(), "elapsed_ms":(event.received_mono-pending["start"])*1000}
+        if automatic:
+            receipt['reason'] = 'client_automatic_input_not_bot_confirmation'
         self.record_receipt(receipt,state.match_id,pending['state'].round_uid)
         if matches:
             self.adopt_plan(pending)

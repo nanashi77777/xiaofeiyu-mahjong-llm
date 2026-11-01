@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import math
 
+from .input_origin import input_origin
+
 
 def percentile(values, fraction):
     if not values:
@@ -60,12 +62,36 @@ def match_report(store, match_id):
                 elif data['status'] == 'server_confirmed':
                     window['server_confirmed'] = True
                     window['confirmation_ms'] = data.get('elapsed_ms')
+    automatic_inputs = []
+    for row in store.records('client_input',match_id,limit=100000):
+        data = row['payload']
+        window_id = data.get('window_id')
+        if window_id in windows:
+            windows[window_id].setdefault('client_input_refs', []).append({
+                'request_id':row['id'], 'origin':input_origin(data)})
+        if input_origin(data) != 'client_automatic':
+            continue
+        automatic_inputs.append({'record_id':row['id'], 'window_id':window_id,
+                                 'cancel_operation':data.get('cancel_operation'), 'type':data.get('type')})
+        if window_id in windows:
+            window = windows[window_id]
+            window.setdefault('automatic_input_ids', []).append(row['id'])
+            if window['server_confirmed']:
+                window['recorded_server_confirmed'] = True
+                window['server_confirmed'] = False
+                window['confirmation_excluded_reason'] = 'client_automatic_input_observed'
+    for row in store.records('server_input_ack',match_id,limit=100000):
+        data = row['payload']
+        if data.get('window_id') in windows:
+            windows[data['window_id']].setdefault('input_ack_refs', []).append({
+                'ack_id':row['id'], 'request_id':data.get('request_record_id'), 'accepted':data.get('accepted')})
     durations = [w['read_to_mouse_ms'] for w in windows.values()
                  if w['mouse_sent'] and w.get('read_to_mouse_ms') is not None]
     confirmed = [w for w in windows.values() if w['server_confirmed']]
     within5 = sum(w.get('read_to_mouse_ms', float('inf')) <= 5000 for w in confirmed)
     annotations = store.records('decision_annotation',match_id,100000)
     return {
+        'schema_version':'match-report.v2-input-origin',
         'match_id':match_id, 'lifecycle':state.lifecycle, 'completeness':state.completeness,
         'consistent':state.consistent, 'rounds':state.round_seq,
         'self_seat':state.self_seat, 'final_scores':state.final_scores, 'final_ranks':state.final_ranks,
@@ -76,6 +102,7 @@ def match_report(store, match_id):
         'read_to_mouse_ms':{'p50':percentile(durations,.5), 'p95':percentile(durations,.95),
                             'p99':percentile(durations,.99), 'max':max(durations,default=None)},
         'failures':failures, 'mismatches':mismatches, 'cancellations':cancelled,
+        'client_automatic_inputs':automatic_inputs,
         'annotations':{'complete':sum(r['payload']['status']=='complete' for r in annotations),
                        'failed':sum(r['payload']['status']=='failed' for r in annotations),
                        'cancelled':sum(r['payload']['status']=='cancelled' for r in annotations)},

@@ -138,7 +138,8 @@ class PracticeSuite:
                     summary = match_report(store, match_id)
                     self.report['matches'][-1] = summary
                     self.save()
-                    if summary['failures'] or summary['mismatches'] or summary['client_interventions']:
+                    if (summary['failures'] or summary['mismatches'] or summary['client_interventions']
+                            or any(x['window_id'] in summary['windows'] for x in summary['client_automatic_inputs'])):
                         raise RuntimeError('recorded_decision_or_execution_failure')
                     if not state['consistent'] or state['completeness'] != 'full' or state['lifecycle'] == 'interrupted':
                         raise RuntimeError('state_gap_or_interruption')

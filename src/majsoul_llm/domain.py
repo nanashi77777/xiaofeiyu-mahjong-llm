@@ -260,6 +260,7 @@ class Receipt(Record):
     clicked_mono: float | None = None
     actual_event_id: str | None = None
     actual_ack_id: str | None = None
+    client_input_ids: list[str] = Field(default_factory=list)
     confirmation_source: str | None = None
     confirmed_at: str | None = None
     elapsed_ms: float | None = None

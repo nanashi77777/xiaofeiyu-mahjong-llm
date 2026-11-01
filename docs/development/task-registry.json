@@ -2688,6 +2688,27 @@
       ],
       "completed_record": "docs/development/completed/DEV-083-dual-repository-sync.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-084",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "实际输入请求关联与客户端自动动作归因",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-017",
+        "DEV-021"
+      ],
+      "design_refs": [
+        "docs/design/input-origin-attribution.md"
+      ],
+      "acceptance": [
+        "客户端请求与响应及receipt以记录引用关联，已知自动标记不能确认模型成功；普通或缺失来源保持未确定，实际牌谱不受模型或诊断改写",
+        "构造自动同动作/早回包/不同窗口/停止等回归，真实历史只读核验并开展独立5＋10；不实现暂缓的重试或把旧失败改成功"
+      ],
+      "evidence": [],
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
