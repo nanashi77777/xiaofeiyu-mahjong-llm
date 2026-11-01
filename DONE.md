@@ -103,3 +103,4 @@
 | DEV-090 | 实现 | 终场奖励页的独立确认与不可覆盖截图 | [完成记录](docs/development/completed/DEV-090-final-reward-flow.md) |
 | DEV-091 | 实现 | 少张已校准手牌独立核验与未知字形学习门槛分离 | [完成记录](docs/development/completed/DEV-091-calibrated-small-hands.md) |
 | DEV-092 | 实现 | 手牌反光校准变体及白板空白的明确验证 | [完成记录](docs/development/completed/DEV-092-row-glyph-verification.md) |
+| DEV-093 | 实现 | 大厅按下前渲染失效的有限重定位 | [完成记录](docs/development/completed/DEV-093-lobby-prepress-retry.md) |

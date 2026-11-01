@@ -2915,7 +2915,9 @@
       "evidence": [
         "441 full pytest and ruff passed; added sufficient-anchor learning case then 9 targeted passed. Known one/two-tile rows retain red/drawn-slot verification; unknown sparse or dim glyphs refused. Real four-meld coverage tracked separately."
       ],
-      "commits": [],
+      "commits": [
+        "4ea48720af2079c3e463ca54a00709113a55f038"
+      ],
       "completed_record": "docs/development/completed/DEV-091-calibrated-small-hands.md",
       "completed_on": "2026-11-01"
     },
@@ -2938,8 +2940,34 @@
       "evidence": [
         "441 full pytest and ruff passed; actual frozen reflected red-five frame maps all 14 tiles and selected discard with original threshold and old template retained. Synthetic reflection/red identity/blank white/disabled riichi checks passed; old live failure retained."
       ],
-      "commits": [],
+      "commits": [
+        "4ea48720af2079c3e463ca54a00709113a55f038"
+      ],
       "completed_record": "docs/development/completed/DEV-092-row-glyph-verification.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-093",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "大厅按下前渲染失效的有限重定位",
+      "status": "done",
+      "depends_on": [
+        "DEV-036",
+        "DEV-082"
+      ],
+      "design_refs": [
+        "docs/design/lobby-prepress-retry.md"
+      ],
+      "acceptance": [
+        "仅明确按下前TargetExpired可重观察同一控件，最多三次且共用原截止，停止/状态变化不重试",
+        "提交日志在按下回调前落盘，任何可能已按下不补点；隔离故障回归通过，旧真实失败保留"
+      ],
+      "evidence": [
+        "450 full pytest passed; ruff passed. Eight targeted real pipeline fault tests verify finite pre-down retries, shared original deadline, same target, stop/state priority, no repeats after possible down, and service-thread SQLite submission before physical down. Old live build/report retained; new actual room validation separate."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-093-lobby-prepress-retry.md",
       "completed_on": "2026-11-01"
     }
   ],

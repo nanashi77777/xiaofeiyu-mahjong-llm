@@ -16,6 +16,7 @@ from .input_lease import finish_input
 from .game_modes import FOUR_PLAYER_LENGTHS
 from .lobby import LobbyError, WaitingUser
 from .locator import decode_image, glyph_similarity
+from .native import TargetExpired
 
 
 class LobbyUI:
@@ -80,6 +81,27 @@ class LobbyUI:
         raise WaitingUser("lobby_screen_not_ready")
 
     async def _click(self, scene, control, ctx, *, submit=None):
+        deadline = time.monotonic()+8
+        pressed = False
+        def before_press():
+            nonlocal pressed
+            ctx.check()
+            if time.monotonic() >= deadline:
+                raise TimeoutError('lobby control deadline expired before press')
+            pressed = True
+            if submit:
+                ctx.before_submit(submit)
+        for attempt in range(3):
+            ctx.check()
+            try:
+                return await self._click_once(scene,control,ctx,deadline,before_press)
+            except TargetExpired:
+                if pressed or attempt == 2 or time.monotonic()+.06 >= deadline:
+                    raise
+                ctx.check()
+                await asyncio.sleep(.06)
+
+    async def _click_once(self, scene, control, ctx, deadline, before_press):
         ctx.check()
         await self.wait_scene(scene, ctx)
         profile = self.profile()
@@ -142,11 +164,10 @@ class LobbyUI:
         if self.executor.mouse.user.GetAsyncKeyState(0x1B) & 0x8000:
             self.executor.mouse.stop.set()
             raise LobbyError("navigation_stopped")
-        if submit:
-            ctx.before_submit(submit)
+        input_deadline = min(observed+1.2,deadline)
         if self.executor.input_mode == "browser_background":
-            await finish_input(self.browser.background_click(point, observed+1.2, self.executor.mouse.stop,
-                                                              validate=validate_geometry))
+            await finish_input(self.browser.background_click(point, input_deadline, self.executor.mouse.stop,
+                                                              validate=validate_geometry,on_press=before_press))
         else:
             window = self.executor.window
             if not window:
@@ -155,7 +176,16 @@ class LobbyUI:
               y:screenY+outerHeight-innerHeight,dpr:devicePixelRatio})""")
             screen_point = tuple(round((geometry[k]+p)*geometry["dpr"]) for k, p in zip(("x", "y"), point, strict=True))
             rect = self.executor.mouse.rect(window)
-            await finish_input(asyncio.to_thread(self.executor.mouse.click, window, rect, screen_point, observed, observed+1.2))
+            loop = asyncio.get_running_loop()
+            async def commit_press():
+                before_press()
+            def physical_before_press():
+                # SQLite navigation journals belong to the service thread.
+                # Drain the native worker while its pre-down callback commits
+                # on that thread, then permit SendInput exactly once.
+                asyncio.run_coroutine_threadsafe(commit_press(),loop).result()
+            await finish_input(asyncio.to_thread(self.executor.mouse.click, window, rect, screen_point, observed,
+                                                input_deadline,physical_before_press))
         await asyncio.sleep(.15)
 
     def _find(self, image, marker, region):
