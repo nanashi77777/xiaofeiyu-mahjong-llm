@@ -13,9 +13,10 @@ from .store import Store, packed, utcnow
 
 
 class Queries:
-    def __init__(self, store: Store, secret: str, capture_health=None):
+    def __init__(self, store: Store, secret: str, capture_health=None, recovery_status=None):
         self.store, self.secret = store, secret.encode()
         self.capture_health = capture_health
+        self.recovery_status = recovery_status
 
     def cursor(self, data):
         raw = base64.urlsafe_b64encode(packed(data).encode()).rstrip(b"=")
@@ -62,7 +63,8 @@ class Queries:
 
     def live(self):
         state = self.store.latest()
-        return self.envelope(self.summary(state) if state else None, state=state)
+        extra = {'recovery':self.recovery_status()} if self.recovery_status else {}
+        return self.envelope(self.summary(state) if state else None, state=state, **extra)
 
     def matches(self, *, scope_cursor=None, cursor=None, status=None, completeness=None, limit=5):
         if cursor and not scope_cursor:

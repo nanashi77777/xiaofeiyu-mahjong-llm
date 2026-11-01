@@ -1,7 +1,7 @@
 """Drive authorized solo AI matches through the production HTTP service only.
 
-Reports remain private under runtime. Any failure stops the suite; it never
-replaces the selected model, sends game packets, or skips a failed match.
+Reports remain private under runtime. Strict runs stop on any failure. Explicit
+recovery runs retain failures and are excluded from strict performance acceptance.
 """
 from __future__ import annotations
 
@@ -24,12 +24,16 @@ class PracticeSuite:
     def __init__(self, args, settings, client):
         self.args, self.settings, self.client = args, settings, client
         self.started = time.monotonic()
+        self.recovery_validation = getattr(args,'recovery_validation',False)
         self.report = {'schema_version':'practice-suite.v1', 'started_at':utcnow(),
                        'profile':args.profile, 'kind':'production_live_websocket',
                        'acceptance_eligible':args.profile == '5+10', 'matches':[],
                        'status':'running', 'all_failures_retained':True}
         self.owns_gameplay = False
         self.navigation_id = None
+        if self.recovery_validation:
+            self.report.update(kind='production_recovery_validation',acceptance_eligible=False,
+                               recovery_validation=True)
 
     def save(self):
         self.args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -138,10 +142,13 @@ class PracticeSuite:
                     summary = match_report(store, match_id)
                     self.report['matches'][-1] = summary
                     self.save()
-                    if (summary['failures'] or summary['mismatches'] or summary['client_interventions']
+                    if not self.recovery_validation and (summary['failures'] or summary['mismatches'] or summary['client_interventions']
                             or any(x['window_id'] in summary['windows'] for x in summary['client_automatic_inputs'])):
                         raise RuntimeError('recorded_decision_or_execution_failure')
-                    if not state['consistent'] or state['completeness'] != 'full' or state['lifecycle'] == 'interrupted':
+                    if self.recovery_validation and summary['mismatches']:
+                        raise RuntimeError('recovery_input_mismatch')
+                    if (not state['consistent'] or state['completeness'] != 'full'
+                            or state['lifecycle'] == 'interrupted' and not self.recovery_validation):
                         raise RuntimeError('state_gap_or_interruption')
                     if summary['opportunities'] != last_count:
                         last_count = summary['opportunities']
@@ -167,8 +174,10 @@ class PracticeSuite:
                     await asyncio.sleep(.25)
                 summary = match_report(store, match_id)
                 self.report['matches'][-1] = summary
-                if summary['server_confirmed'] != summary['opportunities'] or any(w['decision_count'] != 1 for w in summary['windows'].values()):
+                if not self.recovery_validation and (summary['server_confirmed'] != summary['opportunities'] or any(w['decision_count'] != 1 for w in summary['windows'].values())):
                     raise RuntimeError('unconfirmed_or_repeated_model_opportunity')
+                if any(w['decision_count'] > 1 for w in summary['windows'].values()):
+                    raise RuntimeError('repeated_model_opportunity')
                 if not any(r.get('scene') == 'final' and r.get('screenshot') for r in summary['result_evidence']):
                     raise RuntimeError('final_screenshot_evidence_missing')
                 print(json.dumps({'game':index+1,'status':'complete','scores':summary['final_scores'],
@@ -223,6 +232,7 @@ if __name__ == '__main__':
     parser.add_argument('--profile',choices=('300+0','5+10'),default='300+0')
     parser.add_argument('--output',type=Path,default=Path('runtime/practice-suite.json'))
     parser.add_argument('--stop-file',type=Path,default=Path('runtime/STOP-PRACTICE'))
+    parser.add_argument('--recovery-validation',action='store_true',help='Retain recoverable failures; excluded from strict acceptance')
     args = parser.parse_args()
     if args.games < 1 or args.seconds <= 0:
         parser.error('positive games and session seconds required')

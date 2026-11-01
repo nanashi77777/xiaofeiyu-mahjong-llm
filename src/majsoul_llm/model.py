@@ -17,7 +17,9 @@ from .wire import Context, prompt_for
 
 
 class ModelFailure(RuntimeError):
-    pass
+    def __init__(self, message, *, retryable=True):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def strict_schema(schema):
@@ -75,7 +77,8 @@ class ModelClient:
                 async with self.http.stream("POST", "responses", headers={"Authorization": "Bearer " + credential},
                                             json=body, timeout=request_limit) as response:
                     if response.status_code != 200:
-                        raise ModelFailure(f"model HTTP {response.status_code}")
+                        raise ModelFailure(f"model HTTP {response.status_code}",
+                                           retryable=response.status_code in (408, 429) or response.status_code >= 500)
                     async for line in response.aiter_lines():
                         if not line.startswith("data:"):
                             continue
@@ -130,31 +133,48 @@ class ModelClient:
 
     async def decide(self, context: Context, deadline):
         payload = context.data
-        for attempt in range(2):
+        for attempt in range(self.settings.model_attempts):
             raw = None
             try:
                 raw, metrics = await self.request(payload, purpose="decision" if attempt == 0 else "repair", deadline=deadline,
-                                                  output_schema=context.response_schema())
+                                                  output_schema=context.response_schema(), trace={'attempt':attempt+1})
                 decision, action = context.validate(raw)
                 return decision, action, metrics
             except (ModelFailure, ValueError) as error:
                 if self.store and raw is not None:
                     self.store.record("invalid_decision", {"raw_output":raw,"error_type":type(error).__name__},
                                       payload.get("match_id"),payload.get("round_uid"))
-                if attempt or deadline - time.monotonic() < 1.0:
+                retry = (attempt+1 < self.settings.model_attempts and self.retryable(error)
+                         and deadline-time.monotonic() >= 1)
+                self.record_attempt(context, attempt+1, error, retry, deadline)
+                if not retry:
                     raise
+                await asyncio.sleep(.05)
                 payload = {**context.data, "repair_instruction": "上次未返回有效完整JSON或引用无效；请仅选择本请求有效action_id，按约定完整输出。"}
         raise ModelFailure("no valid decision")
 
     async def begin_decision(self, context: Context, deadline):
-        if self.settings.stream_hedge_delay_seconds:
+        if self.settings.stream_hedge_delay_seconds and self.settings.model_attempts > 1:
             task = asyncio.current_task()
             self.races.add(task)
             try:
                 return await self._race_decision(context,deadline)
             finally:
                 self.races.discard(task)
-        return await self._begin_decision(context,deadline)
+        return await self._begin_decision(context,deadline,attempts=self.settings.model_attempts)
+
+    @staticmethod
+    def retryable(error):
+        return not isinstance(error, ModelFailure) or error.retryable
+
+    def record_attempt(self, context, attempt, error, retry, deadline, *, committed=False):
+        if self.store:
+            self.store.record('recovery', {'stage':'model', 'request_q':context.q,
+                'window_id':next(iter(context.actions.values())).window_id, 'attempt':attempt,
+                'outcome':'retry' if retry else 'failed', 'error_type':type(error).__name__,
+                'retryable':self.retryable(error), 'action_committed':committed,
+                'remaining_ms':max(0,deadline-time.monotonic())*1000},
+                context.data.get('match_id'),context.data.get('round_uid'))
 
     async def _race_decision(self, context, deadline):
         started = time.monotonic()
@@ -174,7 +194,11 @@ class ModelClient:
                     if task.done() and task not in failures:
                         try:
                             candidates.append((task.result(),task))
-                        except (ModelFailure,ValueError,asyncio.CancelledError):
+                        except (ModelFailure,ValueError) as error:
+                            if not self.retryable(error):
+                                raise
+                            failures.add(task)
+                        except asyncio.CancelledError:
                             failures.add(task)
                 if candidates:
                     selected, winner = min(candidates,key=lambda pair:pair[0].metrics['action_committed_mono'])
@@ -241,7 +265,8 @@ class ModelClient:
                         raw,metrics = await self.request(payload,deadline=deadline,on_text=on_text,
                             purpose='decision' if attempt == 0 else 'repair',
                             output_schema=context.stream_response_schema(format),
-                            system=stream_prompt(prompt_for(context.data.get('v')),format),trace=trace)
+                            system=stream_prompt(prompt_for(context.data.get('v')),format),
+                            trace={**(trace or {}),'attempt':(trace or {}).get('race_lane',attempt)+1})
                         if prefix.committed is None:
                             raise ModelFailure('no committed stream action')
                         expected = {'a','r','p'} if format == 'short' else {'d','r','p'}
@@ -250,11 +275,16 @@ class ModelClient:
                             raise ModelFailure('stream tail changed the committed action')
                         decision,action = context.validate({**actual,'r':raw['r'],'p':raw['p']})
                         return decision,action,metrics
-                    except (ModelFailure,ValueError):
+                    except (ModelFailure,ValueError) as error:
                         # The prefix is irrevocable. Repairs are only allowed
                         # before any action was committed, never for its tail.
-                        if prefix.committed is not None or attempt+1 >= attempts or deadline-time.monotonic() < 1:
+                        retry = (prefix.committed is None and attempt+1 < attempts
+                                 and self.retryable(error) and deadline-time.monotonic() >= 1)
+                        self.record_attempt(context,(trace or {}).get('race_lane',attempt)+1,error,retry,deadline,
+                                            committed=prefix.committed is not None)
+                        if not retry:
                             raise
+                        await asyncio.sleep(.05)
                 raise ModelFailure('no committed stream action')
             except BaseException as error:
                 if not ready.done():

@@ -79,6 +79,12 @@ class Settings(Record):
     stream_actions: bool = False
     stream_action_format: Literal['nested','short'] = 'nested'
     stream_hedge_delay_seconds: float = Field(default=0,ge=0,le=5)
+    model_attempts: int = Field(default=2, ge=1, le=2)
+    target_retries: int = Field(default=2, ge=0, le=3)
+    failure_window_limit: int = Field(default=3, ge=1, le=10)
+    confirmation_wait_seconds: float = Field(default=2, gt=0, le=5)
+    connection_wait_attempts: int = Field(default=2, ge=1, le=3)
+    connection_wait_seconds: float = Field(default=5, gt=0, le=10)
     integration_test: bool = False
     input_mode: Literal['physical_foreground','browser_background'] = 'physical_foreground'
 

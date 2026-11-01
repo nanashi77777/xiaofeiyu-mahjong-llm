@@ -103,6 +103,8 @@ def match_report(store, match_id):
                             'p99':percentile(durations,.99), 'max':max(durations,default=None)},
         'failures':failures, 'mismatches':mismatches, 'cancellations':cancelled,
         'client_automatic_inputs':automatic_inputs,
+        'recovery_events':[{'record_id':r['id'], **r['payload']}
+                           for r in reversed(store.records('recovery',match_id,100000))],
         'annotations':{'complete':sum(r['payload']['status']=='complete' for r in annotations),
                        'failed':sum(r['payload']['status']=='failed' for r in annotations),
                        'cancelled':sum(r['payload']['status']=='cancelled' for r in annotations)},

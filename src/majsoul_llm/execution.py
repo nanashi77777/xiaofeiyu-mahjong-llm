@@ -48,6 +48,7 @@ class Executor:
         self.offered_saved = set()
         self.observation_frame = None
         self.observation_stage = None
+        self.press_may_have_occurred = False
 
     async def cancel_idle_observation(self):
         task = self.idle_observation
@@ -261,14 +262,11 @@ class Executor:
         if cached and time.monotonic()-cached.observed <= .6:
             self.metrics.append({'semantic':semantic,'stage':'preobserved_target','age_ms':(time.monotonic()-cached.observed)*1000})
             return cached
-        # Recognition can occasionally be delayed by the compositor/CPU. A
-        # stale result may be discarded and observed again before any press.
-        for _ in range(3):
-            target = await self._target_once(semantic, state, indices, deadline)
-            self._observation_current(state,deadline)
-            if time.monotonic()-target.observed <= 1.2:
-                return target
-        raise TargetExpired('recognized layout repeatedly expired before input')
+        target = await self._target_once(semantic, state, indices, deadline)
+        self._observation_current(state,deadline)
+        if time.monotonic()-target.observed > 1.2:
+            raise TargetExpired('recognized layout expired before input')
+        return target
 
     async def _target_once(self, semantic, state, indices=None, deadline=None):
         stage_started = time.monotonic()
@@ -313,41 +311,41 @@ class Executor:
             node = found[0]
             evidence = "visible_ui_semantics"
         else:
-            for attempt in range(3):
-                self._observation_current(state,deadline)
-                raw = await self.browser.image_bytes()
-                self._observation_current(state,deadline)
-                mark('capture_and_crop')
-                observed = time.monotonic()
-                try:
-                    if semantic == "riichi_tile":
-                        box = await asyncio.to_thread(self.locator.riichi_tile,raw,state,indices[0])
-                    elif semantic == "tile":
-                        box = await asyncio.to_thread(self.locator.hand,raw,state)
-                        box = box[indices[0]]
-                    elif semantic.startswith("combo:"):
-                        kind = semantic.split(":",1)[1]
-                        tiles = [state.hand[i] for i in indices]
-                        from .rules import legal_actions
-                        kinds = {'ankan','kakan','daiminkan'} if kind in ('ankan','kakan','daiminkan') else {kind}
-                        offered = {tuple(sorted(state.hand[i] for i in a.consume_indices))
-                                   for a in legal_actions(state) if a.kind in kinds}
-                        box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles,offered)
-                    else:
-                        box = await asyncio.to_thread(self.locator.button,raw,semantic)
-                    mark('recognition')
-                    self._observation_current(state,deadline)
-                    break
-                except InputDeferred:
-                    folder = self.locator.folder / 'failures'
-                    folder.mkdir(parents=True, exist_ok=True)
-                    (folder / (hashlib.sha256(raw).hexdigest()[:20]+'.png')).write_bytes(raw)
-                    current = self.state_getter()
-                    if attempt == 2 or not current or current.state_version != state.state_version:
-                        raise
-                    # Reobserve the same intended target after an animation;
-                    # never press another button or weaken glyph validation.
-                    await asyncio.sleep(.06)
+            self._observation_current(state,deadline)
+            raw = await self.browser.image_bytes()
+            self._observation_current(state,deadline)
+            mark('capture_and_crop')
+            observed = time.monotonic()
+            try:
+                if semantic == "riichi_tile":
+                    box = await asyncio.to_thread(self.locator.riichi_tile,raw,state,indices[0])
+                elif semantic == "tile":
+                    box = await asyncio.to_thread(self.locator.hand,raw,state)
+                    box = box[indices[0]]
+                elif semantic.startswith("combo:"):
+                    kind = semantic.split(":",1)[1]
+                    tiles = [state.hand[i] for i in indices]
+                    from .rules import legal_actions
+                    kinds = {'ankan','kakan','daiminkan'} if kind in ('ankan','kakan','daiminkan') else {kind}
+                    offered = {tuple(sorted(state.hand[i] for i in a.consume_indices))
+                               for a in legal_actions(state) if a.kind in kinds}
+                    box = await asyncio.to_thread(self.locator.combo,raw,kind,tiles,offered)
+                else:
+                    box = await asyncio.to_thread(self.locator.button,raw,semantic)
+            except InputDeferred:
+                # Preserve the original failed frame without adding another
+                # capture or allowing diagnostic I/O to change retry semantics.
+                def save_failure():
+                    try:
+                        folder = self.locator.folder / 'failures'
+                        folder.mkdir(parents=True,exist_ok=True)
+                        (folder/(hashlib.sha256(raw).hexdigest()[:20]+'.png')).write_bytes(raw)
+                    except OSError:
+                        pass
+                await asyncio.to_thread(save_failure)
+                raise
+            mark('recognition')
+            self._observation_current(state,deadline)
             node = {"x":box.center[0],"y":box.center[1]}
             evidence = "calibrated_screenshot_matching"
             confidence = box.confidence
@@ -369,7 +367,8 @@ class Executor:
 
     def _current(self, state, action):
         current = self.state_getter()
-        if not current or not current.operation or current.operation.window_id != action.window_id:
+        if (not current or current.match_id != state.match_id or not current.operation
+                or current.operation.window_id != action.window_id):
             raise InputDeferred("operation no longer current")
         if current.state_version != state.state_version:
             raise InputDeferred("state changed before input")
@@ -378,6 +377,7 @@ class Executor:
         async with self.lease.hold("gameplay:"+action.window_id):
             self.metrics = []
             self.target_evidence = []
+            self.press_may_have_occurred = False
             try:
                 return await self._execute(state, action, deadline)
             finally:
@@ -403,17 +403,42 @@ class Executor:
 
     async def _execute(self, state: Snapshot, action: LegalAction, deadline):
         self._current(state, action)
+        # A stage that reaches dispatch must never be repeated, even when the
+        # mouse API itself raises. Only fresh observations before it may retry.
+        pressed_stages = set()
+        retries = getattr(getattr(self.browser,'settings',None),'target_retries',2)
 
         async def click(semantic, indices=None):
-            for attempt in range(3):
+            for attempt in range(retries+1):
                 started = time.monotonic()
                 try:
-                    return await click_once(semantic,indices)
-                except TargetExpired:
+                    clicked = await click_once(semantic,indices)
+                    self.metrics.append({'semantic':semantic,'stage':'press_completed','attempt':attempt+1})
+                    return clicked
+                except InputDeferred:
+                    if semantic in pressed_stages:
+                        raise
+                    self._observation_current(state,deadline)
                     self.metrics.append({'semantic':semantic,'attempt':attempt+1,'stage':'expired_before_press',
                                          'elapsed_ms':(time.monotonic()-started)*1000})
-                    if attempt == 2 or time.monotonic() >= deadline:
+                    if attempt >= retries or time.monotonic()+.06 >= deadline:
                         raise
+                    # Invalidate the cached observation, not the model action.
+                    getattr(self,'observed_targets',{}).pop((state.match_id,state.state_version,action.window_id),None)
+                    await asyncio.sleep(.06)
+
+        def before_press(semantic):
+            if semantic in pressed_stages:
+                raise InputDeferred('semantic stage already dispatched')
+            self._current(state,action)
+            if self.mouse.stop.is_set() or self.mouse.user.GetAsyncKeyState(0x1B)&0x8000:
+                self.mouse.stop.set()
+                raise InputDeferred('input stopped')
+            if time.monotonic() >= deadline:
+                raise TimeoutError('input deadline expired before dispatch')
+            self.press_may_have_occurred = True
+            pressed_stages.add(semantic)
+            self.metrics.append({'semantic':semantic,'stage':'press_started'})
 
         async def click_once(semantic,indices=None):
             target_start = time.monotonic()
@@ -444,12 +469,13 @@ class Executor:
                 press_started = time.monotonic()
                 try:
                     return await self.browser.background_click(target.page_point,deadline,self.mouse.stop,
-                                                               validate=validate)
+                                                               validate=validate,on_press=lambda:before_press(semantic))
                 finally:
                     self.metrics.append({'semantic':semantic,'stage':'dispatch_and_frames',
                                          'elapsed_ms':(time.monotonic()-press_started)*1000})
             return await finish_input(asyncio.to_thread(
-                self.mouse.click, self.window, target.rect, target.point, target.observed, deadline))
+                self.mouse.click, self.window, target.rect, target.point, target.observed, deadline,
+                lambda:before_press(semantic)))
 
         if action.kind == "discard":
             return await click("tile", [action.tile_index])
@@ -458,15 +484,8 @@ class Executor:
             # unavailable. Following clicks target only the offered bright tile.
             await self.target('tile', state, [action.tile_index], deadline)
             await click("riichi")
-            # UI selection is independent of the authoritative state version.
-            for _ in range(15):
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("riichi selection expired")
-                try:
-                    return await click("riichi_tile", [action.tile_index])
-                except InputDeferred:
-                    await asyncio.sleep(0.02)
-            raise InputDeferred("riichi selection not verified")
+            # The selected tile is its own stage; opening riichi is never redone.
+            return await click("riichi_tile", [action.tile_index])
         if action.kind in ("chi", "pon", "daiminkan", "ankan", "kakan"):
             from .rules import legal_actions
             button_kinds = {"daiminkan", "ankan", "kakan"} if action.kind in ("daiminkan", "ankan", "kakan") else {action.kind}
@@ -485,12 +504,5 @@ class Executor:
             if label not in profile["templates"] and 'combo_region' not in profile:
                 raise InputDeferred("selected meld combination needs calibration")
             await click(action.kind)
-            for _ in range(20):
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("meld menu expired")
-                try:
-                    return await click("combo:"+action.kind,action.consume_indices)
-                except InputDeferred:
-                    await asyncio.sleep(.02)
-            raise InputDeferred("chosen meld combination not visible")
+            return await click("combo:"+action.kind,action.consume_indices)
         return await click(action.kind)

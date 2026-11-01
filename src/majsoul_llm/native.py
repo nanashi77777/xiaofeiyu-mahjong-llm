@@ -115,7 +115,7 @@ class WindowsMouse:
         if self.user.GetAncestor(under, 2) != window.hwnd:
             raise InputDeferred("target is covered")
 
-    def click(self, window, rect, point, observed_mono, deadline):
+    def click(self, window, rect, point, observed_mono, deadline, on_press=None):
         self.check(window, rect, point, observed_mono, deadline)
         original = self.cursor()
         destination = tuple(map(int, point))
@@ -140,6 +140,8 @@ class WindowsMouse:
             # One SendInput call preserves move-then-immediate-click semantics.
             down = Input(0, Union(mi=MouseInput(0, 0, 0, 0x0002, 0, 0)))
             up = Input(0, Union(mi=MouseInput(0, 0, 0, 0x0004, 0, 0)))
+            if on_press:
+                on_press()  # Set before dispatch, even if the OS result is unknown.
             if self.user.SendInput(1, ctypes.byref(down), ctypes.sizeof(Input)) != 1:
                 raise InputDeferred("Windows rejected physical input")
             # Press immediately after movement. Unity polls the held state, so

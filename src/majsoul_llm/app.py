@@ -58,7 +58,8 @@ class Service:
                                  lambda:self.coordinator.enabled or self.coordinator.active() or bool(self.coordinator.annotation_tasks))
         self.engine.on_state = self.changed
         self.engine.on_input = self.coordinator.input_observed
-        self.queries = Queries(self.store, settings.read_token.get_secret_value(), self.engine.capture_health)
+        self.queries = Queries(self.store, settings.read_token.get_secret_value(), self.engine.capture_health,
+                               self.coordinator.recovery.public)
         self.practice = PracticeRooms(self)
         self.round_flow = RoundFlow(self)
         self.client_guard = ClientGuard(self)
@@ -100,6 +101,7 @@ class Service:
         return {"connected":bool(self.browser.context), "protocol_loaded":bool(self.engine.protocol),
                 "protocol_hash":self.engine.protocol.fingerprint if self.engine.protocol else None,
                 "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
+                'recovery':self.coordinator.recovery.public(),
                 "bound_window":self.executor.window.__dict__ if self.executor.window else None,
                 "input_mode":self.executor.input_mode,
                 'vision_cache':{'hand_hits':self.executor.locator.hand_cache_hits,

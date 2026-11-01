@@ -2631,10 +2631,9 @@
       "id": "DEV-082",
       "kind": "development",
       "milestone": "M4",
-      "title": "按错误阶段实施有限重试与恢复（用户暂缓）",
-      "status": "planned",
-      "deferred_by_user": true,
-      "status_reason": "仅登记TODO，用户明确暂不开发；后续明确解除暂缓再启动",
+      "title": "按错误阶段实施有限重试与恢复",
+      "status": "done",
+      "status_reason": "用户最新明确解除暂缓，优先实施有限重试；真实验收单独记录",
       "depends_on": [
         "DEV-021",
         "DEV-018"
@@ -2646,17 +2645,20 @@
         "统一总尝试和原deadline/时间池，模型/按下前/提交未知/断线分层恢复，不用本地策略选牌",
         "状态与阶段幂等，已提交未知不盲点；用户停止优先，连续失败熔断，原失败/恢复证据及token完整保留"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "402 pytest passed; ruff clean; bounded model/input/window/connection/stop fault injection retained; real recovery acceptance tracked independently in VAL-014."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-082-bounded-recovery.md",
+      "completed_on": "2026-11-01"
     },
     {
       "id": "VAL-014",
       "kind": "validation",
       "milestone": "M8",
-      "title": "有限重试与恢复专项验收（用户暂缓）",
-      "status": "planned",
-      "deferred_by_user": true,
-      "status_reason": "随DEV-082仅登记，暂不开发或开展实战",
+      "title": "有限重试与恢复专项验收",
+      "status": "in_progress",
+      "status_reason": "用户最新明确解除暂缓，优先实施有限重试；真实验收单独记录",
       "depends_on": [
         "DEV-082"
       ],

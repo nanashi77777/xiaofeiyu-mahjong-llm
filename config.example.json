@@ -13,5 +13,11 @@
   "compact_validated": false,
   "json_schema": true,
   "integration_test": false,
-  "input_mode": "physical_foreground"
+  "input_mode": "physical_foreground",
+  "model_attempts": 2,
+  "target_retries": 2,
+  "failure_window_limit": 3,
+  "confirmation_wait_seconds": 2,
+  "connection_wait_attempts": 2,
+  "connection_wait_seconds": 5
 }

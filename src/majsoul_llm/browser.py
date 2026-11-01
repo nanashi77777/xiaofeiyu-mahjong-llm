@@ -302,7 +302,7 @@ class Browser:
             width, height = vw, vh
         return cv2.imencode(".png", cv2.resize(image, (width, height)))[1].tobytes()
 
-    async def background_click(self,point,deadline,stop,validate=None):
+    async def background_click(self,point,deadline,stop,validate=None,on_press=None):
         """Browser mouse events only: no game API calls or game packets."""
         import time
         from urllib.parse import urlsplit
@@ -330,6 +330,8 @@ class Browser:
         if stop.is_set() or time.monotonic()>=deadline:
             raise TimeoutError('background input stopped after validation')
         try:
+            if on_press:
+                on_press()  # A rejected/ambiguous CDP response cannot prove no down.
             await self.page.mouse.down()
             # Browser RAF can run at 120Hz while the game samples input at
             # 15/30Hz. Two RAF callbacks alone can miss a whole game tick.

@@ -75,10 +75,12 @@ async def test_only_prepress_expiry_can_reobserve_same_semantic_target(state):
         return Target((10,10),(0,0,100,100),time.monotonic(),'test',(10,10),{'test':True})
     async def layout():
         return {'test':True}
-    async def click(point,deadline,stop,validate):
+    async def click(point,deadline,stop,validate,on_press=None):
         if len(targets) == 1:
             raise TargetExpired('nothing pressed')
         await validate()
+        if on_press:
+            on_press()
         presses.append(point)
         return time.monotonic()
     executor.target = target
@@ -86,6 +88,7 @@ async def test_only_prepress_expiry_can_reobserve_same_semantic_target(state):
     await executor._execute(state,action,time.monotonic()+3)
     assert targets == [('tile',[action.tile_index])]*2 and presses == [(10,10)]
     async def uncertain(*args,**kwargs):
+        kwargs['on_press']()
         raise InputDeferred('possibly pressed')
     executor.browser.background_click = uncertain
     targets.clear()

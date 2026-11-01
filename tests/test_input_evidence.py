@@ -24,8 +24,10 @@ async def test_non_discard_evidence_uses_original_frame_and_never_represses(stat
                       (10,20),{'same_layout':True},original_frame,.99)
     async def layout():
         return {'same_layout':True}
-    async def press(point,deadline,stop,validate):
+    async def press(point,deadline,stop,validate,on_press=None):
         await validate()
+        if on_press:
+            on_press()
         captured.append(point)
         if outcome=='uncertain':
             raise InputDeferred('possibly pressed')

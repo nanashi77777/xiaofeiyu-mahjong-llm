@@ -10,6 +10,8 @@ from .domain import Decision, Receipt, RoundPlanUpdate
 from .input_lease import finish_input
 from .input_origin import input_origin
 from .native import InputDeferred
+from .model import ModelFailure
+from .recovery import Recovery
 from .rules import legal_actions
 from .store import utcnow
 from .timing import TimeBank
@@ -33,6 +35,76 @@ class Coordinator:
         self.status = "stopped"
         self.generation = 0
         self.annotation_tasks = set()
+        self.recovery = Recovery(settings.failure_window_limit)
+        self.confirmation_task = None
+        self.connection_task = None
+        self.confirmed_windows = set()
+
+    def recovery_record(self, state, stage, outcome, **fields):
+        self.store.record('recovery', {'stage':stage,'outcome':outcome,
+            'window_id':state.operation.window_id if state.operation else None,
+            **fields}, state.match_id, state.round_uid)
+
+    def failed_window(self, state, reason):
+        tripped = self.recovery.failure(state.match_id, state.operation.window_id)
+        elapsed = max(0,time.monotonic()-state.operation.received_mono)
+        self.bank.charge(state.operation.window_id,elapsed,
+                         fixed_ms=state.operation.fixed_ms if self.settings.timer_verified else None)
+        self.store.record('time_bank',self.bank.checkpoint(state.operation.window_id),state.match_id,state.round_uid)
+        self.recovery.phase = 'circuit_open' if tripped else 'waiting_next_window'
+        self.recovery_record(state,'window','circuit_open' if tripped else 'waiting_next_window',
+                             reason=reason,consecutive_failures=self.recovery.streak)
+        if self.enabled:
+            if tripped:
+                self.enabled = False
+                self.status = 'paused_repeated_window_failures'
+            else:
+                self.status = 'recovering_next_window'
+
+    def confirmed_window(self, state):
+        self.confirmed_windows.add((state.match_id,state.operation.window_id))
+        if self.recovery.streak:
+            self.recovery_record(state,'window','recovered',prior_failed_windows=self.recovery.streak)
+        self.recovery.confirmed()
+        if not self.enabled:
+            self.recovery.phase = 'resolved_while_paused'
+
+    def watch_confirmation(self, pending):
+        if not self.enabled:
+            return
+        if self.confirmation_task and not self.confirmation_task.done():
+            self.confirmation_task.cancel()
+        self.confirmation_task = asyncio.create_task(self.wait_confirmation(pending,self.generation))
+
+    async def wait_confirmation(self, pending, generation):
+        await asyncio.sleep(self.settings.confirmation_wait_seconds)
+        if generation != self.generation or not self.enabled or self.pending is not pending:
+            return
+        state = pending['state']
+        self.record_receipt({**pending['receipt'],'status':'unknown','reason':'confirmation_wait_exhausted'},
+                            state.match_id,state.round_uid)
+        self.failed_window(state,'confirmation_wait_exhausted')
+        self.enabled, self.status = False, 'paused_unconfirmed_input'
+        self.recovery.phase = 'input_unknown'
+        self.recovery_record(state,'confirmation','paused_no_repeat')
+        # Retain pending for a late authoritative event; that event can resolve
+        # the record but cannot re-enable input after this pause.
+
+    async def wait_connection(self, state, generation):
+        for attempt in range(self.settings.connection_wait_attempts):
+            self.recovery_record(state,'connection','waiting_actual_sync',attempt=attempt+1)
+            await asyncio.sleep(self.settings.connection_wait_seconds)
+            if generation != self.generation or not self.enabled:
+                return
+            current = self.engine.state
+            if current and current.lifecycle == 'active' and current.consistent and current.round_completeness == 'full':
+                self.recovery_record(current,'connection','actual_sync_observed',attempt=attempt+1)
+                self.recovery.phase = 'idle'
+                return
+        if generation == self.generation and self.enabled:
+            self.enabled, self.status = False, 'paused_connection_recovery_exhausted'
+            self.recovery.phase = 'connection_exhausted'
+            self.recovery_record(state,'connection','exhausted')
 
     def record_receipt(self, receipt, match_id, round_uid):
         validated = Receipt.model_validate(receipt).model_dump(mode='json',exclude_none=True)
@@ -40,6 +112,15 @@ class Coordinator:
 
     def active(self):
         return bool(self.task and not self.task.done())
+
+    def input_stopped(self):
+        if not self.executor:
+            return False
+        mouse = self.executor.mouse
+        user = getattr(mouse,'user',None)
+        if user and user.GetAsyncKeyState(0x1B)&0x8000:
+            mouse.stop.set()
+        return mouse.stop.is_set()
 
     async def input_observed(self,stage,window_id,payload,ack_id):
         if stage=="request" and not self.pending and self.active():
@@ -79,11 +160,13 @@ class Coordinator:
                      "confirmation_source":"server_rpc_ack_for_cancel_operation","elapsed_ms":elapsed*1000}
             state=self.pending["state"]
             self.record_receipt(receipt,state.match_id,state.round_uid)
+            self.confirmed_window(state)
             self.adopt_plan(self.pending)
             self.bank.charge(window_id,elapsed,fixed_ms=state.operation.fixed_ms if self.settings.timer_verified else None)
             self.store.record("time_bank",self.bank.checkpoint(window_id),state.match_id,state.round_uid)
             self.pending=None
-            self.status="pass_acknowledged"
+            if self.enabled:
+                self.status="pass_acknowledged"
         elif stage=="rejected":
             self.enabled=False
             self.status="paused_server_rejected_input"
@@ -92,8 +175,14 @@ class Coordinator:
         self.generation += 1
         self.enabled = False
         self.status = reason
+        self.recovery.phase = 'stopped'
         if self.executor:
             self.executor.mouse.stop.set()
+        watchers = [t for t in (self.confirmation_task,self.connection_task) if t and not t.done()]
+        for watcher in watchers:
+            watcher.cancel()
+        await asyncio.gather(*watchers,return_exceptions=True)
+        if self.executor:
             if hasattr(self.executor,'cancel_idle_observation'):
                 await self.executor.cancel_idle_observation()
         if self.task and not self.task.done():
@@ -110,14 +199,19 @@ class Coordinator:
             state = pending['state']
             self.record_receipt({**pending['receipt'], 'status':'cancelled', 'reason':reason},
                               state.match_id, state.round_uid)
+        self.status, self.recovery.phase = reason, 'stopped'
 
     async def start(self, shadow=True):
+        if self.pending:
+            raise ValueError('unresolved input requires an actual receipt before restart')
         if self.executor and self.executor.lease.owner is not None:
             raise ValueError("input already owned")
         if not self.settings.api_key.get_secret_value():
             raise ValueError("model API key is missing")
         self.generation += 1
         self.enabled, self.shadow = True, shadow
+        self.recovery.streak = 0  # Only an explicit start resets an open circuit.
+        self.recovery.phase = 'idle'
         if self.executor:
             self.executor.mouse.stop.clear()
         self.status = "observing_shadow" if shadow else "observing_active"
@@ -135,6 +229,22 @@ class Coordinator:
             return
         if self.pending and event:
             self.confirm(state, event)
+        if self.enabled and self.input_stopped():
+            self.enabled, self.status = False, 'paused_input_stopped'
+            self.recovery.phase = 'stopped'
+        if self.enabled and (not state.consistent or state.round_completeness != 'full' or state.rules.unsupported):
+            self.enabled, self.status = False, 'paused_incomplete_state_or_rules'
+            self.recovery.phase = 'invalid_facts'
+            return
+        if self.enabled and state.lifecycle == 'interrupted':
+            self.status, self.recovery.phase = 'recovering_connection', 'waiting_connection'
+            if not self.connection_task or self.connection_task.done():
+                self.connection_task = asyncio.create_task(self.wait_connection(state,self.generation))
+            return
+        if self.connection_task and not self.connection_task.done() and state.lifecycle == 'active':
+            self.connection_task.cancel()
+            self.recovery_record(state,'connection','actual_sync_observed')
+            self.recovery.phase = 'idle'
         if state.match_id != self.match_id:
             self.match_id = state.match_id
             self.used_windows.update(r['payload']['window_id'] for r in self.store.records('decision_window',state.match_id,10000))
@@ -161,6 +271,10 @@ class Coordinator:
             return
         if op.window_id in self.used_windows:
             return
+        if self.pending:
+            # A new window never licenses replay of an unresolved old input.
+            self.status = 'awaiting_actual_event'
+            return
         self.used_windows.add(op.window_id)
         self.store.record('decision_window',{'window_id':op.window_id,'shadow':self.shadow},state.match_id,state.round_uid)
         self.task = asyncio.create_task(self.decide(state.model_copy(deep=True)))
@@ -170,6 +284,7 @@ class Coordinator:
         start = op.received_mono
         choice = None
         annotation_started = False
+        generation = self.generation
         try:
             self.status = "deciding"
             rules_start = time.monotonic()
@@ -247,6 +362,7 @@ class Coordinator:
                 raise ValueError("no physical executor")
             receipt = {"id":uuid.uuid4().hex, "action":action.model_dump(), "status":"validated", "created_at":utcnow()}
             self.pending = {"receipt":receipt, "state":state, "start":start, "proposed_plan":proposed_plan}
+            pending = self.pending
             async def send():
                 try:
                     input_start = time.monotonic()
@@ -259,29 +375,52 @@ class Coordinator:
                     if self.pending and self.pending.get("early_ack"):
                         payload, ack_id = self.pending.pop("early_ack")
                         await self.input_observed("accepted", action.window_id, payload, ack_id)
+                    if self.pending is pending and generation == self.generation:
+                        self.watch_confirmation(pending)
                 except Exception as error:
-                    # A compound click may already have opened a menu. Preserve
-                    # uncertainty, stop further input, and do not compare the
-                    # next unrelated event to an unsent action.
-                    self.record_receipt({**receipt, "status":"execution_uncertain",
+                    possible_press = getattr(self.executor,'press_may_have_occurred',True)
+                    receipt.update(status='execution_uncertain' if possible_press else 'expired',
+                                   input_steps=getattr(self.executor,'metrics',[]))
+                    self.record_receipt({**receipt,
                                         'reason':type(error).__name__+(': '+str(error) if isinstance(error,(InputDeferred,TimeoutError)) else ''),
                                         'input_steps':getattr(self.executor,'metrics',[])},
                                       state.match_id, state.round_uid)
-                    self.pending = None
-                    self.enabled = False
-                    self.status = 'paused_execution_uncertain_'+type(error).__name__
+                    if possible_press:
+                        self.status = 'recovering_input_confirmation'
+                        self.recovery.phase = 'waiting_confirmation'
+                        self.recovery_record(state,'input','waiting_actual_confirmation',error_type=type(error).__name__)
+                        if self.pending is pending and generation == self.generation:
+                            if pending.get('early_ack'):
+                                payload,ack_id = pending.pop('early_ack')
+                                await self.input_observed('accepted',action.window_id,payload,ack_id)
+                            if self.pending is pending:
+                                self.watch_confirmation(pending)
+                    else:
+                        self.pending = None
                     raise
             # A server event may arrive during mouse release. Finish the input
             # and its journal write before changed() confirms the actual event.
             await finish_input(send())
         except asyncio.CancelledError:
             self.store.record("decision_cancelled", {"window_id":op.window_id}, state.match_id, state.round_uid)
+            if (generation == self.generation and self.enabled and not self.pending
+                    and (state.match_id,op.window_id) not in self.confirmed_windows):
+                self.failed_window(state,'window_superseded_during_decision')
             raise
         except Exception as error:
-            self.status = "decision_or_input_deferred_" + type(error).__name__
             self.store.record("decision_failure", {"window_id":op.window_id, "error_type":type(error).__name__,
                                                    "detail":str(error) if isinstance(error, (InputDeferred, TimeoutError)) else None,
                                                    "elapsed_ms":(time.monotonic()-start)*1000}, state.match_id, state.round_uid)
+            if generation == self.generation:
+                if self.input_stopped():
+                    self.enabled, self.status = False, 'paused_input_stopped'
+                    self.recovery.phase = 'stopped'
+                elif isinstance(error,ModelFailure) and not error.retryable:
+                    self.failed_window(state,'permanent_model_error')
+                    self.enabled, self.status = False, 'paused_model_configuration'
+                    self.recovery.phase = 'permanent_model_error'
+                elif not self.pending and (state.match_id,op.window_id) not in self.confirmed_windows:
+                    self.failed_window(state,type(error).__name__)
         finally:
             if choice and not annotation_started:
                 choice.completion.cancel()
@@ -363,12 +502,14 @@ class Coordinator:
         self.record_receipt(receipt,state.match_id,pending['state'].round_uid)
         if matches:
             self.adopt_plan(pending)
+            self.confirmed_window(pending['state'])
         self.bank.charge(action['window_id'],max(0,event.received_mono-pending['start']),
                          fixed_ms=pending['state'].operation.fixed_ms if self.settings.timer_verified else None)
         self.store.record("time_bank",self.bank.checkpoint(action['window_id']),state.match_id,pending['state'].round_uid)
         self.pending = None
         if not matches:
             self.enabled, self.status = False, "paused_input_mismatch"
+            self.recovery.phase = 'input_mismatch'
 
     def adopt_plan(self, pending):
         proposed = pending.get("proposed_plan")

@@ -107,8 +107,10 @@ async def test_three_chi_end_to_end_preserves_model_selected_consumption_despite
     layout={'canvas':{'x':0,'y':0}}
     async def metrics():
         return layout
-    async def click(point,deadline,stop,validate):
+    async def click(point,deadline,stop,validate,on_press=None):
         await validate()
+        if on_press:
+            on_press()
         clicked.append(point)
         return time.monotonic()
     executor=object.__new__(Executor)

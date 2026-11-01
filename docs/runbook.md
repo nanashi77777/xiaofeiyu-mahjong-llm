@@ -2,7 +2,9 @@
 
 代码更新默认双库：`python tools/github_sync.py`读取本机runtime/git-sync.json，同步公开当前分支/main及私有mirror/映射分支。原私有库已按用户要求解除只读归档，原始历史分支保留，默认分支使用mirror/main；入库只有git-sync.example.json，私有地址不公开。任一库失败不算全部完成，按已验证结果补齐，不强推。
 
-DEV-082重试机制与VAL-014目前仅登记TODO，用户暂缓；当前出错停止行为尚未按新方案改动，见design/bounded-error-recovery.md。
+DEV-082重试机制已获最新明确授权优先实施；次数、阶段边界和验收方案见design/bounded-error-recovery.md，实际交付状态以任务注册表为准。
+
+有限恢复默认配置：model_attempts=2（含修复/竞速），target_retries=2（每阶段初次加两次），failure_window_limit=3，confirmation_wait_seconds=2，connection_wait_attempts=2、connection_wait_seconds=5。可在本机runtime/private.json调整允许范围；模型输出和定位重试沿用同一绝对deadline。可能已经按下只等真实确认，等待耗尽/真实不匹配/事实不完整/鉴权错误需要暂停处理；不会盲目补点或本地代打。断线由客户端自身连接恢复，服务只读等待同步，不自动刷新游戏。QQ的live查询只附加安全恢复计数。严格实战仍使用原命令；`tools/practice_suite.py --games 1 --profile 5+10 --recovery-validation --output runtime/recovery-validation.json`为独立恢复验收，保留失败且不计入严格性能通过。
 
 DEV-084增加实际输入归因：client_input记录的method/input_origin与记录ID用于关联server_input_ack和receipt。当前客户端已核验timeuse=1000000为自动操作标记；其他值保持unverified，不能只凭timeuse证明bot点击成功。自动操作即使与模型所选动作相同也不计AI确认，实际牌谱仍按服务器事实记录。match-report.v2-input-origin保留自动请求和关联引用；重算旧记录时不改原始receipt或旧报告，缺失引用明确保留。
 
