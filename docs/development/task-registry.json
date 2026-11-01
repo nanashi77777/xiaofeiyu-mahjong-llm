@@ -989,7 +989,8 @@
       "completed_record": null,
       "commits": [
         "b96aa5d2bcf7dfa7abf861022b9b7e34b68cdbe0"
-      ]
+      ],
+      "status_reason": "用户要求本轮先完成其他功能，暂不推进五秒内比例；原500窗口及实际时限/共享池验收目标保留，未标通过"
     },
     {
       "id": "VAL-006",
@@ -1002,7 +1003,6 @@
         "VAL-002",
         "VAL-003",
         "VAL-004",
-        "VAL-005",
         "DEV-027"
       ],
       "design_refs": [
@@ -1013,7 +1013,8 @@
       ],
       "evidence": [],
       "completed_record": null,
-      "commits": []
+      "commits": [],
+      "status_reason": "用户暂缓五秒比例门槛；以独立60+0功能实战先检验三场闭环，计时仍由VAL-005保留"
     },
     {
       "id": "VAL-007",
@@ -2731,6 +2732,54 @@
       ],
       "implementation_progress": "code_ready",
       "completed_record": "docs/development/completed/DEV-084-input-origin-attribution.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-085",
+      "kind": "development",
+      "milestone": "M8",
+      "title": "独立功能实战模式与性能资格隔离",
+      "status": "done",
+      "depends_on": [
+        "DEV-028",
+        "DEV-082"
+      ],
+      "design_refs": [
+        "docs/design/acceptance.md"
+      ],
+      "acceptance": [
+        "新增60+0功能实战，完整对局/确认/重复窗口和实际时限仍核验；失败保留，五秒比例仅记录",
+        "功能报告明确排除严格性能资格，原严格与恢复模式保持各自规则；回归验证后消费实现任务"
+      ],
+      "evidence": [
+        "410 full pytest and ruff passed; functional-only eligibility and retained mismatch-stop regression. Three complete real functional matches tracked by VAL-006."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-085-functional-validation.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-086",
+      "kind": "development",
+      "milestone": "M1",
+      "title": "浏览器断开失效与显式重启清理",
+      "status": "done",
+      "depends_on": [
+        "DEV-018",
+        "DEV-033"
+      ],
+      "design_refs": [
+        "docs/design/browser-disconnection.md"
+      ],
+      "acceptance": [
+        "页面关闭/CDP断开立即撤销旧operation并记录中断，连接状态来自真实存活而非对象非空",
+        "显式重启可清理失效资源，旧关闭回调不能污染新连接；停止优先，隔离回归与真实恢复另验"
+      ],
+      "evidence": [
+        "410 full pytest and ruff passed; page/browser disconnect invalidation, old callback/queue isolation and live-start idempotency verified. Independent actual restore follows under VAL-001."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-086-browser-disconnection.md",
       "completed_on": "2026-11-01"
     }
   ],

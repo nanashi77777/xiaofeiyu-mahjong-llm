@@ -24,6 +24,36 @@ class Browser:
         self.input_cdp = None
         self.capture_lock = asyncio.Lock()
         self.attached_browser = None
+        self.capture_generation = 0
+        self.capture_live = False
+
+    @property
+    def connected(self):
+        if not self.capture_live or not self.context or not self.page or self.page.is_closed():
+            return False
+        browser = self.attached_browser or self.context.browser
+        return bool(browser and browser.is_connected())
+
+    async def _discard_disconnected(self):
+        """Drop a dead attachment only; preserve Chrome's profile and archive."""
+        self.capture_generation += 1
+        self.capture_live = False
+        owner = getattr(self.on_message,'__self__',None)
+        if owner and hasattr(owner,'browser_reset'):
+            owner.browser_reset()
+        if self.consumer:
+            self.consumer.cancel()
+            await asyncio.gather(self.consumer,return_exceptions=True)
+        self.consumer = None
+        self.queue = asyncio.Queue(maxsize=1000)
+        self.input_cdp = None
+        self.context = self.page = self.cdp = self.attached_browser = None
+        playwright, self.playwright = self.playwright, None
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                self.errors.append('disconnected_driver_cleanup_failed')
 
     async def prepare_background(self):
         if self.input_cdp:
@@ -60,7 +90,9 @@ class Browser:
 
     async def start(self):
         if self.context:
-            return
+            if self.connected:
+                return
+            await self._discard_disconnected()
         import httpx
         async with httpx.AsyncClient(trust_env=False, timeout=1) as client:
             endpoint = f'http://127.0.0.1:{self.settings.debug_port}/json/version'
@@ -97,7 +129,9 @@ class Browser:
         """Rebind only this runtime's dedicated Chrome; reload recovers facts."""
         from urllib.parse import urlsplit
         if self.context:
-            raise InputDeferred('browser is already bound')
+            if self.connected:
+                raise InputDeferred('browser is already bound')
+            await self._discard_disconnected()
         self.playwright = await async_playwright().start()
         chrome = None
         try:
@@ -149,14 +183,29 @@ class Browser:
 
     async def _listen(self):
         await self.cdp.send("Network.enable")
+        self.capture_generation += 1
+        generation = self.capture_generation
+        self.capture_live = True
         await self.page.add_init_script("""(() => { window.__mjLocalPointer=null;
           addEventListener('pointermove',e=>{window.__mjLocalPointer={x:e.clientX,y:e.clientY}},true); })()""")
-        self.cdp.on("Network.webSocketFrameReceived", lambda msg: self._enqueue(msg, False))
-        self.cdp.on("Network.webSocketFrameSent", lambda msg: self._enqueue(msg, True))
+        def current():
+            return self.capture_generation == generation and self.capture_live
+        self.cdp.on("Network.webSocketFrameReceived", lambda msg: self._enqueue(msg, False) if current() else None)
+        self.cdp.on("Network.webSocketFrameSent", lambda msg: self._enqueue(msg, True) if current() else None)
         owner = getattr(self.on_message, "__self__", None)
+        def disconnected():
+            if not current():
+                return
+            self.capture_live = False
+            if owner and hasattr(owner,'browser_reset'):
+                owner.browser_reset()  # Synchronous operation invalidation.
+        self.page.on('close',disconnected)
+        browser = self.attached_browser or self.context.browser
+        browser.on('disconnected',disconnected)
         if owner and hasattr(owner, "browser_reset"):
-            self.page.on("framenavigated", lambda frame: owner.browser_reset() if frame == self.page.main_frame else None)
-            self.cdp.on("Network.webSocketClosed", lambda msg: owner.socket_closed(msg["requestId"]))
+            self.page.on("framenavigated", lambda frame: owner.browser_reset()
+                         if current() and frame == self.page.main_frame else None)
+            self.cdp.on("Network.webSocketClosed", lambda msg: owner.socket_closed(msg["requestId"]) if current() else None)
         self.consumer = asyncio.create_task(self._consume())
 
     async def fit_window(self):
@@ -364,6 +413,11 @@ class Browser:
         return clicked
 
     async def close(self):
+        if self.context and not self.connected:
+            await self._discard_disconnected()
+            return
+        self.capture_generation += 1
+        self.capture_live = False
         owner = getattr(self.on_message, "__self__", None)
         if owner and hasattr(owner, "browser_reset"):
             owner.browser_reset()

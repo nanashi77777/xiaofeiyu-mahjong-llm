@@ -25,6 +25,9 @@ class PracticeSuite:
         self.args, self.settings, self.client = args, settings, client
         self.started = time.monotonic()
         self.recovery_validation = getattr(args,'recovery_validation',False)
+        self.functional_validation = getattr(args,'functional_validation',False)
+        if self.recovery_validation and self.functional_validation:
+            raise ValueError('validation modes are mutually exclusive')
         self.report = {'schema_version':'practice-suite.v1', 'started_at':utcnow(),
                        'profile':args.profile, 'kind':'production_live_websocket',
                        'acceptance_eligible':args.profile == '5+10', 'matches':[],
@@ -34,6 +37,9 @@ class PracticeSuite:
         if self.recovery_validation:
             self.report.update(kind='production_recovery_validation',acceptance_eligible=False,
                                recovery_validation=True)
+        if self.functional_validation:
+            self.report.update(kind='production_functional_validation',acceptance_eligible=False,
+                               validation_scope='functional_only',performance_gate=False)
 
     def save(self):
         self.args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -229,11 +235,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--games',type=int,default=3)
     parser.add_argument('--seconds',type=float,default=14400)
-    parser.add_argument('--profile',choices=('300+0','5+10'),default='300+0')
+    parser.add_argument('--profile',choices=('300+0','60+0','5+10'),default='300+0')
     parser.add_argument('--output',type=Path,default=Path('runtime/practice-suite.json'))
     parser.add_argument('--stop-file',type=Path,default=Path('runtime/STOP-PRACTICE'))
     parser.add_argument('--recovery-validation',action='store_true',help='Retain recoverable failures; excluded from strict acceptance')
+    parser.add_argument('--functional-validation',action='store_true',help='Independent functional run; timing retained without performance qualification')
     args = parser.parse_args()
     if args.games < 1 or args.seconds <= 0:
         parser.error('positive games and session seconds required')
+    if args.functional_validation and args.recovery_validation:
+        parser.error('select only one validation mode')
     raise SystemExit(asyncio.run(main(args)))

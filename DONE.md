@@ -94,3 +94,5 @@
 | DEV-082 | 实现 | 按错误阶段实施有限重试与恢复 | [完成记录](docs/development/completed/DEV-082-bounded-recovery.md) |
 | DEV-083 | 实现 | 默认同步公开与私有两个麻将仓库 | [完成记录](docs/development/completed/DEV-083-dual-repository-sync.md) |
 | DEV-084 | 实现 | 实际输入请求关联与客户端自动动作归因 | [完成记录](docs/development/completed/DEV-084-input-origin-attribution.md) |
+| DEV-085 | 实现 | 独立功能实战模式与性能资格隔离 | [完成记录](docs/development/completed/DEV-085-functional-validation.md) |
+| DEV-086 | 实现 | 浏览器断开失效与显式重启清理 | [完成记录](docs/development/completed/DEV-086-browser-disconnection.md) |

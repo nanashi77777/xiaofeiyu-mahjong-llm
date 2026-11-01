@@ -98,7 +98,7 @@ class Service:
 
     def status(self):
         state = self.engine.state
-        return {"connected":bool(self.browser.context), "protocol_loaded":bool(self.engine.protocol),
+        return {"connected":self.browser.connected, "protocol_loaded":bool(self.engine.protocol),
                 "protocol_hash":self.engine.protocol.fingerprint if self.engine.protocol else None,
                 "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
                 'recovery':self.coordinator.recovery.public(),
