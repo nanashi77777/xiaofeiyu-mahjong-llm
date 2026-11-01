@@ -1494,7 +1494,7 @@
         "d08e533eb4abf5a67c4210d4b5ec9362d2c76c70"
       ],
       "implementation_progress": "code_ready",
-      "status_reason": "有效会话下加入/准备实现已落地，补服务端拒绝及重复指令回归；新凭据登录、段位取消与入局接管保持独立任务",
+      "status_reason": "有效会话下加入和准备已独立完成并验证；新凭据登录、段位取消及入局接管保留各自任务",
       "completed_on": "2026-11-01"
     },
     {
@@ -2864,7 +2864,9 @@
       "evidence": [
         "427 full pytest and ruff passed; 9 rebuild tests including backups, immutable original events/failures, stale or tampered plans, ineligible states and provenance rollback. One actual ended archive repaired only derived indices with backup; new 20-match replay audit and read-only HTTP round order passed; original failed reports preserved."
       ],
-      "commits": [],
+      "commits": [
+        "83ba4a6bde448e90b9eac65941e9161b1cdf5bb2"
+      ],
       "completed_record": "docs/development/completed/DEV-089-archive-round-index-rebuild.md",
       "completed_on": "2026-11-01"
     },
@@ -2873,7 +2875,7 @@
       "kind": "development",
       "milestone": "M4",
       "title": "终场奖励页的独立确认与不可覆盖截图",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-058",
         "DEV-070"
@@ -2885,8 +2887,14 @@
         "区分普通final与final_reward，各页最多确认一次，奖励页只在权威终场后处理，停止和新状态优先",
         "结算截图按内容摘要保存不覆盖旧帧；隔离回归、真实奖励页核验和新实战分别记录"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "433 full pytest and ruff passed; six final/reward isolation tests plus actual preserved reward page confirmed by production RoundFlow/LobbyUI and returned to room. Original terminal data, failures and screenshots retained; normal three-game validation remains separate."
+      ],
+      "commits": [
+        "83ba4a6bde448e90b9eac65941e9161b1cdf5bb2"
+      ],
+      "completed_record": "docs/development/completed/DEV-090-final-reward-flow.md",
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
