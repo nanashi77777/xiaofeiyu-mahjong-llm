@@ -3004,6 +3004,27 @@
       ],
       "completed_record": "docs/development/completed/DEV-094-validation-progress.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-095",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "QQ按指令开启、停止及查询自动打牌（用户要求暂缓）",
+      "status": "planned",
+      "status_reason": "用户明确要求先别做，仅登记TODO；须明确恢复此项开发后实施，测试与验收继续暂停",
+      "depends_on": [
+        "DEV-042",
+        "DEV-041"
+      ],
+      "design_refs": [
+        "docs/design/qq-autoplay-control.md"
+      ],
+      "acceptance": [
+        "专用窄工具按当前白名单会话和真实消息请求开启/停止/查询，不暴露通用控制权限；稳定编号幂等，实际认证和完整新鲜牌局确认后才接管",
+        "选场后等待仅限明确的一次对局并有期限，停止/Esc/重启不复活授权，终场保存后关闭；隔离与后续真实验收分开，记录实际证据"
+      ],
+      "evidence": [],
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
