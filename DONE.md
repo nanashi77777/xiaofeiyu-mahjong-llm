@@ -104,3 +104,4 @@
 | DEV-091 | 实现 | 少张已校准手牌独立核验与未知字形学习门槛分离 | [完成记录](docs/development/completed/DEV-091-calibrated-small-hands.md) |
 | DEV-092 | 实现 | 手牌反光校准变体及白板空白的明确验证 | [完成记录](docs/development/completed/DEV-092-row-glyph-verification.md) |
 | DEV-093 | 实现 | 大厅按下前渲染失效的有限重定位 | [完成记录](docs/development/completed/DEV-093-lobby-prepress-retry.md) |
+| DEV-094 | 实现 | 轻量受控进度与按真实变化重算验收报告 | [完成记录](docs/development/completed/DEV-094-validation-progress.md) |

@@ -53,7 +53,7 @@ class PracticeSuite:
 
     async def status(self):
         self.check()
-        response = await self.client.get('/control/status')
+        response = await self.client.get('/control/progress')
         response.raise_for_status()
         return response.json()
 
@@ -140,14 +140,18 @@ class PracticeSuite:
                 self.report['matches'].append({'match_id':match_id,'status':'active'})
                 print(json.dumps({'game':index+1,'match_id':match_id,'status':'started'}), flush=True)
                 last_count = -1
+                report_revision = None
                 while True:
                     status = await self.status()
                     state = status.get('state')
                     if not state or state['match_id'] != match_id:
                         raise RuntimeError('match_identity_changed')
-                    summary = match_report(store, match_id)
-                    self.report['matches'][-1] = summary
-                    self.save()
+                    revision = (state['state_version'],status['records_revision'])
+                    if revision != report_revision or state['lifecycle'] == 'ended':
+                        summary = match_report(store, match_id)
+                        report_revision = revision
+                        self.report['matches'][-1] = summary
+                        self.save()
                     if not self.recovery_validation and (summary['failures'] or summary['mismatches'] or summary['client_interventions']
                             or any(x['window_id'] in summary['windows'] for x in summary['client_automatic_inputs'])):
                         raise RuntimeError('recorded_decision_or_execution_failure')

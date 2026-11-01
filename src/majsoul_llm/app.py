@@ -127,6 +127,20 @@ class Service:
                 "usage_summary":usage_summary(self.store, self.client.credential_id),
                 "receipts":self.store.records("receipt", limit=10)}
 
+    def progress(self):
+        """Control-only live facts without history aggregation on the hot path."""
+        state = self.engine.state
+        return {'connected':self.browser.connected,'enabled':self.coordinator.enabled,
+                'status':self.coordinator.status,'runtime_build':self.runtime_build,
+                'timer_verified':self.settings.timer_verified,
+                'state':state.model_dump(mode='json') if state else None,
+                'login_session':self.engine.lobby_session.public(),
+                'navigation':{'active_command':self.navigator.command_id if self.navigator.busy() else None,
+                              'input_owner':self.input_lease.owner},
+                'result_flow':{'active':bool(self.round_flow.task and not self.round_flow.task.done()),
+                               'last_scene':self.round_flow.last_scene},
+                'records_revision':self.store.db.execute('SELECT COALESCE(MAX(rowid),0) FROM records').fetchone()[0]}
+
 
 def create_app(settings=None, service=None):
     settings = settings or Settings.load()
@@ -240,6 +254,10 @@ def create_app(settings=None, service=None):
     @app.get("/control/status")
     async def status(s=Depends(controller)):
         return s.status()
+
+    @app.get('/control/progress')
+    async def progress(s=Depends(controller)):
+        return s.progress()
 
     navigation_base = "/api/v1/mahjong/navigation"
 

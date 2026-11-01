@@ -2966,8 +2966,34 @@
       "evidence": [
         "450 full pytest passed; ruff passed. Eight targeted real pipeline fault tests verify finite pre-down retries, shared original deadline, same target, stop/state priority, no repeats after possible down, and service-thread SQLite submission before physical down. Old live build/report retained; new actual room validation separate."
       ],
-      "commits": [],
+      "commits": [
+        "9256fabf4a1ba50a79ce4496b8f8c5eb2f7dba8d"
+      ],
       "completed_record": "docs/development/completed/DEV-093-lobby-prepress-retry.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-094",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "轻量受控进度与按真实变化重算验收报告",
+      "status": "done",
+      "depends_on": [
+        "DEV-085",
+        "DEV-027"
+      ],
+      "design_refs": [
+        "docs/design/validation-progress.md"
+      ],
+      "acceptance": [
+        "进度接口不用全历史用量汇总，不返回解释/经验/回执，仅control可读，包含实际构建与真实状态",
+        "未变化时复用验收报告，任何新记录/状态及终场均重算，真实失败/偏差停止检查保持"
+      ],
+      "evidence": [
+        "452 full pytest and ruff passed. Progress forbids history scan, rejects read/navigation tokens, advances record version. Practice cache regression skips unchanged poll yet immediately stops and retains newly recorded failure; full reports and strict gates preserved."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-094-validation-progress.md",
       "completed_on": "2026-11-01"
     }
   ],
