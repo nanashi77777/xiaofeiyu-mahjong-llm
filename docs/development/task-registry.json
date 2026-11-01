@@ -929,7 +929,9 @@
       "acceptance": [
         "真实鼠标、布局映射、立直/组合、归位/人工移动/急停/过期确认验证，意图与结果可核对"
       ],
-      "evidence": [],
+      "evidence": [
+        "Recovery run retained new low-clock compound riichi mismatch: intended 1p, accepted type7/3p; riichi button dispatched once, intended tile not pressed after actual state changed. Two original frames, request and acknowledgement preserved privately; no unique root cause claimed."
+      ],
       "completed_record": null,
       "commits": []
     },
@@ -2633,7 +2635,7 @@
       "milestone": "M4",
       "title": "按错误阶段实施有限重试与恢复",
       "status": "done",
-      "status_reason": "用户最新明确解除暂缓，优先实施有限重试；真实验收单独记录",
+      "status_reason": "有限重试实现与402项隔离/全量验证通过，已消费；真实恢复专项验收由VAL-014继续跟踪",
       "depends_on": [
         "DEV-021",
         "DEV-018"
@@ -2648,7 +2650,9 @@
       "evidence": [
         "402 pytest passed; ruff clean; bounded model/input/window/connection/stop fault injection retained; real recovery acceptance tracked independently in VAL-014."
       ],
-      "commits": [],
+      "commits": [
+        "20006e861e78d6522cb12b2e40913dbfd32c9a6c"
+      ],
       "completed_record": "docs/development/completed/DEV-082-bounded-recovery.md",
       "completed_on": "2026-11-01"
     },
@@ -2658,7 +2662,7 @@
       "milestone": "M8",
       "title": "有限重试与恢复专项验收",
       "status": "in_progress",
-      "status_reason": "用户最新明确解除暂缓，优先实施有限重试；真实验收单独记录",
+      "status_reason": "402项测试通过；独立真实5+10的40窗口中两次软失败后自动恢复并获确认，后续真实立直错牌触发安全暂停，完整专项验收继续，未冒充通过",
       "depends_on": [
         "DEV-082"
       ],
@@ -2669,8 +2673,12 @@
         "错误注入覆盖模型/定位/提交未知/断线/人工停止竞态，次数和期限有界、重复副作用为零",
         "独立真实5＋10保留原始失败与恢复结果，恢复不能伪称旧失败场或500窗口验收通过"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "402 full pytest including 34 new recovery tests; ruff passed. Independent real 5+10: 40 windows, 37 confirmations, two failed windows recovered on fresh actual windows, zero repeated decisions. Subsequent riichi 1p intended/3p actual mismatch stopped safely before intended tile press. All failures retained; no complete-match or strict speed pass."
+      ],
+      "commits": [
+        "20006e861e78d6522cb12b2e40913dbfd32c9a6c"
+      ]
     },
     {
       "id": "DEV-083",
