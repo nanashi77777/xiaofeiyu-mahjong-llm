@@ -45,6 +45,26 @@ def glyph_similarity(region, patch):
     return max(direct, softened)
 
 
+def row_glyph_similarity(region, patch, tile):
+    """Verify inked glyphs, or the explicitly blank white-dragon interior."""
+    if float(np.std(patch, axis=(0, 1)).max()) >= 3:
+        return glyph_similarity(region, patch)
+    if tile != '5z':
+        raise InputDeferred('calibrated tile glyph has no identifying detail')
+    # Normalized correlation returns 1 for a constant template even over ink.
+    # Inspect the whole face interior instead of searching for a blank corner.
+    interior = region[6:-6, 6:-6]
+    if not interior.size or float(np.std(interior, axis=(0, 1)).max()) > 6:
+        return 0.
+    reference = np.mean(patch, axis=(0, 1))
+    actual = np.mean(interior, axis=(0, 1))
+    brightness = float(np.mean(actual) / max(1., np.mean(reference)))
+    if not .45 <= brightness <= 1.6:
+        return 0.
+    error = float(np.max(np.abs(actual / brightness - reference)))
+    return 1. if error <= 6 else 0.
+
+
 class ScreenLocator:
     def __init__(self, runtime:Path):
         self.folder = runtime / "calibration"
@@ -212,7 +232,7 @@ class ScreenLocator:
         return mapping
 
     def learn_sorted_row(self,raw,state,profile):
-        """Learn new glyphs only on a calibrated row with multiple visible anchors."""
+        """Verify every known face; require multiple anchors to learn new ink."""
         image,sx,sy=self.normalized(raw,profile)
         ox,oy,w,h=profile["hand_region"]
         hsv=cv2.cvtColor(image[oy:oy+h,ox:ox+w],cv2.COLOR_BGR2HSV)
@@ -246,22 +266,30 @@ class ScreenLocator:
             ordered.append(state.hand[state.drawn_index])
         anchors=set()
         scores={}
+        unknown=False
         for tile,(x,y,bw,bh,enabled) in zip(ordered,boxes,strict=True):
             item=profile["templates"].get("tile_"+tile)
             if not item:
                 if not enabled:
                     raise InputDeferred("dimmed tile glyph is not independently calibrated")
+                unknown=True
                 continue
-            patch=decode_image((self.folder/item["file"]).read_bytes())
             region=image[max(0,y+6):y+bh,x+2:x+bw-2]
-            if region.shape[0]<patch.shape[0] or region.shape[1]<patch.shape[1]:
-                raise InputDeferred("calibrated row glyph dimensions changed")
-            similarity=glyph_similarity(region,patch)
+            variants=([item] if 'file' in item else [])+item.get('variants',[])
+            if not variants:
+                raise InputDeferred('tile has no independently calibrated glyph variants')
+            similarities=[]
+            for variant in variants:
+                patch=decode_image((self.folder/variant['file']).read_bytes())
+                if region.shape[0]<patch.shape[0] or region.shape[1]<patch.shape[1]:
+                    raise InputDeferred("calibrated row glyph dimensions changed")
+                similarities.append(row_glyph_similarity(region,patch,tile))
+            similarity=max(similarities)
             if similarity<profile.get("threshold",.94):
                 raise InputDeferred("visible sorted row disagrees with authoritative ordering")
             anchors.add(tile)
             scores[(x,y)]=similarity
-        if len(anchors)<3:
+        if unknown and len(anchors)<3:
             raise InputDeferred("insufficient distinct known glyph anchors")
         changed=False
         for tile,(x,y,_bw,_bh,enabled) in zip(ordered,boxes,strict=True):
@@ -298,6 +326,10 @@ class ScreenLocator:
         if not options or not any(tile in o.get('combination', []) for o in options):
             raise InputDeferred('riichi tile is not offered by the server')
         profile = self.profile()
+        if tile == '5z' and profile.get('verified_sorted_row'):
+            # An empty white glyph cannot be searched across arbitrary pixels.
+            # Reconcile the complete bright/dim row and its exact physical slot.
+            return self.discard_tile(raw,state,index)
         region = profile['hand_region']
         found = self.matches(raw, ['tile_'+tile], region=region, resampled=True)
         # Correlation alone is insensitive to brightness. A legal glyph must

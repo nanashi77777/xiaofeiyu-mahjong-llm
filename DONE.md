@@ -101,3 +101,5 @@
 | DEV-088 | 实现 | 普通牌灰色纹样与禁打牌面隔离 | [完成记录](docs/development/completed/DEV-088-dim-face-containment.md) |
 | DEV-089 | 实现 | 已结束旧牌谱派生小局序号的可审计重建 | [完成记录](docs/development/completed/DEV-089-archive-round-index-rebuild.md) |
 | DEV-090 | 实现 | 终场奖励页的独立确认与不可覆盖截图 | [完成记录](docs/development/completed/DEV-090-final-reward-flow.md) |
+| DEV-091 | 实现 | 少张已校准手牌独立核验与未知字形学习门槛分离 | [完成记录](docs/development/completed/DEV-091-calibrated-small-hands.md) |
+| DEV-092 | 实现 | 手牌反光校准变体及白板空白的明确验证 | [完成记录](docs/development/completed/DEV-092-row-glyph-verification.md) |

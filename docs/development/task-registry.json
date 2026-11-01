@@ -2895,6 +2895,52 @@
       ],
       "completed_record": "docs/development/completed/DEV-090-final-reward-flow.md",
       "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-091",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "少张已校准手牌独立核验与未知字形学习门槛分离",
+      "status": "done",
+      "depends_on": [
+        "DEV-088"
+      ],
+      "design_refs": [
+        "docs/design/calibrated-row-boundaries.md"
+      ],
+      "acceptance": [
+        "全部字形独立校准的少张手牌通过完整映射，保留排序/数量/赤牌/独立摸牌核验",
+        "仅学习未知可用字形需要三种锚点，未知置灰字形拒绝，针对性与全量回归通过"
+      ],
+      "evidence": [
+        "441 full pytest and ruff passed; added sufficient-anchor learning case then 9 targeted passed. Known one/two-tile rows retain red/drawn-slot verification; unknown sparse or dim glyphs refused. Real four-meld coverage tracked separately."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-091-calibrated-small-hands.md",
+      "completed_on": "2026-11-01"
+    },
+    {
+      "id": "DEV-092",
+      "kind": "development",
+      "milestone": "M4",
+      "title": "手牌反光校准变体及白板空白的明确验证",
+      "status": "done",
+      "depends_on": [
+        "DEV-088"
+      ],
+      "design_refs": [
+        "docs/design/calibrated-row-boundaries.md"
+      ],
+      "acceptance": [
+        "反光模板变体保持原阈值，错误赤牌/未知/尺寸不符拒绝，真实失败帧完整核验",
+        "白板常量模板不用相关度，核验真实内区空白与颜色，其他无细节模板拒绝；立直白板仍须真实可用完整映射"
+      ],
+      "evidence": [
+        "441 full pytest and ruff passed; actual frozen reflected red-five frame maps all 14 tiles and selected discard with original threshold and old template retained. Synthetic reflection/red identity/blank white/disabled riichi checks passed; old live failure retained."
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-092-row-glyph-verification.md",
+      "completed_on": "2026-11-01"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
