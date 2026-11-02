@@ -147,3 +147,35 @@ async def test_long_clock_integration_bypasses_expired_normal_clock_and_stop_cle
     assert c.pending and store.records('receipt')[0]['payload']['status']=='mouse_sent'
     await c.stop('test_stop')
     assert c.pending is None and store.records('receipt')[0]['payload']['status']=='cancelled'
+
+
+async def test_ready_commands_require_exact_ack_and_never_toggle_again_on_retry(store):
+    s,calls=service(store)
+    s.engine.lobby_session.prepared=False
+    async def click(scene,control,ctx,*,submit=None):
+        ctx.check()
+        ctx.before_submit(submit)
+        calls.append((scene,control))
+        ready=control=='ready'
+        session=s.engine.lobby_session
+        session.latest['readyPlay']={'observed_mono':time.monotonic(),'error_code':0,'ready':ready}
+        session.prepared=ready
+    s.lobby_ui.click=click
+    practice=PracticeRooms(s,solo_only=False)
+    command=RoomAction(command_id='ready-once',room_code='12345',action='ready')
+    assert (await practice.run(command))['prepared'] is True
+    assert (await practice.run(command))['prepared'] is True
+    assert len(calls)==1
+    second=command.model_copy(update={'command_id':'same-desired-state'})
+    assert (await practice.run(second))['already_in_requested_state'] and len(calls)==1
+    cancel=command.model_copy(update={'command_id':'unready-once','action':'unready'})
+    assert (await practice.run(cancel))['prepared'] is False and len(calls)==2
+
+
+async def test_general_room_start_still_uses_verified_ui_and_practice_gate_stays(store):
+    s,calls=service(store,humans=4,robots=0)
+    command=RoomAction(command_id='explicit-general-room',room_code='12345',action='start')
+    with pytest.raises(LobbyError,match='practice_requires'):
+        await PracticeRooms(s).run(command)
+    assert (await PracticeRooms(s,solo_only=False).run(command))['status']=='confirmed'
+    assert calls==[('room','start')]

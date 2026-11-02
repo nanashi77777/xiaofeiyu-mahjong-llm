@@ -58,7 +58,10 @@ def main():
         from .app import create_app
         if not (settings.runtime / "private.json").exists():
             settings.save_private()
-        uvicorn.run(create_app(settings),host="127.0.0.1",port=settings.port,access_log=False)
+        app=create_app(settings)
+        server=uvicorn.Server(uvicorn.Config(app,host='127.0.0.1',port=settings.port,access_log=False))
+        app.state.request_shutdown=lambda:setattr(server,'should_exit',True)
+        server.run()
     elif args.command == "panel":
         import webbrowser
         webbrowser.open(f"http://127.0.0.1:{settings.port}/#"+settings.control_token.get_secret_value())

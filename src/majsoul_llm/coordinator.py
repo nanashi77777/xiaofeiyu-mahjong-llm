@@ -300,7 +300,8 @@ class Coordinator:
             memory_store = Memories(self.store)
             from .rules import routes
             yaku_ids = [r['id'] for r in routes(state.hand,state.players[state.self_seat].melds,state)]
-            recalled = memory_store.recall(self.frozen_memories,state,yaku_ids)
+            recalled = (memory_store.recall(self.frozen_memories,state,yaku_ids,limit=self.settings.memory_recall_limit)
+                        if self.settings.memory_recall_enabled else [])
             self.store.record('memory_recall',{'window_id':op.window_id,
                               'revisions':[{'id':m['id'],'revision':m['revision']} for m in recalled]},state.match_id,state.round_uid)
             context = build_context(state, actions, plan=self.plan, memories=memory_store.projection(recalled),
@@ -312,7 +313,7 @@ class Coordinator:
             context.data['clock']['soft_seconds_remaining'] = max(0,self.settings.base_seconds-(time.monotonic()-start))
             model_start = time.monotonic()
             observation = (asyncio.create_task(self.executor.observe(state,actions,deadline))
-                           if not self.shadow and self.executor and hasattr(self.executor,'observe') else None)
+                           if self.settings.parallel_observation_enabled and not self.shadow and self.executor and hasattr(self.executor,'observe') else None)
             action = None
             handoff_ms, handoff_mode = 0, None
             try:

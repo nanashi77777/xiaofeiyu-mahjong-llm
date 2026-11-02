@@ -29,6 +29,7 @@ from .review import Reviewer
 from .round_flow import RoundFlow
 from .store import Store
 from .usage import usage_summary
+from .operations import Operations, OperationRequest
 
 
 class Service:
@@ -63,6 +64,7 @@ class Service:
         self.practice = PracticeRooms(self)
         self.round_flow = RoundFlow(self)
         self.client_guard = ClientGuard(self)
+        self.operations = Operations(self)
 
     async def changed(self, state, event):
         was_enabled = self.coordinator.enabled
@@ -71,8 +73,8 @@ class Service:
             await self.reviewer.pause_for_decision()
         await self.coordinator.changed(state, event)
         await self.executor.refresh_idle_hand(state,was_enabled and not self.coordinator.shadow)
-        await self.round_flow.changed(state, was_enabled and not self.coordinator.shadow)
-        await self.client_guard.changed(state, was_enabled and not self.coordinator.shadow)
+        await self.round_flow.changed(state, was_enabled and not self.coordinator.shadow and self.settings.result_confirmation_enabled)
+        await self.client_guard.changed(state, was_enabled and not self.coordinator.shadow and self.settings.client_guard_enabled)
         if state and state.lifecycle == 'ended':
             self.coordinator.enabled = False
             self.coordinator.status = 'match_complete'
@@ -80,6 +82,7 @@ class Service:
             await self.reviewer.enqueue(state.match_id)
 
     async def close(self):
+        await self.operations.close()
         await self.client_guard.stop()
         await self.round_flow.stop()
         await self.navigator.stop()
@@ -148,6 +151,8 @@ def create_app(settings=None, service=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.service = service or Service(settings)
+        if hasattr(app.state,'request_shutdown'):
+            app.state.service.request_shutdown=app.state.request_shutdown
         if not service:
             await app.state.service.reviewer.resume_pending()
         yield
@@ -178,6 +183,7 @@ def create_app(settings=None, service=None):
         accepted = [settings.control_token.get_secret_value()]
         if not control:
             accepted.append(settings.read_token.get_secret_value())
+            accepted.append(settings.operation_token.get_secret_value())
         if not any(hmac.compare_digest(token, key) for key in accepted):
             raise HTTPException(401, "invalid credential")
 
@@ -192,9 +198,16 @@ def create_app(settings=None, service=None):
     def navigator(request:Request):
         token = request.headers.get("authorization", "").removeprefix("Bearer ")
         if not any(hmac.compare_digest(token, key.get_secret_value())
-                   for key in (settings.navigation_token, settings.control_token)):
+                   for key in (settings.navigation_token, settings.control_token, settings.operation_token)):
             raise HTTPException(401, "invalid credential")
         return request.app.state.service.navigator
+
+    def operator(request:Request):
+        token=request.headers.get('authorization','').removeprefix('Bearer ')
+        if not any(hmac.compare_digest(token,key.get_secret_value())
+                   for key in (settings.operation_token,settings.control_token)):
+            raise HTTPException(401,'invalid credential')
+        return request.app.state.service.operations
 
     @app.exception_handler(LobbyError)
     async def lobby_error(request, error):
@@ -255,6 +268,23 @@ def create_app(settings=None, service=None):
     async def status(s=Depends(controller)):
         return s.status()
 
+    operations_base=base+'/operations'
+
+    @app.get(operations_base+'/{resource}')
+    async def operation_resource(resource:str,command_id:str|None=None,ids:str|None=None,topic:str='',o=Depends(operator)):
+        return o.resource(resource,command_id=command_id,ids=ids.split(',') if ids else None,topic=topic)
+
+    @app.post(operations_base+'/commands',status_code=202)
+    async def operation_submit(request:OperationRequest,o=Depends(operator)):
+        return await o.submit(request)
+
+    @app.get(operations_base+'/view/screenshot')
+    async def operation_screenshot(o=Depends(operator)):
+        state=o.s.engine.state
+        if state and state.lifecycle == 'active':
+            raise LobbyError('active_match_private_screenshot_not_exposed')
+        return Response(await o.s.browser.image_bytes(),media_type='image/png')
+
     @app.get('/control/progress')
     async def progress(s=Depends(controller)):
         return s.progress()
@@ -312,6 +342,7 @@ def create_app(settings=None, service=None):
                 raise LobbyError('input_owner_active')
             await s.browser.attach_existing(int(data['pid']))
         elif action == "fit-window":
+            await s.operations.revoke_arm('window_layout_changed')
             await s.navigator.stop()
             await s.coordinator.stop('window_layout_changed')
             await s.browser.fit_window()
@@ -320,10 +351,12 @@ def create_app(settings=None, service=None):
                 raise LobbyError("navigation_in_progress")
             await s.executor.bind(int(data["hwnd"]))
         elif action == "shadow":
+            await s.operations.revoke_arm('explicit_panel_start')
             if s.navigator.busy():
                 raise LobbyError("navigation_in_progress")
             await s.coordinator.start(shadow=True)
         elif action == "start":
+            await s.operations.revoke_arm('explicit_panel_start')
             if s.navigator.busy():
                 raise LobbyError("navigation_in_progress")
             if not s.executor.window:
@@ -332,6 +365,7 @@ def create_app(settings=None, service=None):
         elif action == 'confirm-results':
             await s.round_flow.resume()
         elif action=='input-mode':
+            await s.operations.revoke_arm('input_mode_changed')
             mode=data.get('mode')
             if mode not in ('physical_foreground','browser_background'):
                 raise ValueError('unsupported input mode')
@@ -341,8 +375,7 @@ def create_app(settings=None, service=None):
                 await s.browser.release_background()
             s.executor.input_mode=mode
         elif action in ("pause", "stop", "emergency"):
-            await s.navigator.stop()
-            await s.coordinator.stop(action)
+            await s.operations.stop(action)
         else:
             raise HTTPException(404,"unknown control")
         return {"ok":True,"status":s.coordinator.status}

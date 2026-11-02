@@ -14,15 +14,17 @@ from .lobby import LobbyError, WaitingUser
 class RoomAction(Record):
     command_id: StrictStr = Field(pattern=r"^[a-zA-Z0-9_-]{1,100}$")
     room_code: StrictStr = Field(pattern=r"^[0-9]{1,12}$")
-    action: Literal["leave", "confirm_leave", "add_robot_0", "add_robot_1", "add_robot_2", "add_robot_3", "start"]
+    action: Literal["leave", "confirm_leave", "add_robot_0", "add_robot_1", "add_robot_2", "add_robot_3", "start", "ready", "unready"]
     takeover: StrictBool = False
 
 
 class PracticeRooms:
     ACK_TIMEOUT = 12
 
-    def __init__(self, service):
+    def __init__(self, service, *, solo_only=True, handoff=None):
         self.service = service
+        self.solo_only = solo_only
+        self.handoff = handoff
 
     async def run(self, command):
         service = self.service
@@ -36,6 +38,7 @@ class PracticeRooms:
             return previous
         generation = session.generation
         old_match = service.engine.state.match_id if service.engine.state else None
+        solo_only = self.solo_only
 
         class Context:
             def check(self):
@@ -48,7 +51,7 @@ class PracticeRooms:
                         and session.room["room_code"] == command.room_code and not session.room.get("playing")):
                     raise LobbyError("practice_room_changed")
                 solo_ai = session.room.get("players") == 1 and session.room.get("mode", {}).get("mode") == 3
-                if command.action == "start" and not (session.room.get("humans") == 1 and
+                if solo_only and command.action == "start" and not (session.room.get("humans") == 1 and
                                                        (solo_ai or session.room.get("robots") == 3)):
                     raise LobbyError("practice_requires_one_human_three_robots")
 
@@ -62,10 +65,16 @@ class PracticeRooms:
             service.executor.mouse.stop.clear()
             ctx = Context()
             ctx.check()
+            if command.action in ('ready','unready') and session.prepared is (command.action == 'ready'):
+                result={'request':request,'status':'confirmed','already_in_requested_state':True,
+                        'prepared':session.prepared}
+                store.record('room_command',result)
+                return result
             scene = "confirm_leave" if command.action == "confirm_leave" else "room"
             control = {"leave":"back", "confirm_leave":"confirm"}.get(command.action, command.action)
             method = ("leaveRoom" if command.action in ("leave","confirm_leave") else "startRoom" if command.action == "start"
-                      else "addRoomRobot" if command.action.startswith("add_robot") else None)
+                      else "addRoomRobot" if command.action.startswith("add_robot")
+                      else "readyPlay" if command.action in ('ready','unready') else None)
             before = time.monotonic()
             await service.lobby_ui.click(scene, control, ctx, submit=method)
             if method is None:
@@ -100,22 +109,32 @@ class PracticeRooms:
                 else:
                     result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
                               "error_code":ack["error_code"]}
+                    if command.action in ('ready','unready') and not ack['error_code']:
+                        expected=command.action == 'ready'
+                        result.update(status='confirmed' if ack.get('ready') is expected else 'uncertain',
+                                      prepared=ack.get('ready'))
             store.record("room_command", result)
         if command.action == 'start' and command.takeover and result['status'] == 'confirmed':
             deadline = time.monotonic()+35
             while time.monotonic() < deadline:
+                if service.executor.mouse.stop.is_set():
+                    break
                 state = service.engine.state
                 if (state and state.match_id != old_match and state.lifecycle == 'active'
                         and state.completeness == 'full' and state.consistent and state.round_uid
                         and service.engine.authenticated_mono >= before
                         and session.generation == generation):
-                    await service.executor.bind_dedicated()
-                    await service.coordinator.start(shadow=False)
-                    result = {**result,'takeover':'active','match_id':state.match_id}
+                    if self.handoff:
+                        await self.handoff()
+                    else:
+                        await service.executor.bind_dedicated(clear_stop=False)
+                        if service.executor.mouse.stop.is_set():
+                            break
+                        await service.coordinator.start(shadow=False)
+                    result = {**result,'takeover':'active' if service.coordinator.enabled else 'not_enabled',
+                              'match_id':state.match_id}
                     store.record('room_command',result)
                     return result
-                if service.executor.mouse.stop.is_set():
-                    break
                 await asyncio.sleep(.05)
             result = {**result,'takeover':'waiting_for_fresh_game'}
             store.record('room_command',result)

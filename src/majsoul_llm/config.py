@@ -62,6 +62,7 @@ class Settings(Record):
     control_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
     read_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
     navigation_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
+    operation_token: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), exclude=True)
     port: int = 8765
     debug_port: int = 9223
     game_url: str = "https://game.maj-soul.com/1/"
@@ -87,6 +88,13 @@ class Settings(Record):
     connection_wait_seconds: float = Field(default=5, gt=0, le=10)
     integration_test: bool = False
     input_mode: Literal['physical_foreground','browser_background'] = 'physical_foreground'
+    review_enabled: bool = True
+    memory_recall_enabled: bool = True
+    memory_recall_limit: int = Field(default=8, ge=0, le=8)
+    idle_hand_enabled: bool = True
+    parallel_observation_enabled: bool = True
+    result_confirmation_enabled: bool = True
+    client_guard_enabled: bool = True
 
     _endpoint = field_validator('base_url')(endpoint_url)
 
@@ -116,7 +124,7 @@ class Settings(Record):
     def save_private(self, path: Path | None = None):
         path = path or self.runtime / "private.json"
         data = self.model_dump(mode="json")
-        for key in ("api_key", "control_token", "read_token", "navigation_token"):
+        for key in ("api_key", "control_token", "read_token", "navigation_token", "operation_token"):
             data[key] = getattr(self, key).get_secret_value()
         atomic_private_json(path, data)
         return path

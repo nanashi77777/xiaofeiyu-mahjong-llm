@@ -156,3 +156,28 @@ def test_context_recall_freezes_versions_and_bounded_style_without_changing_acti
                              'supports':[evidence]},source.match_id)
     assert changed['preference'] is None
     assert memory.recall(frozen,state) == []
+
+
+async def test_review_disabled_pauses_queue_and_explicit_cancel_does_not_retry(store,state):
+    state,_=add_match(store,state,0)
+    calls=[]
+    started=asyncio.Event()
+    async def request(*args,**kwargs):
+        calls.append(1)
+        started.set()
+        await asyncio.Event().wait()
+    settings=SimpleNamespace(review_enabled=False)
+    reviewer=Reviewer(store,SimpleNamespace(request=request,settings=settings),lambda:False)
+    try:
+        await reviewer.enqueue(state.match_id)
+        await asyncio.sleep(.22)
+        assert not calls
+        settings.review_enabled=True
+        await asyncio.wait_for(started.wait(),1)
+        await reviewer.cancel(state.match_id)
+        await asyncio.sleep(.22)
+        assert len(calls)==1 and state.match_id not in reviewer.queued
+        assert store.records('review_job',state.match_id,limit=1)[0]['payload']['status']=='cancelled'
+    finally:
+        reviewer.worker.cancel()
+        await asyncio.gather(reviewer.worker,return_exceptions=True)

@@ -59,7 +59,7 @@ class Executor:
 
     async def refresh_idle_hand(self,state,allowed):
         signature = self.locator.hand_signature(state) if state else None
-        if (not allowed or not state or state.operation or state.lifecycle != 'active'
+        if (not getattr(getattr(self.browser,'settings',None),'idle_hand_enabled',True) or not allowed or not state or state.operation or state.lifecycle != 'active'
                 or not state.consistent or state.phase.value not in ('waiting','awaiting_replacement')):
             await self.cancel_idle_observation()
             return
@@ -230,19 +230,20 @@ class Executor:
             raise
         return mode
 
-    async def bind(self, hwnd):
+    async def bind(self, hwnd, *, clear_stop=True):
         matches = [w for w in self.mouse.windows() if w.hwnd == hwnd]
         if len(matches) != 1 or matches[0].pid != await self.browser.process_id():
             raise ValueError("game window not found")
         self.window = matches[0]
-        self.mouse.stop.clear()
+        if clear_stop:
+            self.mouse.stop.clear()
 
-    async def bind_dedicated(self):
+    async def bind_dedicated(self, *, clear_stop=True):
         pid = await self.browser.process_id()
         windows = [w for w in self.mouse.windows() if w.pid == pid]
         if len(windows) != 1:
             raise InputDeferred('dedicated browser window is not unique')
-        await self.bind(windows[0].hwnd)
+        await self.bind(windows[0].hwnd,clear_stop=clear_stop)
 
     def _observation_current(self,state,deadline=None):
         current=self.state_getter()

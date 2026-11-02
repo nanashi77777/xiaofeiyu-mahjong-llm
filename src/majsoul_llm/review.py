@@ -77,12 +77,16 @@ class Reviewer:
         self.review_task = None
         self.attempts = {}
         self.sources = {}
+        self.cancelled = set()
 
     def job_record(self, match_id, status):
         self.store.record('review_job', {'status':status, 'attempt':self.attempts.get(match_id,0),
                           'source_key':self.sources.get(match_id)}, match_id)
 
     async def enqueue(self, match_id):
+        if match_id in self.cancelled and self.current == match_id:
+            return
+        self.cancelled.discard(match_id)
         if not self.worker:
             self.worker = asyncio.create_task(self.run())
         if match_id not in self.queued:
@@ -101,6 +105,22 @@ class Reviewer:
             self.job_record(match_id,'queued')
             await self.queue.put(match_id)
 
+    async def cancel(self, match_id):
+        self.cancelled.add(match_id)
+        self.queued.discard(match_id)
+        if self.current == match_id and self.review_task and not self.review_task.done():
+            self.review_task.cancel()
+            await asyncio.gather(self.review_task,return_exceptions=True)
+        pending=[]
+        while not self.queue.empty():
+            item=self.queue.get_nowait()
+            self.queue.task_done()
+            if item != match_id:
+                pending.append(item)
+        for item in pending:
+            self.queue.put_nowait(item)
+        self.job_record(match_id,'cancelled')
+
     async def pause_for_decision(self):
         if self.review_task and not self.review_task.done():
             self.review_task.cancel()
@@ -118,8 +138,14 @@ class Reviewer:
             match_id = await self.queue.get()
             self.current = match_id
             try:
-                while self.active_decision():
+                if match_id in self.cancelled:
+                    continue
+                while self.active_decision() or not getattr(getattr(self.client,'settings',None),'review_enabled',True):
+                    if match_id in self.cancelled:
+                        break
                     await asyncio.sleep(0.2)
+                if match_id in self.cancelled:
+                    continue
                 state = self.store.latest(match_id)
                 if not state or state.lifecycle == 'active':
                     # An interrupted match may have resumed while queued.
@@ -137,8 +163,8 @@ class Reviewer:
                 try:
                     await self.review_task
                 except asyncio.CancelledError:
-                    retry = self.attempts[match_id] < 3
-                    self.job_record(match_id,'queued' if retry else 'failed')
+                    retry = self.attempts[match_id] < 3 and match_id not in self.cancelled
+                    self.job_record(match_id,'cancelled' if match_id in self.cancelled else 'queued' if retry else 'failed')
                     if asyncio.current_task().cancelling():
                         raise
                     if retry:

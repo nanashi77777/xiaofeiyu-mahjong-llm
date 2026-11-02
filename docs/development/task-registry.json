@@ -3009,22 +3009,30 @@
       "id": "DEV-095",
       "kind": "development",
       "milestone": "M9",
-      "title": "QQ按指令开启、停止及查询自动打牌（用户要求暂缓）",
-      "status": "planned",
-      "status_reason": "用户明确要求先别做，仅登记TODO；须明确恢复此项开发后实施，测试与验收继续暂停",
+      "title": "QQ麻将功能与运行开关的专用工具及接管交接",
+      "status": "done",
+      "status_reason": "2026-11-02用户明确恢复并扩展到所有麻将功能和开关；实战综合验收仍暂停",
       "depends_on": [
         "DEV-042",
-        "DEV-041"
+        "DEV-017",
+        "DEV-047",
+        "DEV-076",
+        "DEV-024"
       ],
       "design_refs": [
         "docs/design/qq-autoplay-control.md"
       ],
       "acceptance": [
-        "专用窄工具按当前白名单会话和真实消息请求开启/停止/查询，不暴露通用控制权限；稳定编号幂等，实际认证和完整新鲜牌局确认后才接管",
-        "选场后等待仅限明确的一次对局并有期限，停止/Esc/重启不复活授权，终场保存后关闭；隔离与后续真实验收分开，记录实际证据"
+        "浏览器/接管/停止/等待/输入模式/结算/房间/设置/命名模型配置/复盘/经验及诊断以专用窄工具开放，固定loopback、真实消息来源、持久幂等及结果查询",
+        "停止/Esc/重启不复活授权，实际认证与完整场况后接管、终场关闭；私密配置不出本机、验证门禁只读，隔离及真实只读MCP核验与暂停的实战VAL分开"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "473 pytest passed; ruff passed; QQ 198 tests passed",
+        "Real MCP 9 Mahjong tools and 14 read-only calls; 4 mapped sessions available; autoplay stopped; zero new games or test messages"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-095-qq-mahjong-operations.md",
+      "completed_on": "2026-11-02"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

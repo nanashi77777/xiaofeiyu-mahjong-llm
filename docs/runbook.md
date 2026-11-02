@@ -108,7 +108,7 @@ mj.tables.1只在public_events达到16条时使用具名列，river少于8行仍
 
 `python tools/audit_win_outcomes.py --output runtime/win-outcome-audit-<批次>.json`以只读一致性事务核验已有档案；passed仅表示无核对错误，fully_attributed另行表示没有未知/冲突。该工具不请求模型、不写生产库。复盘输入版本为review-input.v3-concise-experience，保留win_outcomes及win_summary并要求生成短经验；已有完成复盘任务不会因版本升级自动重新排队。
 
-<qq-project>\runtime\mahjong-readonly.json 只保存 loopback 地址与 readToken；四类 MCP 工具按需查询。不会每次对话访问，不提供控制或经验写接口。活动小局隐藏暗手、完整计划及解释自由文本；已结束小局可以读取记录。最近二十场范围由 scope_cursor 固定，包含中断记录；大牌只统计同一集合中的本家6番以上或役满。
+<qq-project>\runtime\mahjong-readonly.json 只保存 loopback 地址与 readToken；四类 MCP 工具按需查询。2026-11-02起另以独立操作凭据提供运行控制与有证据的经验修订，见下文。活动小局隐藏暗手、完整计划及解释自由文本；已结束小局可以读取记录。最近二十场范围由 scope_cursor 固定，包含中断记录；大牌只统计同一集合中的本家6番以上或役满。
 
 ## 验证工具
 
@@ -151,8 +151,54 @@ benchmark 是真实渠道调用加构造场况，明确不包含物理点击，�
 
 当前使用本机指定的基线模型、Responses、none及麻将专用密钥。`python -m majsoul_llm.cli models --action list`在本机显示已存配置名；`--action capture --id baseline`是创建回退点的示范，已有名字不覆盖。本机已建立回退点，不需重复捕获；实际名称只保存在本机，不保证与示范相同。
 
-编辑ignored runtime/model-profiles.json添加供应商/model/base_url/api_style/api_key（不要把密钥放命令行）。当前api_style只支持responses，远程必须HTTPS且URL不能携带认证/query/fragment；协议不同需要实现新适配。新增配置不要复制旧validation_identity/validated，修改目标也会使旧身份失效。然后先停止接管与服务、确认没有活动局，运行`python -m majsoul_llm.cli models --action select --id 配置名`，重启服务生效。决策/修复/复盘共用这一配置，QQ不能改。环境MAJSOUL_API_KEY与选择不符会拒绝；直接环境覆盖也清除已有身份绑定门禁。
+编辑ignored runtime/model-profiles.json添加供应商/model/base_url/api_style/api_key（不要把密钥放命令行）。当前api_style只支持responses，远程必须HTTPS且URL不能携带认证/query/fragment；协议不同需要实现新适配。新增配置不要复制旧validation_identity/validated，修改目标也会使旧身份失效。离线切换可先停止接管与服务、确认没有活动局，运行`python -m majsoul_llm.cli models --action select --id 配置名`，重启服务生效。在线也可由QQ专用profile_select切换本机已存配置，要求无活动局、输入或模型/复盘任务；决策/修复/复盘同时更新。QQ不能提交密钥或供应商地址。环境MAJSOUL_API_KEY与选择不符会拒绝；直接环境覆盖也清除已有身份绑定门禁。
 
-新渠道/模型清除compact/table/schema/stream相关门禁，并将副请求归零；按现有工具独立验证Schema、SSE动作、完整事实理解和usage后再启用本机标记，不继承旧报告。精确回退本机原配置可以恢复其原门禁，副请求仍0。请求记录包含provider/profile/api_style/身份指纹，取消无usage仍为未知。当前未增加chat/completions、跨渠道自动重试或运行中热切换。
+新渠道/模型清除compact/table/schema/stream相关门禁，并将副请求归零；按现有工具独立验证Schema、SSE动作、完整事实理解和usage后再启用本机标记，不继承旧报告。精确回退本机原配置可以恢复其原门禁，副请求仍0。请求记录包含provider/profile/api_style/身份指纹，取消无usage仍为未知。当前未增加chat/completions、跨渠道自动重试或活动对局中切换模型。
 
 实际渠道、模型及配置名不能写入源码、文档、提交说明或示范配置。`tools/audit_secrets.py --staged`按本机私有值扫描暂存区，GitHub同步前复用同一规则扫描待上传对象及提交说明；报告只含路径/规则名。没有本机私有文件的克隆仍有通用密钥规则，但无法推断原机器的私有模型值。普通删除提交不会移除旧提交中的配置，历史情况见DEV-080。
+
+## QQ麻将操作工具
+
+DEV-095已将现有麻将功能与可编辑运行开关开放为9个QQ工具。`mahjong_live/history/big_hands/memories`保留原查询；`mahjong_navigate/navigation`保留登录、选场、查询进度、取消及续跑；新增`mahjong_control`提交结构化操作、`mahjong_operations`读取实际状态/目录/结果，以及`mahjong_view`查看空闲专用页面。活动局截图不对QQ开放，以免泄露暗手。
+
+本机安装：在麻将项目运行`python tools/setup_qq_operations.py --qq-root <本机QQ项目>`，脚本持久化独立operation_token并写QQ的ignored `runtime/mahjong-operations.json`。文件仅保存固定loopback baseUrl、operationToken和本机serviceRoot；不打印凭据，不赋予QQ `/control/*`权限。服务若正在运行需重启以读取首次生成的凭据。QQ安装端在bridge运行`node scripts/setup-qq-mahjong.mjs`幂等更新麻将补充段；确认DSH没有在途回合再重载DSH和bridge。
+
+`mahjong_control`参数为当前`key`、本轮真实`sourceMessageId`及`command`；结构如下：
+
+| command.action | 参数或实际行为 |
+| --- | --- |
+| `service_start` / `service_stop` | 启停本机固定麻将服务。启动器只执行已配置项目的venv Python和固定CLI，无shell或任意启动命令；停止服务前需停止接管且无活动局 |
+| `browser_open` / `browser_reconnect` / `bind` / `fit_window` | 打开或重连已核验专用Chrome、绑定其窗口、调整完整显示；不接受任意pid、hwnd或点击坐标 |
+| `start` / `shadow` | 接管当前已认证且完整一致的新鲜场况；shadow只记录决策，不点击 |
+| `arm` | `seconds`默认600、范围10～3600，`shadow`默认false。等待同一认证代际的一次新局，收到真实完整场况才接管；已有活动局则尝试接管当前局 |
+| `pause` / `stop` / `emergency` | 立即撤销等待、导航、结算和输入；Esc及服务重启同样不复活旧授权 |
+| `input_mode` | `mode=physical_foreground`或`browser_background`，持久化本机设置；修改前须停止输入 |
+| `room` | 字符串`room_code`和`operation=ready/unready/leave/confirm_leave/add_robot_0..3/start`；`takeover`默认false，明确要求开始并接管时才设true。只操作真实当前房间，依校准及实际回执判断 |
+| `confirm_results` | 继续权威结果支持的可见结算流程，不启用打牌；受理后仍须查实际进度 |
+| `settings` | `patch`只包含本次需修改的白名单字段，见下表；持久化且不会给当前小局补时间池 |
+| `profile_capture` / `profile_select` | 保存本机当前配置回退点；切换时传`profiles`返回的不透明`profile_id`，不传实际供应商、模型名或密钥 |
+| `review_enqueue` / `review_cancel` | 传`match_id`，排队或取消已记录的结束/中断对局复盘；原已完成来源不会重复复盘 |
+| `memory_revise` | `match_id`及结构化`proposal`，已有经验修改需正确`id/revision`及真实事件证据，可改为inactive；沿用候选/稳定门槛，不改客观场况或官方役种 |
+| `calibrate` | 只从当前专用页截图截取`label`和`box=[x,y,width,height]`，可选`hand_region`；不读任意文件、不执行任意点击，活动局拒绝 |
+
+可编辑运行字段由`mahjong_operations(resource=settings)`返回，未提供字段保持当前值：
+
+| 范围 | 字段 |
+| --- | --- |
+| 计时及超时 | `base_seconds`、`bank_seconds`、`execution_margin`、`request_timeout`、`confirmation_wait_seconds` |
+| 有限恢复 | `model_attempts`、`target_retries`、`failure_window_limit`、`connection_wait_attempts`、`connection_wait_seconds` |
+| 模型传输及格式 | `stream_actions`、`stream_action_format`、`stream_hedge_delay_seconds`、`compact_validated`、`table_wire_validated`、`json_schema` |
+| 复盘和经验 | `review_enabled`、`memory_recall_enabled`、`memory_recall_limit`（0～8） |
+| 观察和流程 | `idle_hand_enabled`、`parallel_observation_enabled`、`result_confirmation_enabled`、`client_guard_enabled` |
+
+格式开关可关闭，重新启用仅限该模型身份已有本机验证；验证资格留ignored `runtime/format-certificates.json`。`timer_verified`、`recovery_timer_verified`、`integration_test`作为只读事实返回，不能通过QQ修改。现有服务监听地址、浏览器资料目录、凭据和供应商属于安装配置，不能作为聊天运行开关注入。役种表只读。
+
+`mahjong_operations`的resource支持`status/catalog/settings/profiles/usage/review_jobs/yaku/calibration/diagnostics/command`。读取某次操作传`commandId`，只允许当前会话编号；役种可传`ids`或`topic`。`catalog`返回完整服务命令Schema、能力和未实现限制；`service_start`由QQ本机启动器处理，不属于服务自身Schema。模型列表仅给本机不透明配置编号和验证资格，用量只给已知token，不推算余额。
+
+HTTP操作入口是`GET /api/v1/mahjong/operations/{resource}`、`POST /api/v1/mahjong/operations/commands`及空闲截图`GET /api/v1/mahjong/operations/view/screenshot`，需Authorization Bearer操作凭据。提交体是`{"command_id":"本次稳定编号","command":{"action":"stop"}}`。同编号同内容返回原结果，换内容拒绝；queued/running/waiting_game只是中间状态，succeeded/failed/cancelled/expired/interrupted/uncertain记录实际进展。等待入局的waiting_game不等于已接管，房间prepared不等于开局，结算任务启动不等于已确认终场。uncertain及传输结果未知先查询原编号，不重复开房、匹配或点击。
+
+QQ可说“打开麻将浏览器”“接管当前这局，用后台点击”“进入这个友人房并准备，开局后由你打”“关闭自动复盘”“把经验召回设为8条”“停止打牌”。缺少房码、场级或建房时间时补充参数。工具开放不取消用户此前暂停的实战测试；正常终场仍停止，不自行开始下一场。
+
+当前未完成范围保持原TODO：新凭据登录/验证码、段位全入口矩阵、已提交匹配的实际取消和综合实战。`unready`虽然有结构化命令和状态回执验证，本机当前缺独立可见模板，需校准后才能实际执行，不按已实测宣称可用。无活动浏览器时只报告断开，不启动游戏来掩盖状态。
+
+只读部署核验在QQ bridge执行`node scripts/verify-mahjong-operations.mjs`：真实发现9个麻将工具，读取14项状态/资料并检查QQ、DSH和映射会话，不提交控制指令或QQ消息。报告留本机runtime；控制和开关变更通过隔离回归验证，真实接管/终场综合验收继续独立暂停。

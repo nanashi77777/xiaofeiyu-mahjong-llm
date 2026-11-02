@@ -29,7 +29,7 @@ def rules_for(root: Path):
                 if key == 'profiles' and isinstance(item, dict):
                     private_values['local-model-profile'].update(name for name in item if name not in ('default', 'example'))
                 if isinstance(item, str) and item:
-                    if key in ('api_key', 'control_token', 'read_token', 'navigation_token'):
+                    if key in ('api_key', 'control_token', 'read_token', 'navigation_token', 'operation_token'):
                         private_values['local-credential'].add(item)
                     elif key == 'base_url':
                         host = urlsplit(item).hostname
