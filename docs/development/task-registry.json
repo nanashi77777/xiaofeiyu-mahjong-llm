@@ -3011,7 +3011,7 @@
       "milestone": "M9",
       "title": "QQ麻将功能与运行开关的专用工具及接管交接",
       "status": "done",
-      "status_reason": "2026-11-02用户明确恢复并扩展到所有麻将功能和开关；实战综合验收仍暂停",
+      "status_reason": "2026-11-02全部现有麻将功能及运行开关工具化、隔离验证和只读部署核验完成；综合实战继续暂停",
       "depends_on": [
         "DEV-042",
         "DEV-017",
@@ -3030,7 +3030,9 @@
         "473 pytest passed; ruff passed; QQ 198 tests passed",
         "Real MCP 9 Mahjong tools and 14 read-only calls; 4 mapped sessions available; autoplay stopped; zero new games or test messages"
       ],
-      "commits": [],
+      "commits": [
+        "86b0d41aa325ad26fca620dce7dd7b939dbaff48"
+      ],
       "completed_record": "docs/development/completed/DEV-095-qq-mahjong-operations.md",
       "completed_on": "2026-11-02"
     }
