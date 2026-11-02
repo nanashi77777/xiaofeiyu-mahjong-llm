@@ -25,4 +25,4 @@ QQ安装只增加麻将自有提示段并重载工具，不纳入用户qq-system
 
 正常终场仍停止，不自动开下一场。既有一场142/142的功能证据保留，三场连续验收未完成，VAL-005五秒目标未通过；本次不会改写旧失败或牌谱。DEV-095从TODO消费，综合VAL保持暂停，不新增重复的“待实现接管”方案。
 
-实际实现提交86b0d41aa325ad26fca620dce7dd7b939dbaff48，QQ配套0172cc7bd01f08c21009660f7f822e392476faa2，已登记[commit-index](../commit-index.md)。公开origin和私有镜像均需推送并读回相同SHA；QQ配套只推其私有origin。回退用对应提交git revert，保留本机档案和命令证据。
+实际实现提交86b0d41aa325ad26fca620dce7dd7b939dbaff48，QQ配套a5e538bead2e0c47c4cc6e0ae6c414514f69f70a，已登记[commit-index](../commit-index.md)。公开origin和私有镜像均需推送并读回相同SHA；QQ配套只推其私有origin。回退用对应提交git revert，保留本机档案和命令证据。
