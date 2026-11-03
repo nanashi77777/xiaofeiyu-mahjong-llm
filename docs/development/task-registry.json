@@ -3041,7 +3041,7 @@
       "kind": "development",
       "milestone": "M5",
       "title": "管理员对话技巧、全局经验联合召回与实际决策接入",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-095",
         "DEV-079"
@@ -3053,8 +3053,15 @@
         "教学独立来源/短文本/版本和停用，不伪造实战证据；QQ仅配置管理员当前直接片段写入且旧入口和实际传输不能绕过",
         "移除50条资格截断，经验及教学相关召回共用8条上限；真实决策入口记录注入版本、复盘可见教学依据；隔离回归及只读部署，不恢复实战"
       ],
-      "evidence": [],
-      "commits": []
+      "evidence": [
+        "488 full pytest and 50 final affected tests passed; ruff; admin boundary 80 QQ tests passed",
+        "SQLite backup and additive schema verified; 24303 events and 31 matches preserved; 9 MCP definitions and 16 authenticated GET reads; gameplay remains stopped"
+      ],
+      "commits": [
+        "0b86c82c143cb1200373ce16f0efaacf2d80e6dd"
+      ],
+      "completed_record": "docs/development/completed/DEV-096-dialogue-mahjong-learning.md",
+      "completed_on": "2026-11-03"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
