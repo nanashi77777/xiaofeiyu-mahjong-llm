@@ -159,5 +159,5 @@ class Queries:
                 return self.envelope(None)
             history = [m for m in memory.history(id) if public(m)]
             return self.envelope({"current":current,"revisions":history[offset:offset+limit]}, next_cursor=str(offset+limit) if offset+limit<len(history) else None)
-        result = [m for m in memory.query(query, status, 50) if public(m)]
+        result = [m for m in memory.query(query, status, None) if public(m)]
         return self.envelope(result[offset:offset+limit], next_cursor=str(offset+limit) if offset+limit<len(result) else None)

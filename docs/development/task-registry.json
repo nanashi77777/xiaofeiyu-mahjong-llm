@@ -3035,6 +3035,26 @@
       ],
       "completed_record": "docs/development/completed/DEV-095-qq-mahjong-operations.md",
       "completed_on": "2026-11-02"
+    },
+    {
+      "id": "DEV-096",
+      "kind": "development",
+      "milestone": "M5",
+      "title": "管理员对话技巧、全局经验联合召回与实际决策接入",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-095",
+        "DEV-079"
+      ],
+      "design_refs": [
+        "docs/design/dialogue-mahjong-learning.md"
+      ],
+      "acceptance": [
+        "教学独立来源/短文本/版本和停用，不伪造实战证据；QQ仅配置管理员当前直接片段写入且旧入口和实际传输不能绕过",
+        "移除50条资格截断，经验及教学相关召回共用8条上限；真实决策入口记录注入版本、复盘可见教学依据；隔离回归及只读部署，不恢复实战"
+      ],
+      "evidence": [],
+      "commits": []
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def tile_index(tile: str) -> int:
@@ -278,6 +278,20 @@ class MemoryScope(Record):
     opponent_riichi: bool | None = None
     room_type: Literal['friend','ranked','contest'] | None = None
     yaku_ids: list[str] = Field(default_factory=list,max_length=8)
+    min_score_gap: int | None = None
+    max_score_gap: int | None = None
+    min_discards: int | None = Field(default=None,ge=0,le=30)
+    max_discards: int | None = Field(default=None,ge=0,le=30)
+    min_remaining: int | None = Field(default=None,ge=0,le=136)
+    max_remaining: int | None = Field(default=None,ge=0,le=136)
+
+    @model_validator(mode='after')
+    def ordered_ranges(self):
+        for key in ('score_gap','discards','remaining'):
+            low,high=getattr(self,'min_'+key),getattr(self,'max_'+key)
+            if low is not None and high is not None and low>high:
+                raise ValueError('inverted memory range')
+        return self
 
     @field_validator('ranks')
     @classmethod

@@ -232,6 +232,54 @@ async def test_memory_revision_needs_actual_ended_evidence_and_does_not_mutate_s
     await s.client.close()
 
 
+async def test_teaching_command_persistence_idempotence_versions_and_private_reads(service):
+    s=service
+    s.coordinator.enabled=True  # Teaching updates do not require interrupting gameplay.
+    command=request('teach-now','knowledge_write',source_quote='领先时检查防守收益',
+        proposal={'claim':'领先低价值手面对立直时比较进攻和防守收益','topic':'defense',
+                  'conditions':['高价值好型听牌仍应比较进攻收益']})
+    result=await finish(s,command)
+    tip=result['result']['knowledge']
+    assert result['status']=='succeeded' and tip['trust']=='taught_unverified'
+    assert (await s.operations.submit(command))==result
+    assert s.store.db.execute('SELECT COUNT(*) FROM mahjong_knowledge').fetchone()[0]==1
+    assert not s.store.latest()  # No invented match or event is required.
+    view=s.operations.resource('knowledge',ids=[tip['id']])
+    assert len(view['items'])==1 and 'source_digest' not in view['items'][0]
+    conflict=await finish(s,request('stale-teaching','knowledge_write',source_quote='停用旧原则',
+        proposal={'id':tip['id'],'revision':9,'status':'inactive'}))
+    assert conflict['status']=='failed'
+    for cid,proposal in [('disable-tip',{'id':tip['id'],'revision':1,'status':'inactive'}),
+                         ('edit-disabled-tip',{'id':tip['id'],'revision':2,'claim':'领先仍应比较具体收益'}),
+                         ('restore-tip',{'id':tip['id'],'revision':3,'status':'active'})]:
+        edited=await finish(s,request(cid,'knowledge_write',source_quote='修订这条麻将技巧',proposal=proposal))
+        assert edited['status']=='succeeded'
+        assert edited['result']['knowledge']['status']==('active' if cid=='restore-tip' else 'inactive')
+    assert s.operations.resource('learning')['active_teachings']==1
+    assert len(s.operations.resource('knowledge',ids=[tip['id']])['revisions'])==4
+    await s.client.close()
+
+
+async def test_disable_experience_without_inventing_match_keeps_evidence_and_rejects_conflicts(service,state):
+    s=service
+    state.lifecycle='ended'
+    event=Event(id='actual-source',match_id=state.match_id,seq=1,kind='ActionNewRound',data={},
+                received_at='2026-01-01T00:00:00+00:00',received_mono=1,source='fixture')
+    s.store.save_event(event,state)
+    memory=Memories(s.store).revise({'claim':'需要重新检验的旧经验','supports':[event.id]},state.match_id)
+    disabled=await finish(s,request('disable-experience','memory_disable',id=memory['id'],revision=1,
+        reason='适用边界不足，等待真实对局再检验',source_quote='先停用旧经验'))
+    assert disabled['status']=='succeeded'
+    current=Memories(s.store).get(memory['id'])
+    assert current['status']=='inactive' and current['supports']==memory['supports']
+    assert current['origin_match']==memory['origin_match']
+    stale=await finish(s,request('stale-experience','memory_disable',id=memory['id'],revision=1,
+        reason='旧版本',source_quote='先停用旧经验'))
+    assert stale['status']=='failed' and len(Memories(s.store).history(memory['id']))==2
+    assert 'source_quote' not in s.store.records('memory_admin_disable')[0]['payload']
+    await s.client.close()
+
+
 async def test_escape_during_arm_binding_is_not_cleared(service,state):
     s=service
     state.operation=None

@@ -13,7 +13,7 @@ from .native import InputDeferred
 from .model import ModelFailure
 from .recovery import Recovery
 from .rules import legal_actions
-from .store import utcnow
+from .store import utcnow, packed
 from .timing import TimeBank
 from .wire import build_context
 
@@ -297,14 +297,17 @@ class Coordinator:
             rules_done = time.monotonic()
             if not actions:
                 raise ValueError("no legal candidate representation")
-            memory_store = Memories(self.store)
             from .rules import routes
             yaku_ids = [r['id'] for r in routes(state.hand,state.players[state.self_seat].melds,state)]
-            recalled = (memory_store.recall(self.frozen_memories,state,yaku_ids,limit=self.settings.memory_recall_limit)
+            from .knowledge import recall_learning,learning_projection
+            recalled = (recall_learning(self.store,self.frozen_memories,state,yaku_ids,limit=self.settings.memory_recall_limit)
                         if self.settings.memory_recall_enabled else [])
+            projection=learning_projection(recalled)
             self.store.record('memory_recall',{'window_id':op.window_id,
-                              'revisions':[{'id':m['id'],'revision':m['revision']} for m in recalled]},state.match_id,state.round_uid)
-            context = build_context(state, actions, plan=self.plan, memories=memory_store.projection(recalled),
+                              'stage':'context_prepared',
+                              'enabled':self.settings.memory_recall_enabled,'projection_chars':len(packed(projection)),
+                              'revisions':[{'id':m['id'],'revision':m['revision'],'source':m['source']} for m in recalled]},state.match_id,state.round_uid)
+            context = build_context(state, actions, plan=self.plan, memories=projection,
                                     compact=self.settings.compact_validated,
                                     tabled=self.settings.compact_validated and self.settings.table_wire_validated)
             context.data["clock"]["local_bank_remaining"] = self.bank.remaining

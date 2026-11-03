@@ -70,6 +70,8 @@ class Store:
           created_at TEXT NOT NULL,payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS memories(id TEXT NOT NULL,revision INTEGER NOT NULL,status TEXT NOT NULL,
           created_at TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(id,revision));
+        CREATE TABLE IF NOT EXISTS mahjong_knowledge(id TEXT NOT NULL,revision INTEGER NOT NULL,status TEXT NOT NULL,
+          created_at TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(id,revision));
         PRAGMA user_version=2;
         """)
 

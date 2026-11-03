@@ -37,8 +37,9 @@ class Memories:
         rows = self.store.db.execute("SELECT m.payload FROM memories m JOIN (SELECT id,MAX(revision) r FROM memories GROUP BY id) v ON m.id=v.id AND m.revision=v.r ORDER BY m.created_at DESC").fetchall()
         result = [json.loads(row[0]) for row in rows]
         words = query.casefold().split()
-        return [m for m in result if (m["status"] == status if status else m["status"] != "inactive")
-                and (not words or any(w in packed(m).casefold() for w in words))][:min(limit, 50)]
+        selected=[m for m in result if (m["status"] == status if status else m["status"] != "inactive")
+                  and (not words or any(w in packed(m).casefold() for w in words))]
+        return selected if limit is None else selected[:min(limit, 50)]
 
     def revise(self, proposal, match_id, *, catalog_version=None, commit=True):
         allowed = {"id", "revision", "status", "claim", "conditions", "supports", "counterexamples", "reviewed_matches", "reason", "yaku_ids", 'kind', 'applies_to', 'preference'}
@@ -128,7 +129,7 @@ class Memories:
     def freeze(self):
         # Freezing eligibility is independent of any one hand. Retrieval later
         # selects a small relevant subset, without choosing or ranking actions.
-        return self.query(limit=50)
+        return [{'id':m['id'],'revision':m['revision']} for m in self.query(limit=None)]
 
     def recall(self, frozen, state, yaku_ids=(), limit=MEMORY_RECALL_LIMIT):
         if type(limit) is not int or limit < 0:
@@ -137,25 +138,27 @@ class Memories:
         if limit == 0:
             return []
         matched = []
-        menzen = all(m.closed for m in state.players[state.self_seat].melds)
-        threat = any(p.riichi != 'none' for seat,p in enumerate(state.players) if seat != state.self_seat)
-        rank = state.ranks[state.self_seat] if state.ranks else None
+        current_versions={m['id']:m for m in self.query(limit=None)}
         for memory in frozen:
-            current = self.get(memory['id'])
+            current = current_versions.get(memory['id'])
             if not current or current['status'] == 'inactive':
                 continue
+            if 'claim' not in memory:
+                if current['revision'] != memory['revision']:
+                    # A reference pins the exact auditable revision; no mid-match upgrades.
+                    row=self.store.db.execute('SELECT payload FROM memories WHERE id=? AND revision=?',
+                                              (memory['id'],memory['revision'])).fetchone()
+                    if not row:
+                        continue
+                    memory=json.loads(row[0])
+                else:
+                    memory=current
             if any(current.get(key) != memory.get(key) for key in ('claim','conditions','kind','applies_to','preference')):
                 continue
-            scope = MemoryScope.model_validate(memory.get('applies_to',{}))
-            tests = [(scope.phases,state.phase.value in scope.phases),
-                     (scope.ranks,rank in scope.ranks),
-                     (scope.menzen is not None,scope.menzen == menzen),
-                     (scope.opponent_riichi is not None,scope.opponent_riichi == threat),
-                     (scope.room_type is not None,scope.room_type == state.rules.room_type),
-                     (scope.yaku_ids,bool(set(scope.yaku_ids) & set(yaku_ids)))]
-            if any(bool(enabled) and not result for enabled,result in tests):
+            relevance=scope_relevance(memory.get('applies_to',{}),state,yaku_ids)
+            if relevance is None:
                 continue
-            matched.append((sum(bool(enabled) for enabled,_ in tests),memory))
+            matched.append((relevance,memory))
         matched.sort(key=lambda item:(item[1]['status'] == 'stable',item[0],item[1]['updated_at']),reverse=True)
         selected, styles = [], set()
         for _,memory in matched:
@@ -169,6 +172,17 @@ class Memories:
                 break
         return selected
 
+    def disable(self, id, revision, reason):
+        previous=self.get(id)
+        if not previous or previous['revision'] != revision:
+            raise ValueError('memory revision conflict')
+        memory={**previous,'revision':revision+1,'status':'inactive','reason':validate_disable_reason(reason),
+                'updated_at':utcnow()}
+        with self.store.db:
+            self.store.db.execute('INSERT INTO memories VALUES(?,?,?,?,?)',
+                (id,memory['revision'],'inactive',utcnow(),packed(memory)))
+        return memory
+
     @staticmethod
     def projection(memories):
         return [{**{key:m.get(key) for key in ('id','revision','status','kind','claim','conditions','applies_to','preference','yaku_ids')},
@@ -176,3 +190,29 @@ class Memories:
 
     def history(self, id):
         return [json.loads(r[0]) for r in self.store.db.execute("SELECT payload FROM memories WHERE id=? ORDER BY revision DESC", (id,))]
+
+
+def validate_disable_reason(reason):
+    # Keep the same length/type boundary without constructing an unrelated claim.
+    if not isinstance(reason,str) or not 1 <= len(reason) <= 160:
+        raise ValueError('memory disable reason required')
+    return reason
+
+
+def scope_relevance(value, state, yaku_ids=()):
+    scope=MemoryScope.model_validate(value)
+    menzen=all(m.closed for m in state.players[state.self_seat].melds)
+    threat=any(p.riichi!='none' for seat,p in enumerate(state.players) if seat!=state.self_seat)
+    rank=state.ranks[state.self_seat] if state.ranks else None
+    tests=[(bool(scope.phases),state.phase.value in scope.phases),(bool(scope.ranks),rank in scope.ranks),
+           (scope.menzen is not None,scope.menzen==menzen),
+           (scope.opponent_riichi is not None,scope.opponent_riichi==threat),
+           (scope.room_type is not None,scope.room_type==state.rules.room_type),
+           (bool(scope.yaku_ids),bool(set(scope.yaku_ids)&set(yaku_ids)))]
+    gap=(state.scores[state.self_seat]-max(v for i,v in enumerate(state.scores) if i!=state.self_seat)
+         if state.scores else None)
+    for key,current in [('score_gap',gap),('discards',len(state.players[state.self_seat].river)),('remaining',state.remaining)]:
+        low,high=getattr(scope,'min_'+key),getattr(scope,'max_'+key)
+        tests += [(low is not None,current is not None and (low is None or current>=low)),
+                  (high is not None,current is not None and (high is None or current<=high))]
+    return None if any(enabled and not ok for enabled,ok in tests) else sum(enabled for enabled,_ in tests)

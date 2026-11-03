@@ -20,6 +20,7 @@ from .review import MemoryProposal
 from .store import packed, utcnow
 from .usage import usage_summary
 from .yaku import YakuReference
+from .knowledge import Knowledge, KnowledgeProposal, learning_status
 
 
 class SimpleCommand(Record):
@@ -97,6 +98,20 @@ class MemoryCommand(Record):
     proposal: MemoryProposal
 
 
+class TeachingCommand(Record):
+    action: Literal['knowledge_write']
+    source_quote: StrictStr = Field(min_length=2,max_length=600)
+    proposal: KnowledgeProposal
+
+
+class DisableMemoryCommand(Record):
+    action: Literal['memory_disable']
+    id: StrictStr = Field(min_length=1,max_length=150)
+    revision: StrictInt = Field(ge=1)
+    reason: StrictStr = Field(min_length=1,max_length=160)
+    source_quote: StrictStr = Field(min_length=2,max_length=600)
+
+
 class CalibrationCommand(Record):
     action: Literal['calibrate']
     label: StrictStr = Field(pattern=r'^(?:tile_[0-9][mpsz]|button_[a-z0-9_]{1,64}|combo_[a-z0-9_]{1,80})$')
@@ -105,7 +120,8 @@ class CalibrationCommand(Record):
 
 
 Command = Annotated[SimpleCommand | ArmCommand | InputCommand | ConfigureCommand | RoomCommand |
-                    ProfileCommand | CaptureCommand | ReviewCommand | MemoryCommand | CalibrationCommand,
+                    ProfileCommand | CaptureCommand | ReviewCommand | MemoryCommand | TeachingCommand |
+                    DisableMemoryCommand | CalibrationCommand,
                     Field(discriminator='action')]
 COMMAND = TypeAdapter(Command)
 
@@ -212,7 +228,7 @@ class Operations:
         except (OSError,ValueError,KeyError,LobbyError):
             rooms=[]
         return {'schema_version':'mahjong.operations.v1','command_schema':OperationRequest.model_json_schema(),
-                'resources':['status','catalog','settings','profiles','usage','review_jobs','yaku','calibration','diagnostics','command'],
+                'resources':['status','catalog','settings','profiles','usage','review_jobs','yaku','calibration','diagnostics','command','knowledge','learning'],
                 'navigation':['login','ranked','join_friend','create_friend'],
                 'query':['live','matches','rounds','big-hands','memories'],
                 'limitations':['login_credentials_and_captcha_may_require_user',
@@ -228,6 +244,11 @@ class Operations:
             return self.catalog()
         if name == 'settings':
             return self.settings()
+        if name == 'knowledge':
+            return Knowledge(self.s.store).read(query=topic,ids=ids or [])
+        if name == 'learning':
+            return {**learning_status(self.s.store),'recall_enabled':self.s.settings.memory_recall_enabled,
+                    'shared_recall_limit':self.s.settings.memory_recall_limit}
         if name == 'profiles':
             return self.profiles()
         if name == 'command':
@@ -461,6 +482,15 @@ class Operations:
         if action == 'memory_revise':
             proposal = c.proposal.model_dump(exclude_none=True)
             memory = Memories(s.store).revise(proposal,c.match_id)
+            return {key:memory[key] for key in ('id','revision','status')}
+        if action == 'knowledge_write':
+            memory=Knowledge(s.store).write(c.proposal,source_quote=c.source_quote,source_ref=request.command_id)
+            return {'knowledge':memory,'effective':'next_decision_snapshot',
+                    'recall_enabled':s.settings.memory_recall_enabled}
+        if action == 'memory_disable':
+            memory=Memories(s.store).disable(c.id,c.revision,c.reason)
+            s.store.record('memory_admin_disable',{'id':c.id,'revision':memory['revision'],
+                'source_ref':request.command_id,'source_digest':hashlib.sha256(c.source_quote.encode()).hexdigest()})
             return {key:memory[key] for key in ('id','revision','status')}
         if self.arm_id:
             raise LobbyError('cancel_wait_before_reconfiguration')
