@@ -143,3 +143,49 @@ def test_reattach_rejects_another_profile_or_executable(monkeypatch, tmp_path):
     payload['ExecutablePath'] = str(tmp_path/'other.exe')
     with pytest.raises(InputDeferred,match='executable differs'):
         b._verify_profile_process(12)
+
+
+@pytest.mark.parametrize('mode',['browser_background','physical_foreground'])
+@pytest.mark.parametrize('reload_fails',[False,True])
+async def test_reattach_prepares_background_frames_before_reload_and_cleans_failure(monkeypatch,mode,reload_fails):
+    commands=[]
+    detached=[]
+    async def send(method,params=None):
+        commands.append((method,params))
+    async def detach():
+        detached.append(True)
+    session=SimpleNamespace(send=send,detach=detach,on=lambda *args:None)
+    async def new_session(page):
+        return session
+    async def reload(**kwargs):
+        assert ('Page.startScreencast' in [m for m,_ in commands])==(mode=='browser_background')
+        if reload_fails:
+            raise TimeoutError('fixture reload failed')
+    page=SimpleNamespace(url=Settings().game_url,reload=reload)
+    context=SimpleNamespace(pages=[page],new_cdp_session=new_session)
+    page.context=context
+    async def close():
+        pass
+    chrome=SimpleNamespace(contexts=[context],close=close)
+    async def connect(*args):
+        return chrome
+    driver=SimpleNamespace(chromium=SimpleNamespace(connect_over_cdp=connect),stop=close)
+    async def start():
+        return driver
+    monkeypatch.setattr('majsoul_llm.browser.async_playwright',lambda:SimpleNamespace(start=start))
+    browser=Browser(Settings(input_mode=mode),None)
+    async def process_id():
+        return 12
+    browser.process_id=process_id
+    browser._verify_profile_process=lambda pid:None
+    browser._listen=close
+    if reload_fails:
+        with pytest.raises(InputDeferred):
+            await browser.attach_existing(12)
+        assert browser.input_cdp is None and browser.page is None
+        assert ('Page.stopScreencast' in [m for m,_ in commands])==(mode=='browser_background')
+    else:
+        await browser.attach_existing(12)
+        assert bool(browser.input_cdp)==(mode=='browser_background')
+        await browser.release_background()
+    assert not any(m in ('Input.dispatchMouseEvent','Browser.setWindowBounds','Emulation.setDeviceMetricsOverride') for m,_ in commands)

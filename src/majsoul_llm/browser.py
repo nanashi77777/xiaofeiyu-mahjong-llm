@@ -150,12 +150,21 @@ class Browser:
             self.cdp = await self.context.new_cdp_session(self.page)
             self.attached_browser = chrome
             await self._listen()
+            if self.settings.input_mode=='browser_background':
+                # Loading/login also needs renderer frames in a minimized
+                # window, before any gameplay decision can prepare input.
+                await self.prepare_background()
             await self.page.reload(wait_until='domcontentloaded', timeout=60000)
         except BaseException as error:
             if self.consumer:
                 self.consumer.cancel()
                 await asyncio.gather(self.consumer, return_exceptions=True)
                 self.consumer = None
+            if self.input_cdp:
+                try:
+                    await self.release_background()
+                except Exception:
+                    self.errors.append('background_attachment_cleanup_failed')
             if self.cdp:
                 await self.cdp.detach()
             if chrome:
