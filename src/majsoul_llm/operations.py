@@ -154,6 +154,7 @@ class Operations:
         self.task = None
         self.arm_task = None
         self.arm_id = None
+        self.arm_deadline = 0
         self.epoch = 0
         self.s.store.db.execute('CREATE TABLE IF NOT EXISTS operation_commands(id TEXT PRIMARY KEY,payload TEXT NOT NULL)')
         rows = self.s.store.db.execute('SELECT id,payload FROM operation_commands').fetchall()
@@ -273,7 +274,7 @@ class Operations:
         if s.engine.state and s.engine.state.lifecycle=='active':
             raise LobbyError('game_started_before_room_start')
         if existing:
-            if self.arm_id!=existing or self.arm_task.done():
+            if not self.room_start_authorized(existing):
                 raise LobbyError('autoplay_authorization_expired_before_start')
             cid=existing
             record=self.get(cid)
@@ -298,6 +299,10 @@ class Operations:
                                'prepared_before_start':True})
         s.store.record('room_takeover_prepared',{'command_id':command.command_id,'authorization_id':cid})
         return cid
+
+    def room_start_authorized(self, cid):
+        return bool(self.arm_id==cid and self.arm_task and not self.arm_task.done()
+                    and time.monotonic()<self.arm_deadline and not self.input_stopped())
 
     async def cancel_room_start(self, cid, reason):
         if self.arm_id==cid:
@@ -426,6 +431,7 @@ class Operations:
                 self.update(self.arm_id,status='cancelled',reason=reason)
         self.arm_task = None
         self.arm_id = None
+        self.arm_deadline = 0
 
     async def stop(self, reason='stop'):
         self.s.executor.mouse.stop.set()
@@ -564,6 +570,7 @@ class Operations:
         self.s.executor.mouse.stop.clear()
         self.arm_id = request.command_id
         started=time.monotonic()
+        self.arm_deadline=started+request.command.seconds
         self.arm_task = asyncio.create_task(self.wait_game(request,epoch,session.generation,started,current_match,
             state.match_id if state else None))
         return {'waiting_game':True,'seconds':request.command.seconds,'one_match_only':True,
@@ -631,6 +638,7 @@ class Operations:
         finally:
             if self.arm_id == request.command_id:
                 self.arm_id = None
+                self.arm_deadline = 0
 
     async def execute(self, request, epoch):
         s = self.s

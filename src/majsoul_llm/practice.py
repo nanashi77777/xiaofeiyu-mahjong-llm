@@ -65,7 +65,7 @@ class PracticeRooms:
                     raise LobbyError("active_game_requires_handoff")
                 if service.executor.mouse.stop.is_set():
                     raise LobbyError("navigation_stopped")
-                if authorization and (service.operations.arm_id!=authorization or service.operations.arm_task.done()):
+                if authorization and not service.operations.room_start_authorized(authorization):
                     raise LobbyError('autoplay_not_prepared_before_room_start')
                 if not (session.authenticated and session.generation == generation and session.room
                         and session.room["room_code"] == command.room_code and not session.room.get("playing")):

@@ -566,7 +566,7 @@ async def test_room_start_reuses_existing_arm_before_press_without_extending_it(
     await s.client.close()
 
 
-@pytest.mark.parametrize('failure',['invisible','rejected','unknown','stopped'])
+@pytest.mark.parametrize('failure',['invisible','rejected','unknown','stopped','expired_before_press'])
 async def test_prearmed_room_start_failure_and_uncertainty_do_not_repress(service,monkeypatch,failure):
     from majsoul_llm.practice import PracticeRooms
     s=service
@@ -581,6 +581,8 @@ async def test_prearmed_room_start_failure_and_uncertainty_do_not_repress(servic
         if failure=='stopped':
             s.executor.mouse.stop.set()
             ctx.check()
+        if failure=='expired_before_press':
+            s.operations.arm_deadline=time.monotonic()-1
         ctx.before_submit(submit)
         presses.append(control)
         if failure=='rejected':
