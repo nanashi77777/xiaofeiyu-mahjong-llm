@@ -104,6 +104,7 @@ class Service:
         return {"connected":self.browser.connected, "protocol_loaded":bool(self.engine.protocol),
                 "protocol_hash":self.engine.protocol.fingerprint if self.engine.protocol else None,
                 "enabled":self.coordinator.enabled, "shadow":self.coordinator.shadow, "status":self.coordinator.status,
+                'startup':self.operations.startup(),
                 'recovery':self.coordinator.recovery.public(),
                 "bound_window":self.executor.window.__dict__ if self.executor.window else None,
                 "input_mode":self.executor.input_mode,
@@ -350,18 +351,13 @@ def create_app(settings=None, service=None):
             if s.navigator.busy():
                 raise LobbyError("navigation_in_progress")
             await s.executor.bind(int(data["hwnd"]))
-        elif action == "shadow":
-            await s.operations.revoke_arm('explicit_panel_start')
-            if s.navigator.busy():
-                raise LobbyError("navigation_in_progress")
-            await s.coordinator.start(shadow=True)
-        elif action == "start":
-            await s.operations.revoke_arm('explicit_panel_start')
-            if s.navigator.busy():
-                raise LobbyError("navigation_in_progress")
-            if not s.executor.window:
-                raise ValueError("bind a game window first")
-            await s.coordinator.start(shadow=False)
+        elif action in ('start','shadow','arm'):
+            # The panel uses the same durable, authenticated, auto-binding
+            # handoff as QQ. No separate route may bypass those checks.
+            import uuid
+            command_id=data.pop('command_id',None) or uuid.uuid4().hex
+            return await s.operations.submit(OperationRequest(command_id=command_id,
+                command={'action':action,**data}))
         elif action == 'confirm-results':
             await s.round_flow.resume()
         elif action=='input-mode':

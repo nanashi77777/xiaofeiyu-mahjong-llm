@@ -5,8 +5,8 @@
 body{margin:0;background:#0b1b24;color:#dfecec;font:15px/1.6 system-ui}main{max-width:1200px;margin:auto;padding:32px}h1{font-size:30px;margin:0}header{display:flex;justify-content:space-between;align-items:center}.muted{color:#8faab7}section{background:#142a35;border:1px solid #29444f;padding:20px;border-radius:12px;margin-top:20px}.row{display:flex;gap:10px;flex-wrap:wrap}button,input,select{font:inherit;border-radius:6px;padding:9px 14px;background:#203e4b;color:#e6f1f1;border:1px solid #3e5f6d}button{cursor:pointer}button:hover{background:#335563}.danger{background:#8d3434}pre{font:13px/1.5 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:500px;overflow:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.grid section{min-width:0}#message{color:#f4cd8b}input{max-width:500px;flex:1}@media(max-width:800px){.grid{grid-template-columns:1fr}}
 </style>
 <main><header><div><h1>小肥鱼 · 麻将</h1><span class="muted">四人日麻 / WebSocket 场况 / 大模型决策</span></div><div><span id="badge">未连接面板</span><br><small id="updated" class="muted">尚未收到状态</small></div></header>
-<section><div class="row"><input id="token" type="password" placeholder="本机控制令牌" autocomplete="off"><button onclick="connect()">连接面板</button></div><p id="message">先启动专用浏览器，手动登录和进入牌局，再绑定游戏窗口。失焦时暂停输入，Esc 急停。</p>
-<div class="row"><button onclick="control('browser')">打开专用浏览器</button><button onclick="control('fit-window')">恢复完整窗口</button><button onclick="windows()">查找窗口</button><select id="window"></select><button onclick="bind()">绑定</button><select id="mode"><option value="physical_foreground">前台物理鼠标</option><option value="browser_background">后台浏览器模拟点击</option></select><button onclick="mode()">应用输入模式</button><button onclick="control('shadow')">仅记录模型选择</button><button onclick="control('start')">开始接管</button><button onclick="control('pause')">暂停</button><button onclick="control('confirm-results')">继续结算</button><button class="danger" onclick="control('emergency')">急停</button></div></section>
+<section><div class="row"><input id="token" type="password" placeholder="本机控制令牌" autocomplete="off"><button onclick="connect()">连接面板</button></div><p id="message">打开专用浏览器并完成登录。已入局选“接管当前局”，大厅或房间选“等待下一局”；接管时自动绑定专用窗口。Esc急停。</p>
+<div class="row"><button onclick="control('browser')">打开专用浏览器</button><button onclick="control('fit-window')">恢复完整窗口</button><button onclick="windows()">查找窗口</button><select id="window"></select><button onclick="bind()">绑定</button><select id="mode"><option value="physical_foreground">前台物理鼠标</option><option value="browser_background">后台浏览器模拟点击</option></select><button onclick="mode()">应用输入模式</button><button onclick="control('shadow')">仅记录模型选择</button><button onclick="control('start')">接管当前局</button><button onclick="control('arm')">等待下一局（10分钟内一次）</button><button onclick="control('pause')">暂停</button><button onclick="control('confirm-results')">继续结算</button><button class="danger" onclick="control('emergency')">急停</button></div><p id="startup" class="muted"></p><pre id="operation">尚无接管指令</pre></section>
 <section><h2>登录与选场</h2><p class="muted">按指定选项操作。入房后等待准备，不会自动开始下一场。需要登录验证时，在专用浏览器完成后继续。</p>
 <div class="row"><select id="nav-kind" onchange="navFields()"><option value="login">登录 / 复用登录态</option><option value="ranked">段位场</option><option value="join_friend">加入友人房</option><option value="create_friend">创建友人房</option></select>
 <select id="nav-tier" hidden><option value="bronze">铜之间</option><option value="silver">银之间</option><option value="gold">金之间</option><option value="jade">玉之间</option><option value="throne">王座之间</option></select>
@@ -18,7 +18,7 @@ body{margin:0;background:#0b1b24;color:#dfecec;font:15px/1.6 system-ui}main{max-
 <div id="observations" class="grid"><section><h2>当前牌局</h2><pre id="state">尚无观察记录</pre></section><section><h2>本局思路与执行</h2><pre id="plan"></pre><pre id="receipts"></pre></section><section><h2>时间与模型消耗</h2><pre id="metrics"></pre></section><section><h2>查询与经验</h2><div class="row"><button onclick="read('matches')">最近二十场</button><button onclick="read('big-hands')">本家大牌</button><button onclick="read('memories')">打法经验</button></div><pre id="history"></pre></section></div></main>
 <script>
 let token='',timer;const $=id=>document.getElementById(id);const show=(id,data)=>$(id).textContent=JSON.stringify(data,null,2);
-let navigationId=null,refreshing=false,connectionVersion=0,lastUpdate=null,refreshRequest=null,modeDirty=false;const requests=new Set();
+let navigationId=null,operationId=null,refreshing=false,connectionVersion=0,lastUpdate=null,refreshRequest=null,modeDirty=false;const requests=new Set();
 $('mode').addEventListener('change',()=>{modeDirty=true});
 if(location.hash){$('token').value=decodeURIComponent(location.hash.slice(1));history.replaceState(null,'',location.pathname)}
 function reportError(e){if(e.name!=='StaleConnection')$('message').textContent=e.message}
@@ -47,12 +47,17 @@ async function refresh(){
   refreshing=true;const version=connectionVersion,controller=new AbortController();refreshRequest=controller;
   try{
     let s=await api('/control/status',undefined,{signal:controller.signal});if(version!==connectionVersion)return;
+    const phases={awaiting_new_game:'等待一次真实入局，尚未开始打牌',awaiting_complete_round:'已入局，等待首局或恢复数据完整',awaiting_fresh_action:'等待下一次可用行动窗口，沿用实际剩余时间',awaiting_navigation_idle:'等待选场操作结束',binding:'正在绑定专用窗口并复验场况'};
+    const waitingText=phases[s.startup?.phase];
     lastUpdate=new Date();$('updated').textContent='最后收到状态：'+lastUpdate.toLocaleTimeString();
     $('observations').removeAttribute('data-stale');$('observations').style.opacity='';
-    $('badge').textContent=s.status;show('state',s.state);show('plan',s.plan);show('receipts',s.receipts);show('navigation',s.navigation);navigationCommands(s.navigation);
+    $('badge').textContent=waitingText?'等待接管':s.status;show('state',s.state);show('plan',s.plan);show('receipts',s.receipts);show('navigation',s.navigation);navigationCommands(s.navigation);
     show('metrics',{model:s.model,input_mode:s.input_mode,bank:s.time_bank,timer_verified:s.timer_verified,usage_summary:s.usage_summary,recent_usage:s.token_usage,diagnostics:s.diagnostics,input_error:s.input_error});
     if(!modeDirty&&['physical_foreground','browser_background'].includes(s.input_mode))$('mode').value=s.input_mode;
-    $('message').textContent=!s.enabled?'已停止接管':s.shadow?'当前为观察与模型记录模式':s.input_mode==='browser_background'?'后台模拟点击已启用，系统鼠标不移动':'前台物理点击已启用，失焦暂停输入';
+    $('message').textContent=waitingText||(!s.enabled?'已停止接管':s.shadow?'当前为观察与模型记录模式':s.input_mode==='browser_background'?'后台模拟点击已启用，系统鼠标不移动':'前台物理点击已启用，失焦暂停输入');
+    $('startup').textContent=waitingText||s.startup?.recovery?.note||(s.enabled?'':'当前局接管会自动绑定；尚未入局时请选择“等待下一局”。');
+    if(s.startup?.command_id)operationId=s.startup.command_id;
+    if(operationId){try{let op=await api('/api/v1/mahjong/operations/command?command_id='+encodeURIComponent(operationId),undefined,{signal:controller.signal});if(version!==connectionVersion)return;show('operation',op)}catch(e){if(version!==connectionVersion)return;show('operation',{command_id:operationId,status:'结果尚未确认',note:e.message})}}
   }catch(e){
     if(version!==connectionVersion)return;
     $('badge').textContent='连接中断 · 当前状态未知';$('observations').setAttribute('data-stale','true');$('observations').style.opacity='.55';
@@ -62,7 +67,7 @@ async function refresh(){
 function navFields(){let k=$('nav-kind').value;$('nav-tier').hidden=k!=='ranked';$('nav-code').hidden=k!=='join_friend';$('nav-ready-field').hidden=k!=='join_friend';$('nav-time').hidden=k!=='create_friend';$('nav-length').hidden=!['ranked','create_friend'].includes(k);for(let o of $('nav-length').options)o.hidden=k==='ranked'&&!['east','south'].includes(o.value);if(k==='ranked'&&!['east','south'].includes($('nav-length').value))$('nav-length').value='east'}
 async function navigate(){try{let kind=$('nav-kind').value,c={kind,command_id:crypto.randomUUID()};if(kind==='ranked')Object.assign(c,{tier:$('nav-tier').value,length:$('nav-length').value});if(kind==='join_friend')Object.assign(c,{room_code:$('nav-code').value,ready:$('nav-ready').checked});if(kind==='create_friend'){let [fixed_seconds,bank_seconds]=$('nav-time').value.split(',').map(Number);Object.assign(c,{players:4,length:$('nav-length').value,thinking:{fixed_seconds,bank_seconds}})}navigationId=c.command_id;show('navigation',await api('/api/v1/mahjong/navigation/commands',c));await refresh()}catch(e){reportError(e)}}
 async function navigationAction(action){try{if(!navigationId)throw Error('请先选择已有选场指令');show('navigation',await api('/api/v1/mahjong/navigation/commands/'+encodeURIComponent(navigationId)+'/'+action,{}));await refresh()}catch(e){reportError(e)}}
-async function control(action,data={}){try{await api('/control/'+action,data);await refresh()}catch(e){reportError(e)}}
+async function control(action,data={}){try{if(['start','shadow','arm'].includes(action)){operationId=crypto.randomUUID();data={...data,command_id:operationId};show('operation',{command_id:operationId,status:'提交中'})}let result=await api('/control/'+action,data);if(['start','shadow','arm'].includes(action))show('operation',result);await refresh()}catch(e){reportError(e)}}
 async function windows(){try{let data=await api('/control/windows');$('window').replaceChildren(...data.map(w=>{let o=document.createElement('option');o.value=w.hwnd;o.textContent=w.title+' / '+w.pid;return o}))}catch(e){reportError(e)}}
 async function bind(){await control('bind',{hwnd:Number($('window').value)})}
 async function mode(){const selected=$('mode').value;try{await api('/control/input-mode',{mode:selected});if($('mode').value===selected)modeDirty=false;await refresh()}catch(e){reportError(e)}}

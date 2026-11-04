@@ -34,7 +34,9 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\majsoul-llm.exe panel
 ```
 
-面板在 http://127.0.0.1:8765 。panel 命令通过本机 URL fragment 带入控制令牌，不进入 HTTP 请求地址或服务访问日志。专用浏览器由面板打开，独立 profile，不读取其他浏览器的登录资料。手动登录、进入友人场；默认停止输入。先使用仅记录模型选择，确认状态、计时和定位，再绑定窗口和开始接管。Esc、暂停、停止均阻止后续输入。不要使用未验证定位开始段位场。
+面板在 http://127.0.0.1:8765 。panel 命令通过本机 URL fragment 带入控制令牌，不进入 HTTP 请求地址或服务访问日志。点击“连接面板”后打开专用浏览器并完成登录；专用profile不读取其他浏览器的登录资料，默认停止输入。已进入对局选“接管当前局”，大厅或友人房选“等待下一局（10分钟内一次）”；两者都通过持久操作入口自动绑定经过核验的专用窗口，无需先手动绑定。仅记录模型选择也使用相同交接门禁，不能以旧牌谱启动。等待不会替你开房、准备或开局。Esc、暂停、停止均撤销等待并阻止后续输入；正常终场后停止。不要使用未验证定位开始段位场。
+
+面板与QQ分别保留原command_id和查询入口。queued/running只是受理与执行中，waiting_game表示尚未启用；stage进一步区分awaiting_new_game（等真实入局）、awaiting_complete_round（等完整首局/恢复）、awaiting_fresh_action（等新有效行动窗口）和binding（绑定复验）。只有结果enabled=true才代表接管已启用。认证先于首局时继续等待原授权期限，不提前失败；过期行动不会重置时间池。失败回执与status.startup提供固定reason及recovery提示。
 
 启动显式关闭Playwright固定视口，并核验本窗口最大化，游戏根据实际可用区域适配。面板“恢复完整窗口”先停接管再最大化；需要重新开启接管。截图前核验完整canvas在当前页面视口内，截断时暂停定位，防止截图自动滚动掩盖不完整窗口。本机125%缩放的真实大厅、手动缩小/恢复、后台最小化已核验；其他显示器/皮肤仍需专项验证。
 
@@ -170,7 +172,7 @@ DEV-095已将现有麻将功能与可编辑运行开关开放为9个QQ工具。`
 | `service_start` / `service_stop` | 启停本机固定麻将服务。启动器只执行已配置项目的venv Python和固定CLI，无shell或任意启动命令；停止服务前需停止接管且无活动局 |
 | `browser_open` / `browser_reconnect` / `bind` / `fit_window` | 打开或重连已核验专用Chrome、绑定其窗口、调整完整显示；不接受任意pid、hwnd或点击坐标 |
 | `start` / `shadow` | 接管当前已认证且完整一致的新鲜场况；shadow只记录决策，不点击 |
-| `arm` | `seconds`默认600、范围10～3600，`shadow`默认false。等待同一认证代际的一次新局，收到真实完整场况才接管；已有活动局则尝试接管当前局 |
+| `arm` | `seconds`默认600、范围10～3600，`shadow`默认false。等待同一认证代际的一次新局，收到真实完整场况才接管；已有活动局则接管当前局，初始化未完整/当前窗口过期时在原期限内等待，不补时间 |
 | `pause` / `stop` / `emergency` | 立即撤销等待、导航、结算和输入；Esc及服务重启同样不复活旧授权 |
 | `input_mode` | `mode=physical_foreground`或`browser_background`，持久化本机设置；修改前须停止输入 |
 | `room` | 字符串`room_code`和`operation=ready/unready/leave/confirm_leave/add_robot_0..3/start`；`takeover`默认false，明确要求开始并接管时才设true。只操作真实当前房间，依校准及实际回执判断 |

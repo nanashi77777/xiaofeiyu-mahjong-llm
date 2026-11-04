@@ -125,6 +125,17 @@ Command = Annotated[SimpleCommand | ArmCommand | InputCommand | ConfigureCommand
                     Field(discriminator='action')]
 COMMAND = TypeAdapter(Command)
 
+STARTUP_RECOVERY = {
+    'browser_not_connected': {'action':'browser_open','note':'先打开或重连专用浏览器，再确认登录。'},
+    'authenticated_browser_required_before_arm': {'action':'browser_open','note':'等待专用浏览器完成登录后再arm。'},
+    'active_game_required_use_arm': {'action':'arm','note':'当前没有活动对局；arm只等待一次入局，不会自动开局。'},
+    'complete_game_state_required': {'action':'arm','note':'首局或恢复数据尚未完整；arm等待真实完整场况。'},
+    'authenticated_game_required': {'action':'browser_reconnect','note':'需要重新观察当前对局的真实认证和恢复事件。'},
+    'fresh_action_window_required': {'action':'arm','note':'等待下一次真实且可用的行动窗口，不重置计时。'},
+    'action_deadline_expired': {'action':'arm','note':'当前行动期限已过；等待新事件，不重发旧操作。'},
+}
+WAITABLE_STARTUP = {'complete_game_state_required','fresh_action_window_required','action_deadline_expired'}
+
 
 class OperationRequest(Record):
     command_id: StrictStr = Field(pattern=r'^[a-zA-Z0-9_-]{1,100}$')
@@ -222,6 +233,18 @@ class Operations:
                 'review_busy':bool(s.reviewer.review_task and not s.reviewer.review_task.done()),
                 'queued_reviews':len(s.reviewer.queued)}
 
+    def startup(self):
+        """Public startup guidance, without hands, strategy or private settings."""
+        if self.s.coordinator.enabled:
+            return {'phase':'shadow' if self.s.coordinator.shadow else 'active','reason':None}
+        if self.arm_id and self.arm_task and not self.arm_task.done():
+            record=self.get(self.arm_id)
+            return {'phase':(record.get('result') or {}).get('stage','awaiting_new_game'),
+                    'reason':None,'command_id':self.arm_id,'one_match_only':True}
+        reason=self.game_blocker()
+        return {'phase':'stopped','reason':reason,
+                'recovery':STARTUP_RECOVERY.get(reason), 'context_ready':reason is None}
+
     def catalog(self):
         try:
             rooms=sorted(self.s.lobby_ui.profile()['scenes']['room']['controls'])
@@ -239,7 +262,7 @@ class Operations:
 
     def resource(self, name, *, command_id=None, ids=None, topic=''):
         if name == 'status':
-            return self.status()
+            return {**self.status(),'startup':self.startup()}
         if name == 'catalog':
             return self.catalog()
         if name == 'settings':
@@ -349,15 +372,32 @@ class Operations:
         except Exception as error:
             # Never publish exception text, profile fields, model text or stack.
             code = error.code if isinstance(error,LobbyError) else 'operation_unavailable_'+type(error).__name__.lower()
-            self.update(request.command_id,status='failed',reason=code)
+            self.update(request.command_id,status='failed',reason=code,
+                        result={'recovery':STARTUP_RECOVERY[code]} if code in STARTUP_RECOVERY else None)
+
+    def game_blocker(self):
+        s=self.s
+        state=s.engine.state
+        if not s.browser.connected:
+            return 'browser_not_connected'
+        if not state or state.lifecycle != 'active':
+            return 'active_game_required_use_arm'
+        if not s.engine.authenticated_mono:
+            return 'authenticated_game_required'
+        if state.rules.unsupported:
+            return 'unsupported_game_rules'
+        if not state.consistent:
+            return 'inconsistent_game_state'
+        if state.round_completeness != 'full' or not state.round_uid:
+            return 'complete_game_state_required'
+        return None
 
     def ready_game(self):
         s = self.s
         state = s.engine.state
-        if (not s.browser.connected or not state or state.lifecycle != 'active' or not state.consistent
-                or state.round_completeness != 'full' or not state.round_uid or state.rules.unsupported
-                or not s.engine.authenticated_mono):
-            raise LobbyError('fresh_authenticated_complete_game_required')
+        reason=self.game_blocker()
+        if reason:
+            raise LobbyError(reason)
         if state.operation and (state.operation.historical or state.operation.received_mono < s.engine.authenticated_mono):
             raise LobbyError('fresh_action_window_required')
         if state.operation:
@@ -374,7 +414,10 @@ class Operations:
                             if row['round_uid'] == state.round_uid),None)
                 if prior:
                     bank.restore(prior)
-                bank.deadline(op,verified=s.settings.timer_verified)
+                try:
+                    bank.deadline(op,verified=s.settings.timer_verified)
+                except TimeoutError:
+                    raise LobbyError('action_deadline_expired') from None
         return state
 
     def input_stopped(self):
@@ -384,9 +427,11 @@ class Operations:
             s.executor.mouse.stop.set()
         return s.executor.mouse.stop.is_set()
 
-    async def start_game(self, shadow, epoch, *, from_arm=False):
+    async def start_game(self, shadow, epoch, *, from_arm=False, deadline=None):
         self.idle()
         before = self.ready_game()
+        generation=self.s.engine.lobby_session.generation
+        authentication=self.s.engine.authenticated_mono
         if not from_arm:
             self.s.executor.mouse.stop.clear()
         if self.input_stopped():
@@ -396,8 +441,13 @@ class Operations:
         if self.input_stopped():
             raise LobbyError('input_stopped_during_handoff')
         current = self.ready_game()
+        if (self.s.engine.lobby_session.generation != generation
+                or self.s.engine.authenticated_mono != authentication):
+            raise LobbyError('authentication_changed_during_binding')
         if current.match_id != before.match_id:
             raise LobbyError('match_changed_during_binding')
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError('wait_for_game_expired')
         await self.s.coordinator.start(shadow=shadow)
         return {'enabled':self.s.coordinator.enabled,'shadow':shadow,'match_id':current.match_id,
                 'status':self.s.coordinator.status}
@@ -407,31 +457,73 @@ class Operations:
         session = self.s.engine.lobby_session
         if not self.s.browser.connected or not session.authenticated:
             raise LobbyError('authenticated_browser_required_before_arm')
-        if self.s.engine.state and self.s.engine.state.lifecycle == 'active':
-            return await self.start_game(request.command.shadow,epoch)
         if self.arm_task and not self.arm_task.done():
             raise LobbyError('existing_wait_for_game')
+        state=self.s.engine.state
+        current_match=state.match_id if state and state.lifecycle == 'active' else None
+        if current_match:
+            try:
+                self.ready_game()
+            except LobbyError as error:
+                if error.code not in WAITABLE_STARTUP:
+                    raise
+            else:
+                return await self.start_game(request.command.shadow,epoch)
         self.s.executor.mouse.stop.clear()
         self.arm_id = request.command_id
-        self.arm_task = asyncio.create_task(self.wait_game(request,epoch,session.generation))
-        return {'waiting_game':True,'seconds':request.command.seconds,'one_match_only':True}
+        started=time.monotonic()
+        self.arm_task = asyncio.create_task(self.wait_game(request,epoch,session.generation,started,current_match,
+            state.match_id if state else None))
+        return {'waiting_game':True,'seconds':request.command.seconds,'one_match_only':True,
+                'stage':'awaiting_complete_round' if current_match else 'awaiting_new_game'}
 
-    async def wait_game(self, request, epoch, generation):
+    async def wait_game(self, request, epoch, generation, started, current_match, old_match):
         s = self.s
-        started = time.monotonic()
-        old_match = s.engine.state.match_id if s.engine.state else None
+        target_match=current_match
+        deadline=started+request.command.seconds
         try:
-            while time.monotonic()-started < request.command.seconds:
+            while time.monotonic() < deadline:
                 self.check(epoch)
                 if (self.input_stopped() or not s.browser.connected
                         or s.engine.lobby_session.generation != generation):
                     raise LobbyError('wait_authorization_revoked')
                 state = s.engine.state
-                if (state and state.match_id != old_match and state.lifecycle == 'active'
-                        and s.engine.authenticated_mono >= started and not s.navigator.busy()):
-                    result = await self.start_game(request.command.shadow,epoch,from_arm=True)
-                    self.update(request.command_id,status='succeeded',result=result)
-                    return
+                if (state and state.lifecycle == 'active' and s.engine.authenticated_mono
+                        and (state.match_id == current_match or
+                             state.match_id != old_match and s.engine.authenticated_mono >= started)):
+                    if target_match and state.match_id != target_match:
+                        raise LobbyError('match_changed_while_waiting')
+                    target_match=state.match_id
+                    try:
+                        self.ready_game()
+                    except LobbyError as error:
+                        if error.code not in WAITABLE_STARTUP:
+                            raise
+                        stage=('awaiting_complete_round' if error.code=='complete_game_state_required'
+                               else 'awaiting_fresh_action')
+                    else:
+                        stage='awaiting_navigation_idle' if s.navigator.busy() else 'binding'
+                    record=self.get(request.command_id)
+                    if (record.get('result') or {}).get('stage') != stage:
+                        self.update(request.command_id,result={**(record.get('result') or {}),'stage':stage})
+                    if stage == 'binding':
+                        try:
+                            result=await asyncio.wait_for(self.start_game(request.command.shadow,epoch,from_arm=True,
+                                deadline=deadline),
+                                max(.001,deadline-time.monotonic()))
+                        except TimeoutError:
+                            break
+                        except LobbyError as error:
+                            if error.code not in WAITABLE_STARTUP:
+                                raise
+                            # Binding can outlast the current action. It has
+                            # sent no input; wait for fresh facts under the same
+                            # original authorization rather than failing/reusing it.
+                            self.update(request.command_id,result={**(record.get('result') or {}),
+                                'stage':'awaiting_fresh_action'})
+                        else:
+                            self.update(request.command_id,status='succeeded',result=result)
+                            return
                 await asyncio.sleep(.1)
             self.update(request.command_id,status='expired',reason='wait_for_game_expired')
         except asyncio.CancelledError:

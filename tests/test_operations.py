@@ -5,12 +5,14 @@ import time
 from types import SimpleNamespace
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from pydantic import SecretStr, ValidationError
 
 from majsoul_llm.app import create_app
 from majsoul_llm.config import Settings
 from majsoul_llm.domain import Event
+from majsoul_llm.engine import Engine
 from majsoul_llm.input_lease import InputLease
 from majsoul_llm.lobby import LobbyError
 from majsoul_llm.lobby_session import LobbySession
@@ -341,4 +343,188 @@ async def test_room_start_takeover_uses_verified_handoff_and_preserves_escape(se
         assert result['status']=='succeeded' and result['result']['takeover']=='active'
         assert s.started==[False]
     assert len(s.store.records('room_command')) >= 2
+    await s.client.close()
+
+
+@pytest.mark.parametrize('arm_after_auth',[False,True])
+async def test_arm_waits_through_real_auth_before_first_round(service,state,arm_after_auth):
+    s=service
+    engine=Engine(s.store)
+    engine.lobby_session=s.engine.lobby_session
+    s.engine=engine
+    async def authenticate():
+        await engine.message({'method':'.lq.FastTest.authGame','direction':'request','connection':'fixture',
+            'data':{'account_id':101,'game_uuid':'test'}})
+        await engine.message({'method':'.lq.FastTest.authGame','direction':'response','connection':'fixture',
+            'data':{'seat_list':[101,102,103,104],'game_config':{'mode':{'mode':2}}}})
+    if arm_after_auth:
+        await authenticate()
+    command=request('wait-for-first-round','arm',seconds=10)
+    result=await finish(s,command)
+    assert result['status']=='waiting_game'
+    if not arm_after_auth:
+        await authenticate()
+    await asyncio.sleep(.15)
+    assert s.operations.get(command.command_id)['status']=='waiting_game'
+    assert not s.started and not s.coordinator.enabled
+    await engine.action('ActionNewRound',{'tiles':state.hand,'scores':[25000]*4,'doras':['9p']},0)
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.operations.get(command.command_id)['status']=='succeeded'
+    assert s.started==[False]
+    await s.client.close()
+
+
+async def test_arm_waits_for_next_fresh_action_without_refilling_time(service,state):
+    s=service
+    await finish(s,request('wait-clock','arm',seconds=10))
+    state.operation.received_mono=time.monotonic()-1000
+    s.engine.state=state
+    s.engine.authenticated_mono=time.monotonic()
+    s.coordinator.bank.remaining=2
+    await asyncio.sleep(.15)
+    assert not s.started and s.operations.get('wait-clock')['status']=='waiting_game'
+    state.operation.received_mono=time.monotonic()
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.started==[False] and s.coordinator.bank.remaining==2
+    await s.client.close()
+
+
+async def test_partial_handoff_stop_is_final_even_after_round_arrives(service,state):
+    s=service
+    s.engine.state=state
+    state.operation=None
+    state.round_completeness='partial'
+    await finish(s,request('partial-stop','arm',seconds=10))
+    assert s.operations.startup()['phase']=='awaiting_complete_round'
+    await s.operations.submit(request('explicit-stop','stop'))
+    state.round_completeness='full'
+    await asyncio.sleep(.15)
+    assert not s.started and s.operations.get('partial-stop')['status']=='cancelled'
+    assert s.executor.mouse.stop.is_set()
+    await s.client.close()
+
+
+@pytest.mark.parametrize('change',['session','authentication'])
+async def test_binding_requires_the_same_authentication(service,state,change):
+    s=service
+    s.engine.state=state
+    state.operation=None
+    async def bind(**kwargs):
+        if change=='session':
+            s.engine.lobby_session.generation+=1
+        else:
+            s.engine.authenticated_mono+=1
+    s.executor.bind_dedicated=bind
+    result=await finish(s,request('changed-authentication','start'))
+    assert result['reason']=='authentication_changed_during_binding' and not s.started
+    await s.client.close()
+
+
+@pytest.mark.parametrize('expiry_stage',['waiting','binding'])
+async def test_arm_deadline_covers_waiting_and_binding_without_refresh(service,state,monkeypatch,expiry_stage):
+    import majsoul_llm.operations as operations_module
+    s=service
+    clock=SimpleNamespace(now=time.monotonic())
+    monkeypatch.setattr(operations_module,'time',SimpleNamespace(monotonic=lambda:clock.now))
+    s.engine.state=state
+    state.operation=None
+    state.round_completeness='partial'
+    await finish(s,request('original-deadline','arm',seconds=10))
+    async def bind(**kwargs):
+        clock.now+=11
+    s.executor.bind_dedicated=bind
+    if expiry_stage=='binding':
+        state.round_completeness='full'
+    else:
+        clock.now+=11
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.operations.get('original-deadline')['status']=='expired' and not s.started
+    await s.client.close()
+
+
+async def test_expiry_during_binding_waits_for_fresh_facts(service,state):
+    s=service
+    await finish(s,request('expires-in-binding','arm',seconds=10))
+    s.engine.state=state
+    s.engine.authenticated_mono=time.monotonic()
+    state.operation.received_mono=time.monotonic()
+    bindings=[]
+    async def bind(**kwargs):
+        bindings.append(True)
+        if len(bindings)==1:
+            state.operation.received_mono-=1000
+    s.executor.bind_dedicated=bind
+    await asyncio.sleep(.15)
+    assert not s.started and len(bindings)==1
+    assert s.operations.startup()['phase']=='awaiting_fresh_action'
+    state.operation.received_mono=time.monotonic()
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.started==[False] and len(bindings)==2
+    await s.client.close()
+
+
+async def test_waiting_cannot_adopt_stale_auth_or_a_different_second_match(service,state):
+    s=service
+    await finish(s,request('one-auth-one-match','arm',seconds=10))
+    s.engine.state=state
+    state.operation=None
+    state.round_completeness='partial'
+    await asyncio.sleep(.15)
+    assert s.operations.startup()['phase']=='awaiting_new_game'
+    s.engine.authenticated_mono=time.monotonic()
+    await asyncio.sleep(.15)
+    assert s.operations.startup()['phase']=='awaiting_complete_round'
+    s.engine.state=state.model_copy(update={'match_id':'other-match','round_completeness':'full'})
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.operations.get('one-auth-one-match')['reason']=='match_changed_while_waiting'
+    assert not s.started
+    await s.client.close()
+
+
+@pytest.mark.parametrize('action',['start','shadow'])
+async def test_panel_current_start_uses_durable_automatic_binding(service,state,action):
+    s=service
+    s.engine.state=state
+    state.operation=None
+    s.executor.window=None
+    bindings=[]
+    async def bind(*,clear_stop=True):
+        bindings.append(clear_stop)
+        s.executor.window=object()
+    s.executor.bind_dedicated=bind
+    transport=httpx.ASGITransport(app=create_app(s.settings,s))
+    async with httpx.AsyncClient(transport=transport,base_url='http://testserver') as client:
+        for token in (s.settings.read_token,s.settings.navigation_token,s.settings.operation_token):
+            denied=await client.post('/control/'+action,json={'command_id':'panel-current'},
+                headers={'Authorization':'Bearer '+token.get_secret_value()})
+            assert denied.status_code==401
+        headers={'Authorization':'Bearer '+s.settings.control_token.get_secret_value()}
+        response=await client.post('/control/'+action,json={'command_id':'panel-current'},headers=headers)
+        assert response.status_code==200 and response.json()['request']['command']['action']==action
+        await s.operations.task
+        result=s.operations.get('panel-current')
+        assert result['status']=='succeeded' and bindings==[False]
+        assert s.started==[action=='shadow']
+        repeated=await client.post('/control/'+action,json={'command_id':'panel-current'},headers=headers)
+        assert repeated.json()==result and len(bindings)==1
+    await s.client.close()
+
+
+async def test_panel_lobby_start_returns_recovery_and_arm_can_be_stopped(service):
+    s=service
+    transport=httpx.ASGITransport(app=create_app(s.settings,s))
+    async with httpx.AsyncClient(transport=transport,base_url='http://testserver') as client:
+        headers={'Authorization':'Bearer '+s.settings.control_token.get_secret_value()}
+        await client.post('/control/start',json={'command_id':'lobby-start'},headers=headers)
+        await s.operations.task
+        failed=s.operations.get('lobby-start')
+        assert failed['reason']=='active_game_required_use_arm'
+        assert failed['result']['recovery']['action']=='arm' and not s.started
+        await client.post('/control/arm',json={'command_id':'panel-wait','seconds':10},headers=headers)
+        await s.operations.task
+        status=await client.get('/api/v1/mahjong/operations/status',headers=headers)
+        assert status.json()['startup']['phase']=='awaiting_new_game'
+        assert not status.json()['enabled']
+        await client.post('/control/stop',json={},headers=headers)
+        assert s.operations.get('panel-wait')['status']=='cancelled' and not s.started
     await s.client.close()

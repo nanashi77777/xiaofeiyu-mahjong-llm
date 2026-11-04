@@ -108,3 +108,4 @@
 | DEV-094 | 实现 | 轻量受控进度与按真实变化重算验收报告 | [完成记录](docs/development/completed/DEV-094-validation-progress.md) |
 | DEV-095 | 实现 | QQ麻将功能与运行开关的专用工具及接管交接 | [完成记录](docs/development/completed/DEV-095-qq-mahjong-operations.md) |
 | DEV-096 | 实现 | 管理员对话技巧、全局经验联合召回与实际决策接入 | [完成记录](docs/development/completed/DEV-096-dialogue-mahjong-learning.md) |
+| DEV-097 | 实现 | 面板统一自动绑定与等待首局完整后接管修复 | [完成记录](docs/development/completed/DEV-097-autoplay-startup-repair.md) |

@@ -3062,6 +3062,30 @@
       ],
       "completed_record": "docs/development/completed/DEV-096-dialogue-mahjong-learning.md",
       "completed_on": "2026-11-03"
+    },
+    {
+      "id": "DEV-097",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "面板统一自动绑定与等待首局完整后接管修复",
+      "status": "done",
+      "depends_on": [
+        "DEV-095"
+      ],
+      "design_refs": [
+        "docs/design/autoplay-startup-repair.md"
+      ],
+      "acceptance": [
+        "面板与QQ共用持久接管入口；当前局自动绑定、等待下一局明确可见，失败返回可执行恢复提示",
+        "认证早于首局不提前失败；原期限、同局同会话、停止/Esc、过期窗口与不支持规则边界隔离通过；不恢复实战"
+      ],
+      "evidence": [
+        "501 full pytest passed in 130.10s; ruff and registry validation passed; three original startup failures reproduced before repair",
+        "Actual Chrome fully intercepted UI start/arm/pause verified persistent failure and waiting/cancelled states; no real game or model call"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-097-autoplay-startup-repair.md",
+      "completed_on": "2026-11-04"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
