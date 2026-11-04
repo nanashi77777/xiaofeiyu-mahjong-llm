@@ -363,10 +363,12 @@ def create_app(settings=None, service=None):
         elif action == 'confirm-results':
             await s.round_flow.resume()
         elif action=='input-mode':
-            await s.operations.revoke_arm('input_mode_changed')
             mode=data.get('mode')
             if mode not in ('physical_foreground','browser_background'):
                 raise ValueError('unsupported input mode')
+            if mode==s.executor.input_mode:
+                return {'ok':True,'status':s.coordinator.status,'unchanged':True}
+            await s.operations.revoke_arm('input_mode_changed')
             await s.navigator.stop()
             await s.coordinator.stop('input_mode_changed')
             if mode == 'physical_foreground':

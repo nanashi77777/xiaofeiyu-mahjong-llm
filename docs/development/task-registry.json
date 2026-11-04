@@ -3117,6 +3117,27 @@
       ],
       "completed_record": "docs/development/completed/DEV-098-prearmed-room-start.md",
       "completed_on": "2026-11-04"
+    },
+    {
+      "id": "DEV-099",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "历史经验联合召回兼容及重复输入模式应用不停机",
+      "status": "in_progress",
+      "depends_on": [
+        "DEV-096",
+        "DEV-098"
+      ],
+      "design_refs": [
+        "docs/design/legacy-learning-runtime-repair.md"
+      ],
+      "acceptance": [
+        "历史经验缺失新增字段仍完整保留文本/证据/版本并进入模型上下文，联合教学召回与实际Coordinator链路通过",
+        "重复应用相同模式不撤销接管，非法模式无停机副作用，实际切换仍停止；仅麻将服务部署及真实恢复结果据实记录"
+      ],
+      "evidence": [],
+      "commits": [],
+      "implementation_progress": "code_ready"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

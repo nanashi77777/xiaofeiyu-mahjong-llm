@@ -11,6 +11,7 @@ from majsoul_llm.memory import Memories
 from majsoul_llm.operations import OperationRequest
 from majsoul_llm.review import Reviewer
 from majsoul_llm.rules import legal_actions
+from majsoul_llm.store import packed
 from test_review_lifecycle import add_match
 
 
@@ -18,6 +19,63 @@ def teach(store,**changes):
     return Knowledge(store).write({'claim':'领先低价值手面对立直时重新比较追打和防守收益',
         'conditions':['高价值好型听牌仍需比较进攻收益'],**changes},
         source_quote='领先低价值手面对立直时重新比较追打和防守收益',source_ref='synthetic-admin-input')
+
+
+@pytest.fixture
+def legacy_experience(store,state):
+    source,event=add_match(store,state,0)
+    memory=Memories(store).revise({'claim':'保留原始适用条件和例外','supports':[event]},source.match_id)
+    legacy={k:v for k,v in memory.items() if k not in ('kind','applies_to','preference')}
+    legacy.update(claim='历史长原则与例外'*25,conditions=['原边界与例外'*25])
+    with store.db:
+        store.db.execute('UPDATE memories SET payload=? WHERE id=?',(packed(legacy),memory['id']))
+    return legacy
+
+
+@pytest.mark.parametrize('freeze_kind',['references','full_legacy'])
+def test_joint_recall_preserves_legacy_experience_without_rewriting(store,state,legacy_experience,freeze_kind):
+    m=Memories(store)
+    frozen=m.freeze() if freeze_kind=='references' else [legacy_experience]
+    current=teach(store,applies_to={'menzen':True})
+    selected=recall_learning(store,frozen,state)
+    assert {r['id'] for r in selected}=={legacy_experience['id'],current['id']}
+    item=next(r for r in learning_projection(selected) if r['id']==legacy_experience['id'])
+    assert item['kind']=='lesson' and item['source']=='experience'
+    assert item['claim']==legacy_experience['claim'] and item['conditions']==legacy_experience['conditions']
+    assert item['revision']==legacy_experience['revision']
+    assert 'applies_to' not in item and 'preference' not in item
+    assert m.get(legacy_experience['id'])==legacy_experience
+    m.disable(legacy_experience['id'],legacy_experience['revision'],'停用旧原则')
+    assert all(r['id']!=legacy_experience['id'] for r in recall_learning(store,frozen,state))
+
+
+async def test_legacy_memory_reaches_real_coordinator_model_and_input(store,state,legacy_experience):
+    import threading
+    seen=[]
+    pressed=[]
+    class Model:
+        async def decide(self,context,deadline):
+            seen.append(context)
+            item=next(m for m in context.data['memories'] if m['id']==legacy_experience['id'])
+            assert item['claim']==legacy_experience['claim']
+            decision,action=context.validate({'q':context.q,'a':next(iter(context.actions)),
+                'r':'结合牌效保留路线','p':None})
+            return decision,action,{}
+    class Executor:
+        lease=SimpleNamespace(owner=None)
+        mouse=SimpleNamespace(stop=threading.Event())
+        async def execute(self,s,action,deadline):
+            pressed.append(action.id)
+            return time.monotonic()
+    settings=Settings(api_key='fixture-private-key',base_seconds=300,parallel_observation_enabled=False)
+    c=Coordinator(settings,SimpleNamespace(store=store,state=state),Model(),Executor())
+    state.operation.received_mono=time.monotonic()
+    await c.start(shadow=False)
+    await c.task
+    assert len(seen)==len(pressed)==1 and not store.records('decision_failure')
+    assert {a.id for a in seen[0].actions.values()}=={a.id for a in legal_actions(state)}
+    assert store.records('receipt')[0]['payload']['status']=='mouse_sent'
+    await c.stop('fixture_finished')
 
 
 def test_teaching_without_fake_match_revision_dedup_and_public_provenance(store):

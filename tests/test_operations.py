@@ -162,6 +162,41 @@ async def test_settings_persist_without_refilling_pool_or_granting_validation(se
     await s.client.close()
 
 
+@pytest.mark.parametrize('armed',[False,True])
+async def test_same_input_mode_operation_preserves_play_or_prepared_grant(service,armed):
+    s=service
+    if armed:
+        await finish(s,request('mode-arm','arm',seconds=10))
+    else:
+        s.coordinator.enabled=True
+    original=(s.operations.arm_id,s.operations.arm_task,s.operations.arm_deadline,s.operations.epoch)
+    result=await finish(s,request('same-mode','input_mode',mode='browser_background'))
+    assert result['status']=='succeeded' and result['result']['unchanged']
+    assert (s.operations.arm_id,s.operations.arm_task,s.operations.arm_deadline,s.operations.epoch)==original
+    assert not s.stopped and not s.executor.mouse.stop.is_set()
+    await s.operations.stop('fixture_finished')
+    await s.client.close()
+
+
+@pytest.mark.parametrize('mode',['browser_background','physical_foreground','invalid'])
+async def test_local_input_mode_noop_validation_and_actual_switch(service,state,mode):
+    s=service
+    s.engine.state=state
+    s.coordinator.enabled=True
+    original_epoch=s.operations.epoch
+    transport=httpx.ASGITransport(app=create_app(s.settings,s))
+    async with httpx.AsyncClient(transport=transport,base_url='http://testserver') as client:
+        response=await client.post('/control/input-mode',json={'mode':mode},
+            headers={'Authorization':'Bearer '+s.settings.control_token.get_secret_value()})
+    if mode=='physical_foreground':
+        assert response.status_code==200 and not s.coordinator.enabled
+        assert s.stopped==['input_mode_changed'] and s.executor.input_mode==mode
+    else:
+        assert response.status_code==(200 if mode=='browser_background' else 400)
+        assert s.coordinator.enabled and not s.stopped and s.operations.epoch==original_epoch
+    await s.client.close()
+
+
 async def test_profile_switch_replaces_both_clients_and_hides_private_identity(service):
     s=service
     s.settings.compact_validated=True

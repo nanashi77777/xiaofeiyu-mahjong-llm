@@ -122,7 +122,10 @@ def recall_learning(store,frozen,state,yaku_ids=(),*,limit=8):
         return []
     experiences=Memories(store).recall(frozen,state,yaku_ids,limit=8)
     taught=[m for m in Knowledge(store).query() if scope_relevance(m['applies_to'],state,yaku_ids) is not None]
-    pool=[{**m,'source':'experience'} for m in experiences]+[{**m,'source':'admin_teaching'} for m in taught]
+    # Archived v1 lessons predate structured scopes and style preferences.
+    # Hydrate only this read projection; retain their full text and revision.
+    pool=[{'kind':'lesson','applies_to':{},'preference':None,**m,'source':'experience'} for m in experiences]
+    pool += [{**m,'source':'admin_teaching'} for m in taught]
     pool.sort(key=lambda m:(scope_relevance(m['applies_to'],state,yaku_ids),m.get('status')=='stable',
                             m['updated_at']),reverse=True)
     result,seen,styles=[],set(),set()

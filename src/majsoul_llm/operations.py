@@ -694,6 +694,9 @@ class Operations:
             s.store.record('memory_admin_disable',{'id':c.id,'revision':memory['revision'],
                 'source_ref':request.command_id,'source_digest':hashlib.sha256(c.source_quote.encode()).hexdigest()})
             return {key:memory[key] for key in ('id','revision','status')}
+        if action=='input_mode' and c.mode==s.executor.input_mode:
+            return {'applied':[],'unchanged':True,'input_mode':c.mode,
+                    'persistent':s.settings.input_mode==c.mode}
         if self.arm_id:
             raise LobbyError('cancel_wait_before_reconfiguration')
         self.idle(no_match=action in ('profile_select','profile_capture','service_stop','browser_reconnect','calibrate'))
