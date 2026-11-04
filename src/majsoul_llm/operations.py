@@ -126,6 +126,8 @@ Command = Annotated[SimpleCommand | ArmCommand | InputCommand | ConfigureCommand
 COMMAND = TypeAdapter(Command)
 
 STARTUP_RECOVERY = {
+    'ai_room_fills_opponents_on_start': {'action':'room','operation':'start','takeover':True,
+                                       'note':'人机房由游戏安排电脑；开始前先预备接管，再点房主开始。'},
     'browser_not_connected': {'action':'browser_open','note':'先打开或重连专用浏览器，再确认登录。'},
     'authenticated_browser_required_before_arm': {'action':'browser_open','note':'等待专用浏览器完成登录后再arm。'},
     'active_game_required_use_arm': {'action':'arm','note':'当前没有活动对局；arm只等待一次入局，不会自动开局。'},
@@ -217,6 +219,7 @@ class Operations:
         s = self.s
         state = s.engine.state
         return {'connected':s.browser.connected,'enabled':s.coordinator.enabled,
+                'autoplay_prepared':bool(self.arm_id and self.arm_task and not self.arm_task.done()),
                 'shadow':s.coordinator.shadow,'status':s.coordinator.status,
                 'input_mode':s.executor.input_mode,'window_bound':bool(s.executor.window),
                 'input_busy':bool(s.input_lease.owner),'operation_busy':self.busy(),
@@ -233,6 +236,89 @@ class Operations:
                 'review_busy':bool(s.reviewer.review_task and not s.reviewer.review_task.done()),
                 'queued_reviews':len(s.reviewer.queued)}
 
+    async def prepare_room_start(self, command):
+        """Bind and persist a one-game grant before the room start press."""
+        self.idle(no_match=True)
+        s=self.s
+        epoch=self.epoch
+        session=s.engine.lobby_session
+        generation=session.generation
+        room=session.room
+        if (not s.browser.connected or not session.authenticated or not room
+                or room['room_code']!=command.room_code or room.get('playing')):
+            raise LobbyError('authenticated_idle_room_required_before_start')
+        if not s.settings.api_key.get_secret_value():
+            raise LobbyError('model_configuration_required_before_start')
+        existing=self.arm_id
+        if existing:
+            record=self.get(existing)
+            if (not self.arm_task or self.arm_task.done() or record['status']!='waiting_game'
+                    or record['request']['command'].get('shadow',False)
+                    or record['request']['command']['action']=='shadow'):
+                raise LobbyError('real_autoplay_authorization_required_before_start')
+            bound_room=(record.get('result') or {}).get('room_code')
+            if bound_room and bound_room!=command.room_code:
+                raise LobbyError('room_changed_before_start')
+        else:
+            s.executor.mouse.stop.clear()
+        if self.input_stopped():
+            raise LobbyError('input_stopped_before_room_start')
+        await s.executor.bind_dedicated(clear_stop=False)
+        self.check(epoch)
+        if self.input_stopped():
+            raise LobbyError('input_stopped_before_room_start')
+        if (session.generation!=generation or not session.room or session.room['room_code']!=command.room_code
+                or session.room.get('playing')):
+            raise LobbyError('room_changed_before_start')
+        if s.engine.state and s.engine.state.lifecycle=='active':
+            raise LobbyError('game_started_before_room_start')
+        if existing:
+            if self.arm_id!=existing or self.arm_task.done():
+                raise LobbyError('autoplay_authorization_expired_before_start')
+            cid=existing
+            record=self.get(cid)
+        else:
+            cid='room-arm-'+hashlib.sha256(command.command_id.encode()).hexdigest()[:32]
+            authorization=OperationRequest(command_id=cid,command={'action':'arm','seconds':600})
+            # Internal child authorization has a durable pointer; never resubmit
+            # or revive the same id after a restart or an uncertain room action.
+            try:
+                self.get(cid)
+            except KeyError:
+                pass
+            else:
+                raise LobbyError('room_start_authorization_already_consumed')
+            record={'request':authorization.model_dump(mode='json'),'status':'running','created_at':utcnow(),
+                    'updated_at':utcnow(),'result':None,'reason':None}
+            s.store.db.execute('INSERT INTO operation_commands VALUES(?,?)',(cid,packed(record)))
+            s.store.db.commit()
+            result=await self.arm(authorization,epoch)
+            record=self.update(cid,status='waiting_game',result=result)
+        self.update(cid,result={**(record.get('result') or {}),'room_code':command.room_code,
+                               'prepared_before_start':True})
+        s.store.record('room_takeover_prepared',{'command_id':command.command_id,'authorization_id':cid})
+        return cid
+
+    async def cancel_room_start(self, cid, reason):
+        if self.arm_id==cid:
+            await self.revoke_arm(reason)
+
+    async def room_start_result(self, cid, result):
+        if result['status']=='rejected':
+            await self.cancel_room_start(cid,'room_start_rejected')
+        elif result['status']=='confirmed' and self.arm_id==cid:
+            # Only observe the already-installed task; this never grants input.
+            try:
+                await asyncio.wait_for(asyncio.shield(self.arm_task),35)
+            except TimeoutError:
+                pass
+        record=self.get(cid)
+        active=record['status']=='succeeded' and self.s.coordinator.enabled
+        return {**result,'takeover':'active' if active else 'waiting_for_fresh_game'
+                    if record['status']=='waiting_game' else record['status'],
+                'autoplay_prepared':record['status']=='waiting_game',
+                'authorization_status':record['status']}
+
     def startup(self):
         """Public startup guidance, without hands, strategy or private settings."""
         if self.s.coordinator.enabled:
@@ -240,7 +326,9 @@ class Operations:
         if self.arm_id and self.arm_task and not self.arm_task.done():
             record=self.get(self.arm_id)
             return {'phase':(record.get('result') or {}).get('stage','awaiting_new_game'),
-                    'reason':None,'command_id':self.arm_id,'one_match_only':True}
+                    'reason':None,'command_id':self.arm_id,'one_match_only':True,'autoplay_prepared':True,
+                    'shadow':bool((record.get('result') or {}).get('shadow',
+                        record['request']['command'].get('shadow',record['request']['command']['action']=='shadow')))}
         reason=self.game_blocker()
         return {'phase':'stopped','reason':reason,
                 'recovery':STARTUP_RECOVERY.get(reason), 'context_ready':reason is None}
@@ -258,6 +346,10 @@ class Operations:
                                'visible_cancel_match_adapter_pending','four_player_standard_rules_only',
                                'verification_flags_are_observations_not_switches'],
                 'calibrated_room_controls':rooms,'screenshot':'view/screenshot; idle only',
+                'autoplay_start_order':['bind_dedicated_window','persist_one_match_authorization',
+                                        'click_room_start','observe_complete_game','automatic_handoff'],
+                'pre_game_start_prepares_autoplay':True,
+                'ai_room_opponents_supplied_by_game':True,
                 'new_match_automatically_started':False}
 
     def resource(self, name, *, command_id=None, ids=None, topic=''):
@@ -475,6 +567,7 @@ class Operations:
         self.arm_task = asyncio.create_task(self.wait_game(request,epoch,session.generation,started,current_match,
             state.match_id if state else None))
         return {'waiting_game':True,'seconds':request.command.seconds,'one_match_only':True,
+                'autoplay_prepared':True,'enabled':False,'shadow':request.command.shadow,
                 'stage':'awaiting_complete_round' if current_match else 'awaiting_new_game'}
 
     async def wait_game(self, request, epoch, generation, started, current_match, old_match):
@@ -488,6 +581,10 @@ class Operations:
                         or s.engine.lobby_session.generation != generation):
                     raise LobbyError('wait_authorization_revoked')
                 state = s.engine.state
+                bound_room=(self.get(request.command_id).get('result') or {}).get('room_code')
+                if bound_room and (not s.engine.lobby_session.room or
+                        s.engine.lobby_session.room['room_code']!=bound_room):
+                    raise LobbyError('room_changed_while_waiting')
                 if (state and state.lifecycle == 'active' and s.engine.authenticated_mono
                         and (state.match_id == current_match or
                              state.match_id != old_match and s.engine.authenticated_mono >= started)):
@@ -502,7 +599,7 @@ class Operations:
                         stage=('awaiting_complete_round' if error.code=='complete_game_state_required'
                                else 'awaiting_fresh_action')
                     else:
-                        stage='awaiting_navigation_idle' if s.navigator.busy() else 'binding'
+                        stage='awaiting_navigation_idle' if s.navigator.busy() or s.input_lease.owner else 'binding'
                     record=self.get(request.command_id)
                     if (record.get('result') or {}).get('stage') != stage:
                         self.update(request.command_id,result={**(record.get('result') or {}),'stage':stage})
@@ -541,6 +638,13 @@ class Operations:
         action = c.action
         self.check(epoch)
         if action in ('start','shadow'):
+            state=s.engine.state
+            if not state or state.lifecycle!='active':
+                if self.arm_id:
+                    return {'autoplay_prepared':True,'enabled':False,
+                            'authorization_command_id':self.arm_id,'stage':'awaiting_new_game'}
+                authorization=request.model_copy(update={'command':ArmCommand(action='arm',shadow=action=='shadow')})
+                return await self.arm(authorization,epoch)
             if self.arm_id:
                 await self.revoke_arm('explicit_start_replaces_wait')
                 epoch = self.epoch
@@ -551,13 +655,11 @@ class Operations:
             await s.round_flow.resume()
             return {'result_flow_started':True,'enabled':False,'result':'await_visible_confirmation'}
         if action == 'room':
-            if c.takeover and self.arm_id:
-                raise LobbyError('arm_already_owns_next_game_handoff')
-            async def handoff():
-                self.check(epoch)
-                return await self.start_game(False,epoch,from_arm=True)
-            result = await PracticeRooms(s,solo_only=False,handoff=handoff).run(RoomAction(command_id=request.command_id,room_code=c.room_code,
-                action=c.operation,takeover=c.takeover))
+            room=s.engine.lobby_session.room
+            if c.operation.startswith('add_robot') and room and room.get('mode',{}).get('mode')==3:
+                raise LobbyError('ai_room_fills_opponents_on_start')
+            result = await PracticeRooms(s,solo_only=False).run(RoomAction(command_id=request.command_id,room_code=c.room_code,
+                action=c.operation,takeover=c.takeover or c.operation=='start'))
             return {key:value for key,value in result.items() if key != 'request'}
         if action == 'review_enqueue':
             state = s.store.latest(c.match_id)

@@ -34,7 +34,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\majsoul-llm.exe panel
 ```
 
-面板在 http://127.0.0.1:8765 。panel 命令通过本机 URL fragment 带入控制令牌，不进入 HTTP 请求地址或服务访问日志。点击“连接面板”后打开专用浏览器并完成登录；专用profile不读取其他浏览器的登录资料，默认停止输入。已进入对局选“接管当前局”，大厅或友人房选“等待下一局（10分钟内一次）”；两者都通过持久操作入口自动绑定经过核验的专用窗口，无需先手动绑定。仅记录模型选择也使用相同交接门禁，不能以旧牌谱启动。等待不会替你开房、准备或开局。Esc、暂停、停止均撤销等待并阻止后续输入；正常终场后停止。不要使用未验证定位开始段位场。
+面板在 http://127.0.0.1:8765 。panel 命令通过本机 URL fragment 带入控制令牌，不进入 HTTP 请求地址或服务访问日志。点击“连接面板”后打开专用浏览器并完成登录；专用profile不读取其他浏览器的登录资料，默认停止输入。先点“开启自动接管”：尚未入局时预备一次自动接管并显示“接管已预备”，已有完整活动局时立即接管；“等待下一局”也可显式预备。随后再选场、准备或由房主开始，真实新局和完整场况到达后自动接手，无需再次调用start。仅记录模型选择会预备shadow模式，不能被房间工具静默升级为真实输入。等待不会替你开房、准备或开局。Esc、暂停、停止均撤销等待并阻止后续输入；正常终场后停止。不要使用未验证定位开始段位场。
 
 面板与QQ分别保留原command_id和查询入口。queued/running只是受理与执行中，waiting_game表示尚未启用；stage进一步区分awaiting_new_game（等真实入局）、awaiting_complete_round（等完整首局/恢复）、awaiting_fresh_action（等新有效行动窗口）和binding（绑定复验）。只有结果enabled=true才代表接管已启用。认证先于首局时继续等待原授权期限，不提前失败；过期行动不会重置时间池。失败回执与status.startup提供固定reason及recovery提示。
 
@@ -171,11 +171,11 @@ DEV-095已将现有麻将功能与可编辑运行开关开放为9个QQ工具。`
 | --- | --- |
 | `service_start` / `service_stop` | 启停本机固定麻将服务。启动器只执行已配置项目的venv Python和固定CLI，无shell或任意启动命令；停止服务前需停止接管且无活动局 |
 | `browser_open` / `browser_reconnect` / `bind` / `fit_window` | 打开或重连已核验专用Chrome、绑定其窗口、调整完整显示；不接受任意pid、hwnd或点击坐标 |
-| `start` / `shadow` | 接管当前已认证且完整一致的新鲜场况；shadow只记录决策，不点击 |
+| `start` / `shadow` | 尚未入局时持久预备一次自动接管；已有活动局则接管新鲜完整场况。shadow只记录决策，不点击 |
 | `arm` | `seconds`默认600、范围10～3600，`shadow`默认false。等待同一认证代际的一次新局，收到真实完整场况才接管；已有活动局则接管当前局，初始化未完整/当前窗口过期时在原期限内等待，不补时间 |
 | `pause` / `stop` / `emergency` | 立即撤销等待、导航、结算和输入；Esc及服务重启同样不复活旧授权 |
 | `input_mode` | `mode=physical_foreground`或`browser_background`，持久化本机设置；修改前须停止输入 |
-| `room` | 字符串`room_code`和`operation=ready/unready/leave/confirm_leave/add_robot_0..3/start`；`takeover`默认false，明确要求开始并接管时才设true。只操作真实当前房间，依校准及实际回执判断 |
+| `room` | 字符串`room_code`和`operation=ready/unready/leave/confirm_leave/add_robot_0..3/start`。所有房主`start`都先绑定并持久预备接管，成功后才点击开始；旧QQ工具默认传`takeover=false`也执行此顺序。已有真实arm会复用原授权和期限。人机房不添加机器人，直接由房主开始；普通四人房按实际空位添加 |
 | `confirm_results` | 继续权威结果支持的可见结算流程，不启用打牌；受理后仍须查实际进度 |
 | `settings` | `patch`只包含本次需修改的白名单字段，见下表；持久化且不会给当前小局补时间池 |
 | `profile_capture` / `profile_select` | 保存本机当前配置回退点；切换时传`profiles`返回的不透明`profile_id`，不传实际供应商、模型名或密钥 |
@@ -198,6 +198,8 @@ DEV-095已将现有麻将功能与可编辑运行开关开放为9个QQ工具。`
 `mahjong_operations`的resource支持`status/catalog/settings/profiles/usage/review_jobs/yaku/calibration/diagnostics/command`。读取某次操作传`commandId`，只允许当前会话编号；役种可传`ids`或`topic`。`catalog`返回完整服务命令Schema、能力和未实现限制；`service_start`由QQ本机启动器处理，不属于服务自身Schema。模型列表仅给本机不透明配置编号和验证资格，用量只给已知token，不推算余额。
 
 HTTP操作入口是`GET /api/v1/mahjong/operations/{resource}`、`POST /api/v1/mahjong/operations/commands`及空闲截图`GET /api/v1/mahjong/operations/view/screenshot`，需Authorization Bearer操作凭据。提交体是`{"command_id":"本次稳定编号","command":{"action":"stop"}}`。同编号同内容返回原结果，换内容拒绝；queued/running/waiting_game只是中间状态，succeeded/failed/cancelled/expired/interrupted/uncertain记录实际进展。等待入局的waiting_game不等于已接管，房间prepared不等于开局，结算任务启动不等于已确认终场。uncertain及传输结果未知先查询原编号，不重复开房、匹配或点击。
+
+带接管的房主开始必须按“绑定窗口→持久接管预备→可见开始点击→真实首局→自动接手”的顺序。`autoplay_prepared=true`表示自动接管已开启等待，`enabled=true`才表示实际打牌已启用，两者不能混称。点击结束即释放输入租约，startRoom响应晚于首个行动事件时也不阻塞模型决策；失败/拒绝撤销本次授权，提交未知保留有界等待且不重按。停止或重启不会复活预备授权。
 
 QQ可说“打开麻将浏览器”“接管当前这局，用后台点击”“进入这个友人房并准备，开局后由你打”“关闭自动复盘”“把经验召回设为8条”“停止打牌”。缺少房码、场级或建房时间时补充参数。工具开放不取消用户此前暂停的实战测试；正常终场仍停止，不自行开始下一场。
 

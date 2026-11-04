@@ -318,6 +318,8 @@ def create_app(settings=None, service=None):
 
     @app.post("/control/room")
     async def room_action(command:RoomAction, s=Depends(controller)):
+        if command.action=='start':
+            command=command.model_copy(update={'takeover':True})
         return await s.practice.run(command)
 
     @app.get("/control/screenshot")

@@ -3089,6 +3089,30 @@
       ],
       "completed_record": "docs/development/completed/DEV-097-autoplay-startup-repair.md",
       "completed_on": "2026-11-04"
+    },
+    {
+      "id": "DEV-098",
+      "kind": "development",
+      "milestone": "M9",
+      "title": "房间开始前预挂一次性接管并覆盖首个行动窗口",
+      "status": "done",
+      "depends_on": [
+        "DEV-097"
+      ],
+      "design_refs": [
+        "docs/design/prearmed-room-start.md"
+      ],
+      "acceptance": [
+        "带接管开局先绑定并持久预备再点击；已有arm复用原授权及期限，首局先于开局回执也立即接手",
+        "失败/拒绝/停止撤销、未知不重按、重复命令幂等；面板及QQ状态明确预备与实战，隔离回归及无新对局部署核验"
+      ],
+      "evidence": [
+        "512 full pytest passed; final 17 affected tests and 1 added local start test passed; ruff and registry passed",
+        "Real Engine/Coordinator fixture processes first action before late startRoom response; durable authorization and binding precede press, legacy false flag covered, no real model or game"
+      ],
+      "commits": [],
+      "completed_record": "docs/development/completed/DEV-098-prearmed-room-start.md",
+      "completed_on": "2026-11-04"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

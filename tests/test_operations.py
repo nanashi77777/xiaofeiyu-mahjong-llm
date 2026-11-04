@@ -11,6 +11,7 @@ from pydantic import SecretStr, ValidationError
 
 from majsoul_llm.app import create_app
 from majsoul_llm.config import Settings
+from majsoul_llm.coordinator import Coordinator
 from majsoul_llm.domain import Event
 from majsoul_llm.engine import Engine
 from majsoul_llm.input_lease import InputLease
@@ -318,12 +319,15 @@ async def test_room_uncertainty_propagates_without_duplicate_input(service):
 
 
 @pytest.mark.parametrize('escape_during_bind',[False,True])
-async def test_room_start_takeover_uses_verified_handoff_and_preserves_escape(service,state,escape_during_bind):
+@pytest.mark.parametrize('requested_takeover',[False,True])
+async def test_room_start_takeover_uses_verified_handoff_and_preserves_escape(service,state,escape_during_bind,requested_takeover):
     s=service
     session=s.engine.lobby_session
     session.room={'room_code':'12345','playing':False,'humans':4,'robots':0,'players':4,'mode':{'mode':2}}
     state.operation=None
     async def click(scene,control,ctx,*,submit=None):
+        assert s.operations.arm_id, 'takeover must be armed before room start is clicked'
+        assert s.operations.get(s.operations.arm_id)['status']=='waiting_game'
         ctx.before_submit(submit)
         session.latest[submit]={'observed_mono':time.monotonic(),'error_code':0}
         session.room['playing']=True
@@ -335,14 +339,15 @@ async def test_room_start_takeover_uses_verified_handoff_and_preserves_escape(se
             s.executor.mouse.stop.set()
     s.lobby_ui.click=click
     s.executor.bind_dedicated=bind
-    result=await finish(s,request('room-start-handoff','room',room_code='12345',operation='start',takeover=True))
+    result=await finish(s,request('room-start-handoff','room',room_code='12345',operation='start',takeover=requested_takeover))
     if escape_during_bind:
         assert result['status']=='failed' and not s.started
         assert s.executor.mouse.stop.is_set()
+        assert not s.store.records('room_command')  # Esc prevents even the start press.
     else:
         assert result['status']=='succeeded' and result['result']['takeover']=='active'
         assert s.started==[False]
-    assert len(s.store.records('room_command')) >= 2
+        assert len(s.store.records('room_command')) >= 2
     await s.client.close()
 
 
@@ -510,16 +515,18 @@ async def test_panel_current_start_uses_durable_automatic_binding(service,state,
     await s.client.close()
 
 
-async def test_panel_lobby_start_returns_recovery_and_arm_can_be_stopped(service):
+async def test_panel_lobby_start_prepares_autoplay_and_can_be_stopped(service):
     s=service
     transport=httpx.ASGITransport(app=create_app(s.settings,s))
     async with httpx.AsyncClient(transport=transport,base_url='http://testserver') as client:
         headers={'Authorization':'Bearer '+s.settings.control_token.get_secret_value()}
         await client.post('/control/start',json={'command_id':'lobby-start'},headers=headers)
         await s.operations.task
-        failed=s.operations.get('lobby-start')
-        assert failed['reason']=='active_game_required_use_arm'
-        assert failed['result']['recovery']['action']=='arm' and not s.started
+        prepared=s.operations.get('lobby-start')
+        assert prepared['status']=='waiting_game' and prepared['result']['autoplay_prepared']
+        assert not s.started
+        await client.post('/control/stop',json={},headers=headers)
+        assert s.operations.get('lobby-start')['status']=='cancelled'
         await client.post('/control/arm',json={'command_id':'panel-wait','seconds':10},headers=headers)
         await s.operations.task
         status=await client.get('/api/v1/mahjong/operations/status',headers=headers)
@@ -527,4 +534,192 @@ async def test_panel_lobby_start_returns_recovery_and_arm_can_be_stopped(service
         assert not status.json()['enabled']
         await client.post('/control/stop',json={},headers=headers)
         assert s.operations.get('panel-wait')['status']=='cancelled' and not s.started
+    await s.client.close()
+
+
+async def test_room_start_reuses_existing_arm_before_press_without_extending_it(service,state):
+    s=service
+    session=s.engine.lobby_session
+    session.room={'room_code':'12345','playing':False,'humans':1,'robots':0,'players':1,'mode':{'mode':3}}
+    await finish(s,request('original-room-arm','arm',seconds=10))
+    original_task=s.operations.arm_task
+    original_created=s.operations.get('original-room-arm')['created_at']
+    state.operation=None
+    presses=[]
+    async def click(scene,control,ctx,*,submit=None):
+        assert s.operations.arm_id=='original-room-arm' and s.operations.arm_task is original_task
+        assert s.operations.get('original-room-arm')['request']['command']['seconds']==10
+        assert s.operations.get('original-room-arm')['created_at']==original_created
+        assert s.store.records('room_takeover_prepared')
+        ctx.before_submit(submit)
+        presses.append(control)
+        session.latest[submit]={'observed_mono':time.monotonic(),'error_code':0}
+        session.room['playing']=True
+        s.engine.authenticated_mono=time.monotonic()
+        s.engine.state=state
+    s.lobby_ui.click=click
+    command=request('armed-room-start','room',room_code='12345',operation='start',takeover=True)
+    result=await finish(s,command)
+    assert result['status']=='succeeded' and result['result']['takeover']=='active'
+    assert presses==['start'] and s.started==[False]
+    assert (await s.operations.submit(command))==result and presses==['start']
+    await s.client.close()
+
+
+@pytest.mark.parametrize('failure',['invisible','rejected','unknown','stopped'])
+async def test_prearmed_room_start_failure_and_uncertainty_do_not_repress(service,monkeypatch,failure):
+    from majsoul_llm.practice import PracticeRooms
+    s=service
+    session=s.engine.lobby_session
+    session.room={'room_code':'12345','playing':False,'humans':1,'robots':0,'players':1,'mode':{'mode':3}}
+    presses=[]
+    async def click(scene,control,ctx,*,submit=None):
+        assert s.operations.arm_id
+        assert s.operations.get(s.operations.arm_id)['status']=='waiting_game'
+        if failure=='invisible':
+            raise LobbyError('lobby_control_not_visible_or_available')
+        if failure=='stopped':
+            s.executor.mouse.stop.set()
+            ctx.check()
+        ctx.before_submit(submit)
+        presses.append(control)
+        if failure=='rejected':
+            session.latest[submit]={'observed_mono':time.monotonic(),'error_code':1001}
+    s.lobby_ui.click=click
+    monkeypatch.setattr(PracticeRooms,'ACK_TIMEOUT',.01)
+    command=request('failed-prearmed-start','room',room_code='12345',operation='start',takeover=True)
+    result=await finish(s,command)
+    assert not s.started
+    if failure=='unknown':
+        assert result['status']=='uncertain' and result['result']['autoplay_prepared']
+        assert s.operations.arm_id
+        await s.operations.stop('test_stop')
+    else:
+        assert result['status']=='failed' and not s.operations.arm_id
+    assert (await s.operations.submit(command))==result
+    assert len(presses)==(1 if failure in ['rejected','unknown'] else 0)
+    await s.client.close()
+
+
+async def test_room_change_revokes_prepared_grant_without_starting_another_room(service):
+    s=service
+    s.engine.lobby_session.room={'room_code':'12345','playing':False,'mode':{'mode':3}}
+    from majsoul_llm.practice import RoomAction
+    cid=await s.operations.prepare_room_start(RoomAction(command_id='bind-room',room_code='12345',action='start',takeover=True))
+    assert s.operations.get(cid)['status']=='waiting_game'
+    s.engine.lobby_session.room={'room_code':'99999','playing':False,'mode':{'mode':3}}
+    await asyncio.wait_for(s.operations.arm_task,1)
+    assert s.operations.get(cid)['reason']=='room_changed_while_waiting' and not s.started
+    await s.client.close()
+
+
+async def test_first_action_uses_real_coordinator_before_room_start_response(service,state):
+    s=service
+    session=s.engine.lobby_session
+    session.room={'room_code':'12345','playing':False,'humans':1,'robots':0,'players':1,'mode':{'mode':3}}
+    engine=Engine(s.store)
+    engine.lobby_session=session
+    s.engine=engine
+    order=[]
+    first_input=asyncio.Event()
+    class Model:
+        async def decide(self,context,deadline):
+            assert 'startRoom' not in session.latest
+            order.append('model_first_window')
+            decision,action=context.validate({'q':context.q,'a':next(iter(context.actions)),'r':'fixture','p':None})
+            return decision,action,{}
+    async def bind(*,clear_stop=True):
+        assert not clear_stop
+        order.append('bind')
+    async def execute(actual,action,deadline):
+        assert 'startRoom' not in session.latest and s.input_lease.owner is None
+        assert actual.operation and not actual.operation.historical and deadline>time.monotonic()
+        order.append('first_input')
+        first_input.set()
+        return time.monotonic()
+    s.executor.bind_dedicated=bind
+    s.executor.execute=execute
+    s.executor.lease=s.input_lease
+    s.coordinator=Coordinator(s.settings,engine,Model(),s.executor)
+    engine.on_state=s.coordinator.changed
+    async def click(scene,control,ctx,*,submit=None):
+        assert s.operations.get(s.operations.arm_id)['status']=='waiting_game'
+        assert order==['bind']
+        ctx.before_submit(submit)
+        order.append('start_press')
+        session.room['playing']=True
+        await engine.message({'method':'.lq.FastTest.authGame','direction':'request','connection':'fixture',
+            'data':{'account_id':101,'game_uuid':'test'}})
+        await engine.message({'method':'.lq.FastTest.authGame','direction':'response','connection':'fixture',
+            'data':{'seat_list':[101,102,103,104],'game_config':{'mode':{'mode':3}}}})
+        await engine.action('ActionNewRound',{'tiles':state.hand,'scores':[25000]*4,'doras':['9p'],
+            'operation':{'seat':0,'operation_list':[{'type':1,'combination':[]}]}},0)
+    s.lobby_ui.click=click
+    async def late_ack():
+        await asyncio.wait_for(first_input.wait(),2)
+        session.latest['startRoom']={'observed_mono':time.monotonic(),'error_code':0}
+        order.append('start_response')
+    ack_task=asyncio.create_task(late_ack())
+    try:
+        result=await finish(s,request('prearmed-first-window','room',room_code='12345',operation='start',takeover=True))
+        await ack_task
+        assert result['status']=='succeeded' and result['result']['takeover']=='active'
+        assert order.index('first_input')<order.index('start_response')
+        assert len(s.store.records('decision'))==1 and not s.store.records('decision_failure')
+    finally:
+        ack_task.cancel()
+        await asyncio.gather(ack_task,return_exceptions=True)
+        await s.operations.stop('test_finished')
+        await s.client.close()
+
+
+@pytest.mark.parametrize('gate',['missing_key','shadow_grant','shadow_start','expired_grant','changed_room'])
+async def test_unprepared_room_start_never_presses(service,gate):
+    s=service
+    session=s.engine.lobby_session
+    session.room={'room_code':'12345','playing':False,'humans':1,'robots':0,'players':1,'mode':{'mode':3}}
+    if gate=='missing_key':
+        s.settings.api_key=SecretStr('')
+    if gate=='shadow_grant':
+        await finish(s,request('shadow-before-start','arm',shadow=True,seconds=10))
+    if gate=='shadow_start':
+        await finish(s,request('shadow-start-before-room','shadow'))
+    if gate=='expired_grant':
+        await finish(s,request('expiring-before-start','arm',seconds=10))
+    async def bind(**kwargs):
+        if gate=='expired_grant':
+            await s.operations.revoke_arm('test_expired')
+        if gate=='changed_room':
+            session.room['room_code']='99999'
+    s.executor.bind_dedicated=bind
+    async def click(*args,**kwargs):
+        raise AssertionError('unprepared start must not click')
+    s.lobby_ui.click=click
+    result=await finish(s,request('unprepared-room','room',room_code='12345',operation='start',takeover=True))
+    assert result['status']=='failed' and result['reason']!='operation_unavailable_assertionerror'
+    assert not s.started and not s.store.records('room_command')
+    await s.operations.stop('cleanup')
+    await s.client.close()
+
+
+async def test_local_room_start_also_prepares_before_press_with_legacy_false_flag(service,state):
+    from majsoul_llm.practice import PracticeRooms
+    s=service
+    s.practice=PracticeRooms(s)
+    session=s.engine.lobby_session
+    session.room={'room_code':'12345','playing':False,'humans':1,'robots':0,'players':1,'mode':{'mode':3}}
+    state.operation=None
+    async def click(scene,control,ctx,*,submit=None):
+        assert s.operations.get(s.operations.arm_id)['status']=='waiting_game'
+        ctx.before_submit(submit)
+        session.latest[submit]={'observed_mono':time.monotonic(),'error_code':0}
+        session.room['playing']=True
+        s.engine.state=state
+        s.engine.authenticated_mono=time.monotonic()
+    s.lobby_ui.click=click
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(s.settings,s)),base_url='http://testserver') as client:
+        response=await client.post('/control/room',headers={'Authorization':'Bearer '+s.settings.control_token.get_secret_value()},
+            json={'command_id':'local-prearmed','room_code':'12345','action':'start','takeover':False})
+        assert response.status_code==200 and response.json()['takeover']=='active'
+        assert s.started==[False]
     await s.client.close()

@@ -21,23 +21,41 @@ class RoomAction(Record):
 class PracticeRooms:
     ACK_TIMEOUT = 12
 
-    def __init__(self, service, *, solo_only=True, handoff=None):
+    def __init__(self, service, *, solo_only=True):
         self.service = service
         self.solo_only = solo_only
-        self.handoff = handoff
 
     async def run(self, command):
+        store=self.service.store
+        previous=next((r['payload'] for r in store.records('room_command',limit=1000)
+                       if r['payload']['request']['command_id']==command.command_id),None)
+        if previous:
+            if previous['request']!=command.model_dump():
+                raise LobbyError('command_id_content_conflict')
+            return previous
+        operations=getattr(self.service,'operations',None)
+        authorization=None
+        try:
+            if command.action=='start' and (command.takeover or operations and operations.arm_id):
+                if not operations:
+                    raise LobbyError('prearmed_takeover_adapter_required')
+                authorization=operations.arm_id
+                authorization=await operations.prepare_room_start(command)
+            result=await self._run(command,authorization)
+            if authorization:
+                result=await operations.room_start_result(authorization,result)
+                store.record('room_command',result)
+            return result
+        except BaseException:
+            if authorization:
+                await operations.cancel_room_start(authorization,'room_start_failed_or_stopped')
+            raise
+
+    async def _run(self, command, authorization):
         service = self.service
         store, session = service.store, service.engine.lobby_session
         request = command.model_dump()
-        previous = next((r["payload"] for r in store.records("room_command", limit=1000)
-                         if r["payload"]["request"]["command_id"] == command.command_id), None)
-        if previous:
-            if previous["request"] != request:
-                raise LobbyError("command_id_content_conflict")
-            return previous
         generation = session.generation
-        old_match = service.engine.state.match_id if service.engine.state else None
         solo_only = self.solo_only
 
         class Context:
@@ -47,6 +65,8 @@ class PracticeRooms:
                     raise LobbyError("active_game_requires_handoff")
                 if service.executor.mouse.stop.is_set():
                     raise LobbyError("navigation_stopped")
+                if authorization and (service.operations.arm_id!=authorization or service.operations.arm_task.done()):
+                    raise LobbyError('autoplay_not_prepared_before_room_start')
                 if not (session.authenticated and session.generation == generation and session.room
                         and session.room["room_code"] == command.room_code and not session.room.get("playing")):
                     raise LobbyError("practice_room_changed")
@@ -62,7 +82,8 @@ class PracticeRooms:
         async with service.input_lease.hold("room:"+command.command_id):
             if service.navigator.busy():
                 raise LobbyError("input_busy")
-            service.executor.mouse.stop.clear()
+            if not authorization:
+                service.executor.mouse.stop.clear()
             ctx = Context()
             ctx.check()
             if command.action in ('ready','unready') and session.prepared is (command.action == 'ready'):
@@ -77,65 +98,49 @@ class PracticeRooms:
                       else "readyPlay" if command.action in ('ready','unready') else None)
             before = time.monotonic()
             await service.lobby_ui.click(scene, control, ctx, submit=method)
-            if method is None:
-                result = {"request":request, "status":"dialog_opened"}
-            else:
-                deadline = time.monotonic()+self.ACK_TIMEOUT
-                ack = None
-                while time.monotonic() < deadline:
-                    ack = session.latest.get(method)
-                    if ack and ack["observed_mono"] >= before:
-                        break
-                    if service.executor.mouse.stop.is_set():
-                        raise LobbyError("navigation_stopped")
-                    if command.action == 'leave':
-                        try:
-                            if await service.lobby_ui.observe() == 'confirm_leave':
-                                break
-                        except WaitingUser:
-                            pass
-                    await asyncio.sleep(.05)
-                if not ack or ack["observed_mono"] < before:
-                    scene = None
-                    if command.action == 'leave':
-                        try:
-                            scene = await service.lobby_ui.observe()
-                        except WaitingUser:
-                            pass
-                    result = ({"request":request, "status":"dialog_opened", "method":method}
-                              if scene == 'confirm_leave' else
-                              {"request":request, "status":"uncertain", "method":method,
-                               "reason":"server_confirmation_not_observed"})
-                else:
-                    result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
-                              "error_code":ack["error_code"]}
-                    if command.action in ('ready','unready') and not ack['error_code']:
-                        expected=command.action == 'ready'
-                        result.update(status='confirmed' if ack.get('ready') is expected else 'uncertain',
-                                      prepared=ack.get('ready'))
-            store.record("room_command", result)
-        if command.action == 'start' and command.takeover and result['status'] == 'confirmed':
-            deadline = time.monotonic()+35
+            if command.action!='start':
+                return await self._observe_result(command,request,session,method,before)
+        # The first gameplay event may precede the start response. Do not hold
+        # the UI lease while waiting for that response and block the prearmed AI.
+        return await self._observe_result(command,request,session,method,before)
+
+    async def _observe_result(self, command, request, session, method, before):
+        service=self.service
+        if method is None:
+            result = {"request":request, "status":"dialog_opened"}
+        else:
+            deadline = time.monotonic()+self.ACK_TIMEOUT
+            ack = None
             while time.monotonic() < deadline:
-                if service.executor.mouse.stop.is_set():
+                ack = session.latest.get(method)
+                if ack and ack["observed_mono"] >= before:
                     break
-                state = service.engine.state
-                if (state and state.match_id != old_match and state.lifecycle == 'active'
-                        and state.completeness == 'full' and state.consistent and state.round_uid
-                        and service.engine.authenticated_mono >= before
-                        and session.generation == generation):
-                    if self.handoff:
-                        await self.handoff()
-                    else:
-                        await service.executor.bind_dedicated(clear_stop=False)
-                        if service.executor.mouse.stop.is_set():
+                if service.executor.mouse.stop.is_set():
+                    raise LobbyError("navigation_stopped")
+                if command.action == 'leave':
+                    try:
+                        if await service.lobby_ui.observe() == 'confirm_leave':
                             break
-                        await service.coordinator.start(shadow=False)
-                    result = {**result,'takeover':'active' if service.coordinator.enabled else 'not_enabled',
-                              'match_id':state.match_id}
-                    store.record('room_command',result)
-                    return result
+                    except WaitingUser:
+                        pass
                 await asyncio.sleep(.05)
-            result = {**result,'takeover':'waiting_for_fresh_game'}
-            store.record('room_command',result)
+            if not ack or ack["observed_mono"] < before:
+                scene = None
+                if command.action == 'leave':
+                    try:
+                        scene = await service.lobby_ui.observe()
+                    except WaitingUser:
+                        pass
+                result = ({"request":request, "status":"dialog_opened", "method":method}
+                          if scene == 'confirm_leave' else
+                          {"request":request, "status":"uncertain", "method":method,
+                           "reason":"server_confirmation_not_observed"})
+            else:
+                result = {"request":request, "status":"confirmed" if not ack["error_code"] else "rejected",
+                          "error_code":ack["error_code"]}
+                if command.action in ('ready','unready') and not ack['error_code']:
+                    expected=command.action == 'ready'
+                    result.update(status='confirmed' if ack.get('ready') is expected else 'uncertain',
+                                  prepared=ack.get('ready'))
+        service.store.record("room_command", result)
         return result
