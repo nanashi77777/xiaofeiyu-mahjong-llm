@@ -3107,10 +3107,14 @@
         "失败/拒绝/停止撤销、未知不重按、重复命令幂等；面板及QQ状态明确预备与实战，隔离回归及无新对局部署核验"
       ],
       "evidence": [
-        "512 full pytest passed; final 17 affected tests and 1 added local start test passed; ruff and registry passed",
-        "Real Engine/Coordinator fixture processes first action before late startRoom response; durable authorization and binding precede press, legacy false flag covered, no real model or game"
+        "512 full pytest passed; final affected suites passed including 17 tests after before-press deadline correction and 1 added local start test; ruff and registry passed",
+        "Real Engine/Coordinator fixture processes first action before late startRoom response; durable authorization and binding precede press, legacy false flag covered, no real model or game",
+        "Mahjong-only reload verified code 4d29501 and matching source digest; connected, autoplay disabled and unarmed; existing QQ operation credential status HTTP 200; 33 matches/24327 events/3 knowledge/2884 usage records unchanged"
       ],
-      "commits": [],
+      "commits": [
+        "265dd971b149c9550b48fe3baa04244a9cbef763",
+        "4d29501a78667c30b4987e1df9ee84f47aa250ce"
+      ],
       "completed_record": "docs/development/completed/DEV-098-prearmed-room-start.md",
       "completed_on": "2026-11-04"
     }

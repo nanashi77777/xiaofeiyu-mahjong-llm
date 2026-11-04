@@ -2,7 +2,9 @@
 
 2026-11-04（Asia/Shanghai），DEV-098。用户明确要求先开启自动接管，再开始对局。仅修改麻将项目，QQ主项目只读；真实实战与综合验收保持暂停。
 
-## 开发TODO
+## 开发步骤（已完成）
+
+以下步骤已由DEV-098实现并验证，任务已从TODO消费到DONE；部署与验证范围见[完成记录](../development/completed/DEV-098-prearmed-room-start.md)。真实新开局和综合验收仍暂停。
 
 1. 复现room/start/takeover旧流程在点击开始时尚无接管授权，以及已有arm反而被拒绝的问题；隔离模拟开局事件先于startRoom回执到达。
 2. 所有QQ及本机room/start必须先校验当前房间、绑定专用窗口，再持久保存一次性接管授权，然后才能点击开始，兼容旧QQ工具默认takeover=false；无预备不能点击。已有合法arm复用原授权/期限，不重复授权、不延长；shadow不得被静默升级为真实输入。
