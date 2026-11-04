@@ -3146,6 +3146,37 @@
       "implementation_progress": "code_ready",
       "completed_record": "docs/development/completed/DEV-099-legacy-learning-runtime-repair.md",
       "completed_on": "2026-11-04"
+    },
+    {
+      "id": "VAL-015",
+      "kind": "validation",
+      "milestone": "M9",
+      "title": "启动修复后单局人机真实模型出牌与回执检验",
+      "status": "done",
+      "depends_on": [
+        "DEV-098",
+        "DEV-099"
+      ],
+      "design_refs": [
+        "docs/design/autoplay-startup-live-check.md"
+      ],
+      "acceptance": [
+        "开局前持久预备，首个窗口真实模型决策并后台点击，旧经验及教学上下文正常",
+        "一次人机局至少连续5次正确回执含3次弃牌，停止后保留原记录，不扩展整场或五秒验收"
+      ],
+      "evidence": [
+        "One production four-player AI room with 60+0: prearm reused before Start; five real model decisions, background clicks and correct discard confirmations; stopped at target",
+        "Readonly original-event replay verified exact hand instance/tile/tsumogiri, one request and accepted ack per window; two legacy memories recalled in all five; no failure or mismatch in frozen scope; client input origin retained as unverified",
+        "Decision usage 43270 input + 419 output = 43689; later automatic review 27252 separately; read-to-mouse p50 7203ms max 7781ms; final disabled/unarmed/input idle and match ended; local raw evidence retained"
+      ],
+      "commits": [
+        "265dd971b149c9550b48fe3baa04244a9cbef763",
+        "4d29501a78667c30b4987e1df9ee84f47aa250ce",
+        "7aae983335f8c66804cd38656d7b30b26ae12b7d",
+        "23b80fe4502c2b67e619cfa281fac3b504f36902"
+      ],
+      "completed_record": "docs/development/completed/VAL-015-autoplay-startup-live-check.md",
+      "completed_on": "2026-11-04"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",
