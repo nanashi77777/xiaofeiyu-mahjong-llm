@@ -3081,9 +3081,12 @@
       ],
       "evidence": [
         "501 full pytest passed in 130.10s; ruff and registry validation passed; three original startup failures reproduced before repair",
-        "Actual Chrome fully intercepted UI start/arm/pause verified persistent failure and waiting/cancelled states; no real game or model call"
+        "Actual Chrome fully intercepted UI start/arm/pause verified persistent failure and waiting/cancelled states; no real game or model call",
+        "Deployed exact implementation build; authenticated panel and operation API both wait disabled then stop/cancel; archive/event/teaching/token counts unchanged. DSH four mapped QQ sessions each expose all nine Mahjong tools; no QQ edits, messages, new games or model usage records."
       ],
-      "commits": [],
+      "commits": [
+        "1bc0f13d9e8b741d9123d341ca00d020c1b75ffb"
+      ],
       "completed_record": "docs/development/completed/DEV-097-autoplay-startup-repair.md",
       "completed_on": "2026-11-04"
     }
