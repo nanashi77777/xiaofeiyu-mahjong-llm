@@ -3123,7 +3123,7 @@
       "kind": "development",
       "milestone": "M9",
       "title": "历史经验联合召回兼容及重复输入模式应用不停机",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "DEV-096",
         "DEV-098"
@@ -3135,9 +3135,17 @@
         "历史经验缺失新增字段仍完整保留文本/证据/版本并进入模型上下文，联合教学召回与实际Coordinator链路通过",
         "重复应用相同模式不撤销接管，非法模式无停机副作用，实际切换仍停止；仅麻将服务部署及真实恢复结果据实记录"
       ],
-      "evidence": [],
-      "commits": [],
-      "implementation_progress": "code_ready"
+      "evidence": [
+        "Actual archive reproduced pre-model KeyError for legacy applies_to; full 525 pytest passed and 80 affected tests passed; final browser extension 22 tests and ruff passed",
+        "Readonly actual context preserved all 14 legal candidates and recalled 5 lessons; final deployed build23b80fe matches source and minimized browser logged in; prior AI match did not resume after reload, no new match started and no real play success claimed"
+      ],
+      "commits": [
+        "7aae983335f8c66804cd38656d7b30b26ae12b7d",
+        "23b80fe4502c2b67e619cfa281fac3b504f36902"
+      ],
+      "implementation_progress": "code_ready",
+      "completed_record": "docs/development/completed/DEV-099-legacy-learning-runtime-repair.md",
+      "completed_on": "2026-11-04"
     }
   ],
   "confirmed_data_mode": "ws_incremental_local_state_independent_complete_decision_requests",

@@ -110,3 +110,4 @@
 | DEV-096 | 实现 | 管理员对话技巧、全局经验联合召回与实际决策接入 | [完成记录](docs/development/completed/DEV-096-dialogue-mahjong-learning.md) |
 | DEV-097 | 实现 | 面板统一自动绑定与等待首局完整后接管修复 | [完成记录](docs/development/completed/DEV-097-autoplay-startup-repair.md) |
 | DEV-098 | 实现 | 房间开始前预挂一次性接管并覆盖首个行动窗口 | [完成记录](docs/development/completed/DEV-098-prearmed-room-start.md) |
+| DEV-099 | 实现 | 历史经验联合召回兼容及重复输入模式应用不停机 | [完成记录](docs/development/completed/DEV-099-legacy-learning-runtime-repair.md) |
